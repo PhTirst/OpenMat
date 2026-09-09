@@ -1,0 +1,34 @@
+{
+  "schema_version": 2,
+  "case_id": "aggregate_heterogeneous_cell",
+  "oracle": {"name": "fixture", "release": "test"},
+  "outcome": "ok",
+  "value": {
+    "class": "cell",
+    "size": [2, 2],
+    "ndims": 2,
+    "numel": 4,
+    "complex": false,
+    "kind": "cell",
+    "items": [
+      {
+        "class": "double", "size": [1, 1], "ndims": 2, "numel": 1,
+        "complex": false, "kind": "numeric", "real": ["11"], "imag": ["0"]
+      },
+      {
+        "class": "char", "size": [1, 1], "ndims": 2, "numel": 1,
+        "complex": false, "kind": "char", "code_units": [120]
+      },
+      {
+        "class": "string", "size": [1, 1], "ndims": 2, "numel": 1,
+        "complex": false, "kind": "string",
+        "string_code_units": [[104, 105]], "missing": [false]
+      },
+      {
+        "class": "uint8", "size": [1, 1], "ndims": 2, "numel": 1,
+        "complex": false, "kind": "integer",
+        "integer": [{"real": "255", "imaginary": "0"}]
+      }
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "schema_version": 2,
+  "id": "matrix_left_single_complex",
+  "description": "Complex single left division preserves single class, complexness, and solution shape.",
+  "source": "programs/matrix_left_single_complex.m",
+  "tags": ["r2022b", "wire-v2", "numeric", "matrix-division", "left-divide", "square", "single", "complex"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "single",
+      "size": [2, 1],
+      "ndims": 2,
+      "numel": 2,
+      "complex": true,
+      "kind": "numeric",
+      "real": ["0.75", "0.25"],
+      "imag": ["0.75", "-0.25"],
+      "tolerance": {"absolute": 5e-6, "relative": 5e-6}
+    }
+  }
+}

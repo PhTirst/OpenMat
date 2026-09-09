@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "class_plus_overload",
+  "description": "Binary addition dispatches a user-defined plus method for same-class operands.",
+  "source": "programs/class_plus_overload.m",
+  "tags": ["r2022b", "classdef", "operator-overload", "arithmetic", "dispatch"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 1],
+      "ndims": 2,
+      "numel": 1,
+      "kind": "numeric",
+      "real": ["12"],
+      "imag": ["0"]
+    }
+  }
+}

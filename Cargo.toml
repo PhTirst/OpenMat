@@ -1,0 +1,49 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/openmat-source",
+    "crates/openmat-syntax",
+    "crates/openmat-parser",
+    "crates/openmat-hir",
+    "crates/openmat-compiler",
+    "crates/openmat-array",
+    "crates/openmat-sparse",
+    "crates/openmat-sparse-provider",
+    "crates/openmat-fft",
+    "crates/openmat-linalg",
+    "crates/openmat-mat",
+    "crates/openmat-openblas",
+    "crates/openmat-value",
+    "crates/openmat-ffi",
+    "crates/openmat-oex",
+    "crates/openmat-bytecode",
+    "crates/openmat-object",
+    "crates/openmat-runtime",
+    "crates/openmat-text",
+    "crates/openmat-builtins",
+    "crates/openmat-protocol",
+    "crates/openmat-kernel",
+    "crates/openmat-server",
+    "crates/openmat-lsp",
+    "crates/openmat-cli",
+    "crates/openmat-graphics-model",
+    "crates/openmat-plot-protocol",
+    "crates/openmat-plot-mir",
+    "crates/openmat-plot-layout",
+    "crates/openmat-plot-geometry",
+    "crates/openmat-plot-wgpu",
+    "crates/openmat-plot-web",
+]
+
+[workspace.package]
+license = "AGPL-3.0-only"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[workspace.lints.clippy]
+all = "warn"
+pedantic = "warn"

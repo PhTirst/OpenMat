@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "function_multiple_outputs",
+  "description": "A function call assigns three output values in order.",
+  "source": "programs/function_multiple_outputs.m",
+  "tags": ["r2022b", "functions", "multiple-output"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 3],
+      "ndims": 2,
+      "numel": 3,
+      "kind": "numeric",
+      "real": ["3", "9", "27"],
+      "imag": ["0", "0", "0"]
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "schema_version": 2,
+  "id": "builtin_norm_single_complex",
+  "description": "norm preserves the R2022b single output class for real and complex single matrices.",
+  "source": "programs/builtin_norm_single_complex.m",
+  "tags": ["r2022b", "wire-v2", "core-numeric-builtins", "norm-matrix", "single", "complex"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "single",
+      "size": [1, 2],
+      "ndims": 2,
+      "numel": 2,
+      "complex": false,
+      "kind": "numeric",
+      "real": ["5.464986", "5.791288"],
+      "imag": ["0", "0"],
+      "tolerance": {"absolute": 1e-5, "relative": 1e-6}
+    }
+  }
+}

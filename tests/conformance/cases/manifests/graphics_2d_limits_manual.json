@@ -1,0 +1,181 @@
+{
+  "schema_version": 2,
+  "id": "graphics_2d_limits_manual",
+  "description": "Explicit xlim/ylim values select manual modes and remain fixed when Line data changes.",
+  "source": "programs/graphics_2d_limits_manual.m",
+  "tags": [
+    "r2022b",
+    "wire-v2",
+    "graphics",
+    "plot-engine",
+    "graphics-2d",
+    "xlim",
+    "ylim",
+    "limits",
+    "manual"
+  ],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "cell",
+      "size": [
+        1,
+        4
+      ],
+      "ndims": 2,
+      "numel": 4,
+      "complex": false,
+      "kind": "cell",
+      "items": [
+        {
+          "class": "double",
+          "size": [
+            1,
+            4
+          ],
+          "ndims": 2,
+          "numel": 4,
+          "complex": false,
+          "kind": "numeric",
+          "real": [
+            "10",
+            "20",
+            "-2",
+            "2"
+          ],
+          "imag": [
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "class": "cell",
+          "size": [
+            1,
+            2
+          ],
+          "ndims": 2,
+          "numel": 2,
+          "complex": false,
+          "kind": "cell",
+          "items": [
+            {
+              "class": "char",
+              "size": [
+                1,
+                6
+              ],
+              "ndims": 2,
+              "numel": 6,
+              "complex": false,
+              "kind": "char",
+              "code_units": [
+                109,
+                97,
+                110,
+                117,
+                97,
+                108
+              ]
+            },
+            {
+              "class": "char",
+              "size": [
+                1,
+                6
+              ],
+              "ndims": 2,
+              "numel": 6,
+              "complex": false,
+              "kind": "char",
+              "code_units": [
+                109,
+                97,
+                110,
+                117,
+                97,
+                108
+              ]
+            }
+          ]
+        },
+        {
+          "class": "double",
+          "size": [
+            1,
+            4
+          ],
+          "ndims": 2,
+          "numel": 4,
+          "complex": false,
+          "kind": "numeric",
+          "real": [
+            "10",
+            "20",
+            "-2",
+            "2"
+          ],
+          "imag": [
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "class": "cell",
+          "size": [
+            1,
+            2
+          ],
+          "ndims": 2,
+          "numel": 2,
+          "complex": false,
+          "kind": "cell",
+          "items": [
+            {
+              "class": "char",
+              "size": [
+                1,
+                6
+              ],
+              "ndims": 2,
+              "numel": 6,
+              "complex": false,
+              "kind": "char",
+              "code_units": [
+                109,
+                97,
+                110,
+                117,
+                97,
+                108
+              ]
+            },
+            {
+              "class": "char",
+              "size": [
+                1,
+                6
+              ],
+              "ndims": 2,
+              "numel": 6,
+              "complex": false,
+              "kind": "char",
+              "code_units": [
+                109,
+                97,
+                110,
+                117,
+                97,
+                108
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

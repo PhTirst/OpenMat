@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OpenMatUI version="2" class="SignalApp">
+  <Component id="25d263e8-1259-4e5c-9c12-1fbb56737f9a" type="Window" name="MainWindow">
+    <Layout mode="column" x="16" y="16" width="180" height="220" row="1" column="1" rowSpan="1" columnSpan="1" columns="2" gap="12" padding="20" grow="1" />
+    <Property name="Height" type="number">560</Property>
+    <Property name="Title" type="string">信号分析工具</Property>
+    <Property name="Width" type="number">880</Property>
+    <Event name="Startup" handler="app.onStartup" />
+    <Component id="8d504e08-9466-4d61-8e6f-b6f6174eaf14" type="Label" name="Heading">
+      <Layout mode="column" x="16" y="16" width="180" height="38" row="1" column="1" rowSpan="1" columnSpan="1" columns="2" gap="12" padding="12" grow="0" />
+      <Property name="FontSize" type="number">21</Property>
+      <Property name="Text" type="string">信号分析</Property>
+    </Component>
+    <Component id="7bf54205-31d5-49b4-8615-e4682026b50b" type="RowLayout" name="Content">
+      <Layout mode="row" x="16" y="16" width="180" height="220" row="1" column="1" rowSpan="1" columnSpan="1" columns="2" gap="20" padding="0" grow="1" />
+      <Component id="b89892b4-aa71-45bd-b2cf-b90bf6a8564b" type="Panel" name="Parameters">
+        <Layout mode="column" x="16" y="16" width="230" height="220" row="1" column="1" rowSpan="1" columnSpan="1" columns="2" gap="12" padding="12" grow="0" />
+        <Property name="Title" type="string">参数设置</Property>
+        <Component id="1c3447ba-adca-4f4c-afae-d919420e4a88" type="Label" name="FrequencyLabel">
+          <Layout mode="column" x="16" y="16" width="180" height="36" row="1" column="1" rowSpan="1" columnSpan="1" columns="2" gap="12" padding="12" grow="0" />
+          <Property name="Text" type="string">频率 / Hz</Property>
+        </Component>
+        <Component id="7abaaf65-d112-4d9d-9947-3dbaa3bdad06" type="NumericField" name="Frequency">
+          <Layout mode="column" x="16" y="16" width="180" height="36" row="1" column="1" rowSpan="1" columnSpan="1" columns="2" gap="12" padding="12" grow="0" />
+          <Property name="Max" type="number">20</Property>
+          <Property name="Min" type="number">0.1</Property>
+          <Property name="Step" type="number">0.1</Property>
+          <Property name="Value" type="number">2</Property>
+        </Component>
+        <Component id="9b34f5cc-859c-4ea4-a6eb-7129e14f0548" type="Label" name="AmplitudeLabel">
+          <Layout mode="column" x="16" y="16" width="180" height="36" row="1" column="1" rowSpan="1" columnSpan="1" columns="2" gap="12" padding="12" grow="0" />
+          <Property name="Text" type="string">幅度</Property>
+        </Component>
+        <Component id="bb2f629f-854e-4c55-94ce-623539672909" type="Slider" name="Amplitude">
+          <Layout mode="column" x="16" y="16" width="180" height="36" row="1" column="1" rowSpan="1" columnSpan="1" columns="2" gap="12" padding="12" grow="0" />
+          <Property name="Max" type="number">5</Property>
+          <Property name="Min" type="number">0</Property>
+          <Property name="Step" type="number">0.1</Property>
+          <Property name="Value" type="number">1</Property>
+        </Component>
+        <Component id="6e8f7ef1-80ad-450b-953a-14c58c819977" type="CheckBox" name="ShowGrid">
+          <Layout mode="column" x="16" y="16" width="180" height="36" row="1" column="1" rowSpan="1" columnSpan="1" columns="2" gap="12" padding="12" grow="0" />
+          <Property name="Text" type="string">显示网格</Property>
+          <Property name="Value" type="boolean">true</Property>
+        </Component>
+        <Component id="1b8ceab9-a8a6-47fc-9835-a00f608b92d6" type="Button" name="RunButton">
+          <Layout mode="column" x="16" y="16" width="180" height="36" row="1" column="1" rowSpan="1" columnSpan="1" columns="2" gap="12" padding="12" grow="0" />
+          <Property name="Text" type="string">运行分析</Property>
+          <Property name="Variant" type="string">primary</Property>
+          <Event name="Clicked" handler="app.onRun" />
+        </Component>
+      </Component>
+      <Component id="50dd9755-5640-44d0-a74d-dd267010c7bd" type="Panel" name="Results">
+        <Layout mode="column" x="16" y="16" width="180" height="220" row="1" column="1" rowSpan="1" columnSpan="1" columns="2" gap="12" padding="12" grow="1" />
+        <Property name="Title" type="string">时域波形</Property>
+        <Component id="60c3af84-5ebc-47fd-902f-82fa68948999" type="PlotView" name="Waveform">
+          <Layout mode="column" x="16" y="16" width="180" height="260" row="1" column="1" rowSpan="1" columnSpan="1" columns="2" gap="12" padding="12" grow="1" />
+          <Property name="FigureIndex" type="number">1</Property>
+          <Property name="Title" type="string">正弦信号</Property>
+        </Component>
+      </Component>
+    </Component>
+    <Component id="9374b8f0-cf3e-4de7-b530-800832ac4cbd" type="RowLayout" name="Footer">
+      <Layout mode="row" x="16" y="16" width="180" height="36" row="1" column="1" rowSpan="1" columnSpan="1" columns="2" gap="12" padding="0" grow="0" />
+      <Component id="42ddc7e4-939c-487a-9861-c66739e3d40c" type="StatusLamp" name="Status">
+        <Layout mode="column" x="16" y="16" width="180" height="36" row="1" column="1" rowSpan="1" columnSpan="1" columns="2" gap="12" padding="12" grow="0" />
+        <Property name="Color" type="string">#247951</Property>
+        <Property name="Text" type="string">就绪</Property>
+      </Component>
+      <Component id="7f9cdcd2-fbaf-48db-bcb3-ddbd6d7ed85e" type="ProgressBar" name="Progress">
+        <Layout mode="column" x="16" y="16" width="180" height="36" row="1" column="1" rowSpan="1" columnSpan="1" columns="2" gap="12" padding="12" grow="1" />
+        <Property name="Value" type="number">0</Property>
+      </Component>
+    </Component>
+  </Component>
+</OpenMatUI>

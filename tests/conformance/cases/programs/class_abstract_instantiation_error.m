@@ -1,0 +1,1 @@
+openmat_result = OpenMatAbstractBase();

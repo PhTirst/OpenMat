@@ -1,0 +1,13 @@
+[package]
+license = "AGPL-3.0-only"
+name = "oex"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Rust SDK for OpenMat native extension plugins"
+
+[dependencies]
+oex-sys = { version = "0.1.0", path = "../oex-sys" }
+
+[lints]
+workspace = true

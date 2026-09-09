@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "case_id": "event_source_delete_cleanup",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "logical",
+    "size": [
+      1,
+      2
+    ],
+    "ndims": 2,
+    "numel": 2,
+    "kind": "logical",
+    "logical": [
+      false,
+      true
+    ]
+  }
+}

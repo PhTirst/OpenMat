@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "case_id": "size_numel_scalar_empty",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      6
+    ],
+    "ndims": 2,
+    "numel": 6,
+    "kind": "numeric",
+    "real": [
+      "1",
+      "1",
+      "1",
+      "0",
+      "3",
+      "0"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

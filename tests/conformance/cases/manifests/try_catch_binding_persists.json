@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "id": "try_catch_binding_persists",
+  "description": "A named catch binding remains an ordinary live scalar object after the try construct ends.",
+  "source": "programs/try_catch_binding_persists.m",
+  "tags": ["r2022b", "wire-v2", "single-try-r2022b", "try-catch", "control-flow", "binding", "scope"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical", "size": [1, 3], "ndims": 2, "numel": 3,
+      "complex": false, "kind": "logical", "logical": [true, true, true]
+    }
+  }
+}

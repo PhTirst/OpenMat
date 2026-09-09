@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OpenMatUI version="2" class="ParameterApp">
+  <Component id="926a55c1-881a-4329-bc28-bae2a1aa403c" type="Window" name="MainWindow">
+    <Layout mode="column" x="16" y="16" width="180" height="220" row="1" column="1" rowSpan="1" columnSpan="1" columns="2" gap="12" padding="12" grow="1" />
+    <Property name="Height" type="number">400</Property>
+    <Property name="Title" type="string">复合组件实例</Property>
+    <Property name="Width" type="number">1040</Property>
+    <Event name="Startup" handler="app.onStartup" />
+    <Component id="962a7a67-8137-4ac9-9ed2-14bb895c046f" type="Label" name="Heading">
+      <Layout mode="column" x="16" y="16" width="180" height="36" row="1" column="1" rowSpan="1" columnSpan="1" columns="2" gap="12" padding="12" grow="0" />
+      <Property name="FontSize" type="number">20</Property>
+      <Property name="Text" type="string">独立实例 · 共享组件定义</Property>
+    </Component>
+    <Component id="7bde9c3b-0c44-4372-aedc-3741b6f37bbf" type="GridLayout" name="Editors">
+      <Layout mode="grid" x="16" y="16" width="180" height="220" row="1" column="1" rowSpan="1" columnSpan="1" columns="2" gap="12" padding="0" grow="1" />
+      <Component id="5e06faa4-1fc4-492a-826a-c2967c51b798" type="ParameterEditor" name="First">
+        <Layout mode="grid" x="16" y="16" width="480" height="88" row="1" column="1" rowSpan="1" columnSpan="1" columns="3" gap="12" padding="12" grow="0" />
+        <Property name="Caption" type="string">频率</Property>
+        <Property name="Max" type="number">100</Property>
+        <Property name="Min" type="number">0</Property>
+        <Property name="Value" type="number">10</Property>
+        <Event name="ValueChanged" handler="app.onParameter" />
+      </Component>
+      <Component id="ecb23355-d5ae-46b5-8c84-272d9fc79c2c" type="ParameterEditor" name="Second">
+        <Layout mode="grid" x="16" y="16" width="480" height="88" row="1" column="2" rowSpan="1" columnSpan="1" columns="3" gap="12" padding="12" grow="0" />
+        <Property name="Caption" type="string">幅度</Property>
+        <Property name="Max" type="number">50</Property>
+        <Property name="Min" type="number">0</Property>
+        <Property name="Value" type="number">25</Property>
+        <Event name="ValueChanged" handler="app.onParameter" />
+      </Component>
+    </Component>
+    <Component id="c530da3d-3e26-42df-b713-99496be0a700" type="RowLayout" name="Actions">
+      <Layout mode="row" x="16" y="16" width="180" height="44" row="1" column="1" rowSpan="1" columnSpan="1" columns="2" gap="12" padding="0" grow="0" />
+      <Component id="43c3d6d4-5916-416a-b604-c53df93ebbed" type="Button" name="Add">
+        <Layout mode="column" x="16" y="16" width="180" height="36" row="1" column="1" rowSpan="1" columnSpan="1" columns="2" gap="12" padding="12" grow="0" />
+        <Property name="Text" type="string">添加动态实例</Property>
+        <Event name="Clicked" handler="app.onAdd" />
+      </Component>
+      <Component id="b245b96d-151f-4a19-80e4-06398e663360" type="Button" name="Remove">
+        <Layout mode="column" x="16" y="16" width="180" height="36" row="1" column="1" rowSpan="1" columnSpan="1" columns="2" gap="12" padding="12" grow="0" />
+        <Property name="Text" type="string">删除动态实例</Property>
+        <Event name="Clicked" handler="app.onRemove" />
+      </Component>
+      <Component id="da3bc681-9d8f-487c-a1fb-895718429a03" type="Button" name="Resize">
+        <Layout mode="column" x="16" y="16" width="180" height="36" row="1" column="1" rowSpan="1" columnSpan="1" columns="2" gap="12" padding="12" grow="0" />
+        <Property name="Text" type="string">切换窗口宽度</Property>
+        <Event name="Clicked" handler="app.onResize" />
+      </Component>
+    </Component>
+    <Component id="62bec2c2-2532-492c-93c2-021503b97f8e" type="Label" name="Status">
+      <Layout mode="column" x="16" y="16" width="180" height="36" row="1" column="1" rowSpan="1" columnSpan="1" columns="2" gap="12" padding="12" grow="0" />
+      <Property name="Text" type="string">就绪</Property>
+    </Component>
+  </Component>
+</OpenMatUI>

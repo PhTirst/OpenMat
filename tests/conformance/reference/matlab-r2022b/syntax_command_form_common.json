@@ -1,0 +1,50 @@
+{
+  "schema_version": 2,
+  "case_id": "syntax_command_form_common",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      13
+    ],
+    "ndims": 2,
+    "numel": 13,
+    "complex": false,
+    "kind": "numeric",
+    "real": [
+      "91",
+      "92",
+      "0",
+      "1",
+      "0",
+      "1",
+      "0",
+      "1",
+      "1",
+      "1",
+      "1",
+      "1",
+      "1"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "schema_version": 2,
+  "case_id": "aggregate_table_nested",
+  "oracle": { "name": "fixture", "release": "test" },
+  "outcome": "ok",
+  "value": {
+    "class": "cell",
+    "size": [1, 1],
+    "ndims": 2,
+    "numel": 1,
+    "complex": false,
+    "kind": "cell",
+    "items": [
+      {
+        "class": "table",
+        "size": [2, 2],
+        "ndims": 2,
+        "numel": 4,
+        "complex": false,
+        "kind": "table",
+        "variableNames": ["Score", "Label"],
+        "variables": [
+          {
+            "class": "double",
+            "size": [2, 2],
+            "ndims": 2,
+            "numel": 4,
+            "complex": false,
+            "kind": "numeric",
+            "real": ["1", "2", "3", "4"],
+            "imag": ["0", "0", "0", "0"]
+          },
+          {
+            "class": "string",
+            "size": [2, 1],
+            "ndims": 2,
+            "numel": 2,
+            "complex": false,
+            "kind": "string",
+            "string_code_units": [[65], [66]],
+            "missing": [false, false]
+          }
+        ]
+      }
+    ]
+  }
+}

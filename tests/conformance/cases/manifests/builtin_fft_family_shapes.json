@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "id": "builtin_fft_family_shapes",
+  "description": "FFT preserves single, promotes logical, and follows R2022b scalar and higher-dimensional shape rules.",
+  "source": "programs/builtin_fft_family_shapes.m",
+  "tags": ["r2022b", "wire-v2", "core-numeric-builtins", "fft"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 10],
+      "ndims": 2,
+      "numel": 10,
+      "complex": false,
+      "kind": "numeric",
+      "real": ["1", "1", "1", "3", "2", "3", "1", "4", "4", "1"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

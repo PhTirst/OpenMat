@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "id": "graphics_clf_resets_current_hold",
+  "description": "After clf removes the held Axes, gcf preserves the Figure and the replacement Axes is initially unheld.",
+  "source": "programs/graphics_clf_resets_current_hold.m",
+  "tags": ["r2022b", "wire-v2", "graphics", "plot-engine", "clf", "gcf", "gca", "ishold"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 3],
+      "ndims": 2,
+      "numel": 3,
+      "complex": false,
+      "kind": "numeric",
+      "real": ["1", "0", "0"],
+      "imag": ["0", "0", "0"]
+    }
+  }
+}

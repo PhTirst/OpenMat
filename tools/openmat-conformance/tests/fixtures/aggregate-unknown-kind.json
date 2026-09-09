@@ -1,0 +1,10 @@
+{
+  "schema_version": 2,
+  "case_id": "aggregate_unknown_kind",
+  "oracle": {"name": "fixture", "release": "test"},
+  "outcome": "ok",
+  "value": {
+    "class": "mystery", "size": [1, 1], "ndims": 2, "numel": 1,
+    "complex": false, "kind": "mystery"
+  }
+}

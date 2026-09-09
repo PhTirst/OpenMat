@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "case_id": "class_reflection_predicates",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "logical",
+    "size": [
+      1,
+      6
+    ],
+    "ndims": 2,
+    "numel": 6,
+    "kind": "logical",
+    "logical": [
+      true,
+      true,
+      true,
+      false,
+      true,
+      false
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schema_version": 2,
+  "id": "builtin_array_windows_cumulative",
+  "description": "cummin and cummax match R2022b direction, first-selected ties, complex magnitude-phase ordering, NaN policy, dimensions, native classes, and shaped empties.",
+  "source": "programs/builtin_array_windows_cumulative.m",
+  "tags": ["r2022b", "wire-v2", "core-numeric-builtins", "array-windows", "cumulative-extrema", "single", "integer", "complex", "nan", "empty"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1,58], "ndims": 2, "numel": 58,
+      "complex": false, "kind": "numeric",
+      "real": [
+        "3","3","2","2","1","3","NaN","NaN","NaN","NaN","3","3","3","3","3","3","1","2","1","0","1","0","4","0","4","0","5",
+        "1","1","1","1","1","1","1","1","1","-2","-2","-2","1","0","0","0","3","1","1","3","1","1","1","1","0","0","2","0","1","1","1"
+      ],
+      "imag": [
+        "0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0",
+        "0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0"
+      ]
+    }
+  }
+}

@@ -1,0 +1,128 @@
+{
+  "schema_version": 2,
+  "case_id": "matrix_empty_shapes",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "cell",
+    "size": [
+      1,
+      6
+    ],
+    "ndims": 2,
+    "numel": 6,
+    "complex": false,
+    "kind": "cell",
+    "items": [
+      {
+        "class": "double",
+        "size": [
+          2,
+          0
+        ],
+        "ndims": 2,
+        "numel": 0,
+        "complex": false,
+        "kind": "numeric",
+        "real": [],
+        "imag": []
+      },
+      {
+        "class": "double",
+        "size": [
+          0,
+          2
+        ],
+        "ndims": 2,
+        "numel": 0,
+        "complex": false,
+        "kind": "numeric",
+        "real": [],
+        "imag": []
+      },
+      {
+        "class": "double",
+        "size": [
+          3,
+          2
+        ],
+        "ndims": 2,
+        "numel": 6,
+        "complex": false,
+        "kind": "numeric",
+        "real": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "imag": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ]
+      },
+      {
+        "class": "double",
+        "size": [
+          0,
+          0
+        ],
+        "ndims": 2,
+        "numel": 0,
+        "complex": false,
+        "kind": "numeric",
+        "real": [],
+        "imag": []
+      },
+      {
+        "class": "double",
+        "size": [
+          0,
+          2
+        ],
+        "ndims": 2,
+        "numel": 0,
+        "complex": false,
+        "kind": "numeric",
+        "real": [],
+        "imag": []
+      },
+      {
+        "class": "double",
+        "size": [
+          2,
+          3
+        ],
+        "ndims": 2,
+        "numel": 6,
+        "complex": false,
+        "kind": "numeric",
+        "real": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "imag": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ]
+      }
+    ]
+  }
+}

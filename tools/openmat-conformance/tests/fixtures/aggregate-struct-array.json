@@ -1,0 +1,33 @@
+{
+  "schema_version": 2,
+  "case_id": "aggregate_struct_array",
+  "oracle": {"name": "fixture", "release": "test"},
+  "outcome": "ok",
+  "value": {
+    "class": "struct",
+    "size": [2, 2],
+    "ndims": 2,
+    "numel": 4,
+    "complex": false,
+    "kind": "struct",
+    "fields": ["beta", "alpha"],
+    "records": [
+      {
+        "beta": {"class": "double", "size": [1, 1], "ndims": 2, "numel": 1, "complex": false, "kind": "numeric", "real": ["1"], "imag": ["0"]},
+        "alpha": {"class": "logical", "size": [1, 1], "ndims": 2, "numel": 1, "complex": false, "kind": "logical", "logical": [true]}
+      },
+      {
+        "beta": {"class": "double", "size": [1, 1], "ndims": 2, "numel": 1, "complex": false, "kind": "numeric", "real": ["2"], "imag": ["0"]},
+        "alpha": {"class": "logical", "size": [1, 1], "ndims": 2, "numel": 1, "complex": false, "kind": "logical", "logical": [false]}
+      },
+      {
+        "beta": {"class": "double", "size": [1, 1], "ndims": 2, "numel": 1, "complex": false, "kind": "numeric", "real": ["3"], "imag": ["0"]},
+        "alpha": {"class": "logical", "size": [1, 1], "ndims": 2, "numel": 1, "complex": false, "kind": "logical", "logical": [true]}
+      },
+      {
+        "beta": {"class": "double", "size": [1, 1], "ndims": 2, "numel": 1, "complex": false, "kind": "numeric", "real": ["4"], "imag": ["0"]},
+        "alpha": {"class": "logical", "size": [1, 1], "ndims": 2, "numel": 1, "complex": false, "kind": "logical", "logical": [false]}
+      }
+    ]
+  }
+}

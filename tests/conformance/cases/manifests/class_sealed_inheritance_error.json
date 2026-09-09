@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "id": "class_sealed_inheritance_error",
+  "description": "A class cannot derive from a sealed direct superclass.",
+  "source": "programs/class_sealed_inheritance_error.m",
+  "tags": ["r2022b", "classdef", "class-advanced", "sealed", "inheritance", "error"],
+  "expected": {
+    "outcome": "error",
+    "error": { "category": "type-error" }
+  }
+}

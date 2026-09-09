@@ -1,0 +1,13 @@
+a = [1, 2; 3, 4; 5, 7];
+[q, r, e] = qr(a);
+[economy_q, economy_r, economy_p] = qr(a, 0);
+[vector_q, vector_r, vector_p] = qr(a, 'econ', 'vector');
+full_residual = a * e - q * r;
+orthogonality_residual = q' * q - eye(3);
+economy_residual = a(:, economy_p) - economy_q * economy_r;
+vector_residual = a(:, vector_p) - vector_q * vector_r;
+openmat_result = [ ...
+    norm(full_residual(:)), norm(orthogonality_residual(:)), ...
+    norm(economy_residual(:)), norm(vector_residual(:)), ...
+    size(economy_q, 2), size(economy_r, 1) ...
+];

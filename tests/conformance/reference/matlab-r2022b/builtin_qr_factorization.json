@@ -1,0 +1,36 @@
+{
+  "schema_version": 2,
+  "case_id": "builtin_qr_factorization",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      6
+    ],
+    "ndims": 2,
+    "numel": 6,
+    "complex": false,
+    "kind": "numeric",
+    "real": [
+      "1.8841109504205299e-15",
+      "2.7511642410880956e-16",
+      "1.8841109504205299e-15",
+      "1.8841109504205299e-15",
+      "2",
+      "2"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

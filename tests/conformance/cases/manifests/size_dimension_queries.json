@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "size_dimension_queries",
+  "description": "size collapses trailing singleton dimensions but dimension queries still return one.",
+  "source": "programs/size_dimension_queries.m",
+  "tags": ["r2022b", "arrays", "shape", "size", "numel", "ndims"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 5],
+      "ndims": 2,
+      "numel": 5,
+      "kind": "numeric",
+      "real": ["2", "3", "1", "1", "6"],
+      "imag": ["0", "0", "0", "0", "0"]
+    }
+  }
+}

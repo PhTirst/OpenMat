@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "matrix_shape",
+  "description": "Reshape creates a two-by-three double matrix in column-major order.",
+  "source": "programs/matrix_shape.m",
+  "tags": ["r2022b", "arrays", "numeric", "shape", "column-major"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [2, 3],
+      "ndims": 2,
+      "numel": 6,
+      "kind": "numeric",
+      "real": ["1", "2", "3", "4", "5", "6"],
+      "imag": ["0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "function_early_return_outputs",
+  "description": "Return exits a function early while preserving all assigned outputs.",
+  "source": "programs/function_early_return_outputs.m",
+  "tags": ["r2022b", "functions", "multiple-output", "return", "control-flow"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 6],
+      "ndims": 2,
+      "numel": 6,
+      "kind": "numeric",
+      "real": ["4", "5", "6", "4", "8", "12"],
+      "imag": ["0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

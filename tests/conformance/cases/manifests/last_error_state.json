@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "id": "last_error_state",
+  "description": "lasterr and lasterror share session state, return the previous value from setters, accept function-handle and feval dispatch, and preserve canonical empty shapes.",
+  "source": "programs/last_error_state.m",
+  "tags": ["r2022b", "wire-v2", "lasterr", "lasterror", "error-state", "dynamic-call", "session"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical", "size": [1, 1], "ndims": 2, "numel": 1,
+      "complex": false, "kind": "logical", "logical": [true]
+    }
+  }
+}

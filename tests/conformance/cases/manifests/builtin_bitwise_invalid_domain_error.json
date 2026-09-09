@@ -1,0 +1,11 @@
+{
+  "schema_version": 2,
+  "id": "builtin_bitwise_invalid_domain_error",
+  "description": "bitget rejects a bit position beyond the input class width.",
+  "source": "programs/builtin_bitwise_invalid_domain_error.m",
+  "tags": ["r2022b", "wire-v2", "core-numeric-builtins", "bitwise", "error", "domain", "bit-position"],
+  "expected": {
+    "outcome": "error",
+    "error": {"category": "other"}
+  }
+}

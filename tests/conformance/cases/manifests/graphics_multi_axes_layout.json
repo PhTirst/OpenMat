@@ -1,0 +1,29 @@
+{
+  "schema_version": 2,
+  "id": "graphics_multi_axes_layout",
+  "description": "Axes Position, tiledlayout, nexttile reuse, semantic parentage, and switching to subplot follow MATLAB R2022b.",
+  "source": "programs/graphics_multi_axes_layout.m",
+  "tags": ["r2022b", "wire-v2", "graphics", "plot-engine", "graphics-layout", "multi-axes", "subplot", "tiledlayout"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 20],
+      "ndims": 2,
+      "numel": 20,
+      "complex": false,
+      "kind": "numeric",
+      "real": [
+        "0.13", "0.5875", "0.3175", "0.3375",
+        "0.5875", "0.5875", "0.3175", "0.3375",
+        "2", "2", "1", "1", "2", "1", "0",
+        "0", "0", "0", "1", "1"
+      ],
+      "imag": [
+        "0", "0", "0", "0", "0", "0", "0", "0", "0", "0",
+        "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"
+      ],
+      "tolerance": { "absolute": 1e-14, "relative": 1e-14 }
+    }
+  }
+}

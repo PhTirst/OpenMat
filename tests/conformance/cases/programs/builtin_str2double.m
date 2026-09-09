@@ -1,0 +1,3 @@
+texts = ["1.25", "1+2i", "3-4j", "i", "-i", "1e3", "0x10", "1,2", ...
+    "1 + 2i", "1+2*i", "2i+1"];
+openmat_result = str2double(texts);

@@ -1,0 +1,16 @@
+{
+  "schema_version": 2,
+  "id": "graphics_2d_contour_image_semantics",
+  "description": "Contour and imagesc retain public classes while synchronizing Axes color limits and image Y direction with MATLAB R2022b.",
+  "source": "programs/graphics_2d_contour_image_semantics.m",
+  "tags": ["r2022b", "wire-v2", "graphics", "plot-engine", "graphics-2d-primitives"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1, 6], "ndims": 2, "numel": 6,
+      "complex": false, "kind": "numeric",
+      "real": ["1", "2", "1", "1", "1", "1"],
+      "imag": ["0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

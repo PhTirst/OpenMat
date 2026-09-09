@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "case_id": "numeric_fixture",
+  "oracle": { "name": "OpenMat", "release": "test" },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [1, 2],
+    "ndims": 2,
+    "numel": 2,
+    "kind": "numeric",
+    "real": ["1.0000000000000002", "NaN"],
+    "imag": ["0", "-0"]
+  }
+}

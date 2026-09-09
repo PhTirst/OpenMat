@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "case_id": "clear_workspace_and_locals",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      5
+    ],
+    "ndims": 2,
+    "numel": 5,
+    "kind": "numeric",
+    "real": [
+      "7",
+      "3",
+      "2",
+      "4",
+      "5"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

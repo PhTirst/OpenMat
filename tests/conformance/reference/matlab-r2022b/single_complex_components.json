@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "case_id": "single_complex_components",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "single",
+    "size": [
+      1,
+      2
+    ],
+    "ndims": 2,
+    "numel": 2,
+    "complex": true,
+    "kind": "numeric",
+    "real": [
+      "1.25",
+      "-2"
+    ],
+    "imag": [
+      "-3.5",
+      "4.25"
+    ]
+  }
+}

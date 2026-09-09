@@ -1,0 +1,173 @@
+{
+  "schema_version": 2,
+  "id": "graphics_2d_limits_auto_reacts",
+  "description": "Auto xlim/ylim modes recompute observable limits after the surviving Line data changes.",
+  "source": "programs/graphics_2d_limits_auto_reacts.m",
+  "tags": [
+    "r2022b",
+    "wire-v2",
+    "graphics",
+    "plot-engine",
+    "graphics-2d",
+    "xlim",
+    "ylim",
+    "limits",
+    "auto"
+  ],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "cell",
+      "size": [
+        1,
+        4
+      ],
+      "ndims": 2,
+      "numel": 4,
+      "complex": false,
+      "kind": "cell",
+      "items": [
+        {
+          "class": "double",
+          "size": [
+            1,
+            4
+          ],
+          "ndims": 2,
+          "numel": 4,
+          "complex": false,
+          "kind": "numeric",
+          "real": [
+            "0",
+            "10",
+            "2",
+            "4"
+          ],
+          "imag": [
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "class": "cell",
+          "size": [
+            1,
+            2
+          ],
+          "ndims": 2,
+          "numel": 2,
+          "complex": false,
+          "kind": "cell",
+          "items": [
+            {
+              "class": "char",
+              "size": [
+                1,
+                4
+              ],
+              "ndims": 2,
+              "numel": 4,
+              "complex": false,
+              "kind": "char",
+              "code_units": [
+                97,
+                117,
+                116,
+                111
+              ]
+            },
+            {
+              "class": "char",
+              "size": [
+                1,
+                4
+              ],
+              "ndims": 2,
+              "numel": 4,
+              "complex": false,
+              "kind": "char",
+              "code_units": [
+                97,
+                117,
+                116,
+                111
+              ]
+            }
+          ]
+        },
+        {
+          "class": "double",
+          "size": [
+            1,
+            4
+          ],
+          "ndims": 2,
+          "numel": 4,
+          "complex": false,
+          "kind": "numeric",
+          "real": [
+            "100",
+            "200",
+            "-10",
+            "30"
+          ],
+          "imag": [
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "class": "cell",
+          "size": [
+            1,
+            2
+          ],
+          "ndims": 2,
+          "numel": 2,
+          "complex": false,
+          "kind": "cell",
+          "items": [
+            {
+              "class": "char",
+              "size": [
+                1,
+                4
+              ],
+              "ndims": 2,
+              "numel": 4,
+              "complex": false,
+              "kind": "char",
+              "code_units": [
+                97,
+                117,
+                116,
+                111
+              ]
+            },
+            {
+              "class": "char",
+              "size": [
+                1,
+                4
+              ],
+              "ndims": 2,
+              "numel": 4,
+              "complex": false,
+              "kind": "char",
+              "code_units": [
+                97,
+                117,
+                116,
+                111
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

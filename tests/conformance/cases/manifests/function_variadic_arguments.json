@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "function_variadic_arguments",
+  "description": "Named functions pack optional inputs into varargin and expand varargout according to the caller-requested output count.",
+  "source": "programs/function_variadic_arguments.m",
+  "tags": ["r2022b", "functions", "arguments", "multiple-output", "arity", "common-syntax-r2022b"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 14],
+      "ndims": 2,
+      "numel": 14,
+      "kind": "numeric",
+      "real": ["1", "0", "4", "3", "2", "4", "5", "6", "1", "10", "3", "10", "11", "12"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

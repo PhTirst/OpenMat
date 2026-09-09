@@ -1,0 +1,14 @@
+figure_handle = figure();
+axes_handle = gca();
+hold(axes_handle, 'on');
+close(figure_handle);
+replacement_figure = figure();
+current_figure = gcf();
+same_figure = current_figure == replacement_figure;
+before_axes = ishold();
+replacement_axes = gca();
+current_axes = gca();
+same_axes = current_axes == replacement_axes;
+after_axes = ishold(replacement_axes);
+openmat_result = [same_figure, before_axes, same_axes, after_axes];
+close(replacement_figure);

@@ -1,0 +1,29 @@
+{
+  "schema_version": 2,
+  "id": "builtin_arithmetic_reductions_classes",
+  "description": "sum and prod preserve R2022b default, double, and native output classes.",
+  "source": "programs/builtin_arithmetic_reductions_classes.m",
+  "tags": ["r2022b", "wire-v2", "core-numeric-builtins", "arithmetic-reductions", "classes"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "string",
+      "size": [1, 8],
+      "ndims": 2,
+      "numel": 8,
+      "complex": false,
+      "kind": "string",
+      "string_code_units": [
+        [115, 105, 110, 103, 108, 101],
+        [100, 111, 117, 98, 108, 101],
+        [117, 105, 110, 116, 56],
+        [108, 111, 103, 105, 99, 97, 108],
+        [115, 105, 110, 103, 108, 101],
+        [100, 111, 117, 98, 108, 101],
+        [105, 110, 116, 56],
+        [108, 111, 103, 105, 99, 97, 108]
+      ],
+      "missing": [false, false, false, false, false, false, false, false]
+    }
+  }
+}

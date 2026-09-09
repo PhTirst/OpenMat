@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "global_missing_empty",
+  "description": "Declaring an absent global creates a canonical 0x0 double value.",
+  "source": "programs/global_missing_empty.m",
+  "tags": ["r2022b", "global-persistent", "global", "declaration", "empty"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [0, 0],
+      "ndims": 2,
+      "numel": 0,
+      "kind": "numeric",
+      "real": [],
+      "imag": []
+    }
+  }
+}

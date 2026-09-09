@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "id": "single_complex_components",
+  "description": "Complex construction from single real and imaginary inputs preserves single class and both components.",
+  "source": "programs/single_complex_components.m",
+  "tags": ["r2022b", "wire-v2", "single-try-r2022b", "single", "complex", "construction"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "single",
+      "size": [1, 2],
+      "ndims": 2,
+      "numel": 2,
+      "complex": true,
+      "kind": "numeric",
+      "real": ["1.25", "-2"],
+      "imag": ["-3.5", "4.25"]
+    }
+  }
+}

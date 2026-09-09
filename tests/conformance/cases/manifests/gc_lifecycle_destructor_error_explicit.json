@@ -1,0 +1,16 @@
+{
+  "schema_version": 2,
+  "id": "gc_lifecycle_destructor_error_explicit",
+  "description": "An error thrown by delete during an explicit call is normalized to catch state, post-call validity, and warning presence without diagnostic text.",
+  "source": "programs/gc_lifecycle_destructor_error_explicit.m",
+  "tags": ["r2022b", "wire-v2", "gc-lifecycle-r2022b", "classdef", "handle-class", "destructor-error", "isvalid", "delete"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1, 10], "ndims": 2, "numel": 10,
+      "complex": false, "kind": "numeric",
+      "real": ["101", "10", "201", "301", "11", "13", "90", "0", "0", "1"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

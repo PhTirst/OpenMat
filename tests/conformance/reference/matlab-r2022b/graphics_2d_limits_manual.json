@@ -1,0 +1,170 @@
+{
+  "schema_version": 2,
+  "case_id": "graphics_2d_limits_manual",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "cell",
+    "size": [
+      1,
+      4
+    ],
+    "ndims": 2,
+    "numel": 4,
+    "complex": false,
+    "kind": "cell",
+    "items": [
+      {
+        "class": "double",
+        "size": [
+          1,
+          4
+        ],
+        "ndims": 2,
+        "numel": 4,
+        "complex": false,
+        "kind": "numeric",
+        "real": [
+          "10",
+          "20",
+          "-2",
+          "2"
+        ],
+        "imag": [
+          "0",
+          "0",
+          "0",
+          "0"
+        ]
+      },
+      {
+        "class": "cell",
+        "size": [
+          1,
+          2
+        ],
+        "ndims": 2,
+        "numel": 2,
+        "complex": false,
+        "kind": "cell",
+        "items": [
+          {
+            "class": "char",
+            "size": [
+              1,
+              6
+            ],
+            "ndims": 2,
+            "numel": 6,
+            "complex": false,
+            "kind": "char",
+            "code_units": [
+              109,
+              97,
+              110,
+              117,
+              97,
+              108
+            ]
+          },
+          {
+            "class": "char",
+            "size": [
+              1,
+              6
+            ],
+            "ndims": 2,
+            "numel": 6,
+            "complex": false,
+            "kind": "char",
+            "code_units": [
+              109,
+              97,
+              110,
+              117,
+              97,
+              108
+            ]
+          }
+        ]
+      },
+      {
+        "class": "double",
+        "size": [
+          1,
+          4
+        ],
+        "ndims": 2,
+        "numel": 4,
+        "complex": false,
+        "kind": "numeric",
+        "real": [
+          "10",
+          "20",
+          "-2",
+          "2"
+        ],
+        "imag": [
+          "0",
+          "0",
+          "0",
+          "0"
+        ]
+      },
+      {
+        "class": "cell",
+        "size": [
+          1,
+          2
+        ],
+        "ndims": 2,
+        "numel": 2,
+        "complex": false,
+        "kind": "cell",
+        "items": [
+          {
+            "class": "char",
+            "size": [
+              1,
+              6
+            ],
+            "ndims": 2,
+            "numel": 6,
+            "complex": false,
+            "kind": "char",
+            "code_units": [
+              109,
+              97,
+              110,
+              117,
+              97,
+              108
+            ]
+          },
+          {
+            "class": "char",
+            "size": [
+              1,
+              6
+            ],
+            "ndims": 2,
+            "numel": 6,
+            "complex": false,
+            "kind": "char",
+            "code_units": [
+              109,
+              97,
+              110,
+              117,
+              97,
+              108
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

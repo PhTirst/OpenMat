@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "function_handle_named_local",
+  "description": "A named handle selects a local function over a same-named source-path function.",
+  "source": "programs/function_handle_named_local.m",
+  "tags": ["r2022b", "function-handle-r2022b", "function-handle", "named-function", "local-function", "resolution"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 1],
+      "ndims": 2,
+      "numel": 1,
+      "kind": "numeric",
+      "real": ["15"],
+      "imag": ["0"]
+    }
+  }
+}

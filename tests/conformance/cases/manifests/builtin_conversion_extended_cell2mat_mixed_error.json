@@ -1,0 +1,11 @@
+{
+  "schema_version": 2,
+  "id": "builtin_conversion_extended_cell2mat_mixed_error",
+  "description": "cell2mat rejects mixed numeric classes without producing a partial result.",
+  "source": "programs/builtin_conversion_extended_cell2mat_mixed_error.m",
+  "tags": ["r2022b", "wire-v2", "conversion-extended", "cell2mat", "error", "mixed-class"],
+  "expected": {
+    "outcome": "error",
+    "error": {"category": "type-error"}
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "class_static_constant",
+  "description": "A static method reads a constant property without constructing an instance.",
+  "source": "programs/class_static_constant.m",
+  "tags": ["r2022b", "classdef", "static-method", "constant-property"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 2],
+      "ndims": 2,
+      "numel": 2,
+      "kind": "numeric",
+      "real": ["3", "15"],
+      "imag": ["0", "0"]
+    }
+  }
+}

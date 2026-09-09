@@ -1,0 +1,22 @@
+{
+  "schema_version": 2,
+  "id": "char_integer_value_model_signed_bounds",
+  "description": "Signed integer observations preserve the exact int64 endpoints.",
+  "source": "programs/char_integer_value_model_signed_bounds.m",
+  "tags": ["r2022b", "wire-v2", "integer", "signed"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "int64",
+      "size": [1, 2],
+      "ndims": 2,
+      "numel": 2,
+      "complex": false,
+      "kind": "integer",
+      "integer": [
+        {"real": "-9223372036854775808", "imaginary": "0"},
+        {"real": "9223372036854775807", "imaginary": "0"}
+      ]
+    }
+  }
+}

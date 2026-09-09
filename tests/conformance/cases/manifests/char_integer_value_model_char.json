@@ -1,0 +1,19 @@
+{
+  "schema_version": 2,
+  "id": "char_integer_value_model_char",
+  "description": "Char observations preserve an isolated UTF-16 surrogate as one code unit.",
+  "source": "programs/char_integer_value_model_char.m",
+  "tags": ["r2022b", "wire-v2", "char", "utf-16"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "char",
+      "size": [1, 3],
+      "ndims": 2,
+      "numel": 3,
+      "complex": false,
+      "kind": "char",
+      "code_units": [65, 55357, 66]
+    }
+  }
+}

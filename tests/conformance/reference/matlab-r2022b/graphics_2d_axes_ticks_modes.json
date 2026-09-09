@@ -1,0 +1,439 @@
+{
+  "schema_version": 2,
+  "case_id": "graphics_2d_axes_ticks_modes",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "cell",
+    "size": [
+      1,
+      7
+    ],
+    "ndims": 2,
+    "numel": 7,
+    "complex": false,
+    "kind": "cell",
+    "items": [
+      {
+        "class": "cell",
+        "size": [
+          1,
+          4
+        ],
+        "ndims": 2,
+        "numel": 4,
+        "complex": false,
+        "kind": "cell",
+        "items": [
+          {
+            "class": "double",
+            "size": [
+              1,
+              3
+            ],
+            "ndims": 2,
+            "numel": 3,
+            "complex": false,
+            "kind": "numeric",
+            "real": [
+              "0",
+              "5",
+              "10"
+            ],
+            "imag": [
+              "0",
+              "0",
+              "0"
+            ]
+          },
+          {
+            "class": "char",
+            "size": [
+              1,
+              6
+            ],
+            "ndims": 2,
+            "numel": 6,
+            "complex": false,
+            "kind": "char",
+            "code_units": [
+              109,
+              97,
+              110,
+              117,
+              97,
+              108
+            ]
+          },
+          {
+            "class": "cell",
+            "size": [
+              2,
+              1
+            ],
+            "ndims": 2,
+            "numel": 2,
+            "complex": false,
+            "kind": "cell",
+            "items": [
+              {
+                "class": "char",
+                "size": [
+                  1,
+                  1
+                ],
+                "ndims": 2,
+                "numel": 1,
+                "complex": false,
+                "kind": "char",
+                "code_units": [
+                  65
+                ]
+              },
+              {
+                "class": "char",
+                "size": [
+                  1,
+                  1
+                ],
+                "ndims": 2,
+                "numel": 1,
+                "complex": false,
+                "kind": "char",
+                "code_units": [
+                  66
+                ]
+              }
+            ]
+          },
+          {
+            "class": "char",
+            "size": [
+              1,
+              6
+            ],
+            "ndims": 2,
+            "numel": 6,
+            "complex": false,
+            "kind": "char",
+            "code_units": [
+              109,
+              97,
+              110,
+              117,
+              97,
+              108
+            ]
+          }
+        ]
+      },
+      {
+        "class": "cell",
+        "size": [
+          1,
+          2
+        ],
+        "ndims": 2,
+        "numel": 2,
+        "complex": false,
+        "kind": "cell",
+        "items": [
+          {
+            "class": "double",
+            "size": [
+              1,
+              3
+            ],
+            "ndims": 2,
+            "numel": 3,
+            "complex": false,
+            "kind": "numeric",
+            "real": [
+              "0",
+              "5",
+              "10"
+            ],
+            "imag": [
+              "0",
+              "0",
+              "0"
+            ]
+          },
+          {
+            "class": "cell",
+            "size": [
+              2,
+              1
+            ],
+            "ndims": 2,
+            "numel": 2,
+            "complex": false,
+            "kind": "cell",
+            "items": [
+              {
+                "class": "char",
+                "size": [
+                  1,
+                  1
+                ],
+                "ndims": 2,
+                "numel": 1,
+                "complex": false,
+                "kind": "char",
+                "code_units": [
+                  65
+                ]
+              },
+              {
+                "class": "char",
+                "size": [
+                  1,
+                  1
+                ],
+                "ndims": 2,
+                "numel": 1,
+                "complex": false,
+                "kind": "char",
+                "code_units": [
+                  66
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "class": "cell",
+        "size": [
+          1,
+          4
+        ],
+        "ndims": 2,
+        "numel": 4,
+        "complex": false,
+        "kind": "cell",
+        "items": [
+          {
+            "class": "double",
+            "size": [
+              1,
+              5
+            ],
+            "ndims": 2,
+            "numel": 5,
+            "complex": false,
+            "kind": "numeric",
+            "real": [
+              "0",
+              "5",
+              "10",
+              "15",
+              "20"
+            ],
+            "imag": [
+              "0",
+              "0",
+              "0",
+              "0",
+              "0"
+            ]
+          },
+          {
+            "class": "char",
+            "size": [
+              1,
+              4
+            ],
+            "ndims": 2,
+            "numel": 4,
+            "complex": false,
+            "kind": "char",
+            "code_units": [
+              97,
+              117,
+              116,
+              111
+            ]
+          },
+          {
+            "class": "cell",
+            "size": [
+              2,
+              1
+            ],
+            "ndims": 2,
+            "numel": 2,
+            "complex": false,
+            "kind": "cell",
+            "items": [
+              {
+                "class": "char",
+                "size": [
+                  1,
+                  1
+                ],
+                "ndims": 2,
+                "numel": 1,
+                "complex": false,
+                "kind": "char",
+                "code_units": [
+                  65
+                ]
+              },
+              {
+                "class": "char",
+                "size": [
+                  1,
+                  1
+                ],
+                "ndims": 2,
+                "numel": 1,
+                "complex": false,
+                "kind": "char",
+                "code_units": [
+                  66
+                ]
+              }
+            ]
+          },
+          {
+            "class": "char",
+            "size": [
+              1,
+              6
+            ],
+            "ndims": 2,
+            "numel": 6,
+            "complex": false,
+            "kind": "char",
+            "code_units": [
+              109,
+              97,
+              110,
+              117,
+              97,
+              108
+            ]
+          }
+        ]
+      },
+      {
+        "class": "double",
+        "size": [
+          1,
+          3
+        ],
+        "ndims": 2,
+        "numel": 3,
+        "complex": false,
+        "kind": "numeric",
+        "real": [
+          "1",
+          "3",
+          "7"
+        ],
+        "imag": [
+          "0",
+          "0",
+          "0"
+        ]
+      },
+      {
+        "class": "cell",
+        "size": [
+          3,
+          1
+        ],
+        "ndims": 2,
+        "numel": 3,
+        "complex": false,
+        "kind": "cell",
+        "items": [
+          {
+            "class": "char",
+            "size": [
+              1,
+              1
+            ],
+            "ndims": 2,
+            "numel": 1,
+            "complex": false,
+            "kind": "char",
+            "code_units": [
+              117
+            ]
+          },
+          {
+            "class": "char",
+            "size": [
+              1,
+              1
+            ],
+            "ndims": 2,
+            "numel": 1,
+            "complex": false,
+            "kind": "char",
+            "code_units": [
+              118
+            ]
+          },
+          {
+            "class": "char",
+            "size": [
+              1,
+              1
+            ],
+            "ndims": 2,
+            "numel": 1,
+            "complex": false,
+            "kind": "char",
+            "code_units": [
+              119
+            ]
+          }
+        ]
+      },
+      {
+        "class": "char",
+        "size": [
+          1,
+          6
+        ],
+        "ndims": 2,
+        "numel": 6,
+        "complex": false,
+        "kind": "char",
+        "code_units": [
+          109,
+          97,
+          110,
+          117,
+          97,
+          108
+        ]
+      },
+      {
+        "class": "char",
+        "size": [
+          1,
+          6
+        ],
+        "ndims": 2,
+        "numel": 6,
+        "complex": false,
+        "kind": "char",
+        "code_units": [
+          109,
+          97,
+          110,
+          117,
+          97,
+          108
+        ]
+      }
+    ]
+  }
+}

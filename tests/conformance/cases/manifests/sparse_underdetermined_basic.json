@@ -1,0 +1,22 @@
+{
+  "schema_version": 2,
+  "id": "sparse_underdetermined_basic",
+  "description": "Full-row-rank underdetermined sparse left division returns a full leftmost-column basic solution for real and complex multiple right-hand sides without a warning.",
+  "source": "programs/sparse_underdetermined_basic.m",
+  "tags": ["r2022b", "wire-v2", "sparse", "sparse-g1", "left-divide", "underdetermined", "basic-solution", "complex", "multi-rhs"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical",
+      "size": [1, 12],
+      "ndims": 2,
+      "numel": 12,
+      "complex": false,
+      "kind": "logical",
+      "logical": [
+        true, true, true, true, true, true,
+        true, true, true, true, true, true
+      ]
+    }
+  }
+}

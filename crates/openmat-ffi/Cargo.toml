@@ -1,0 +1,13 @@
+[package]
+license = "AGPL-3.0-only"
+name = "openmat-ffi"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+libffi = "5.2.0"
+libloading = "0.8.9"
+
+[lints]
+workspace = true

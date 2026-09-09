@@ -1,0 +1,19 @@
+{
+  "schema_version": 2,
+  "id": "builtin_conversion_extended_typecast_empty_shape",
+  "description": "typecast preserves a two-dimensional shaped-empty input even when the target element width changes.",
+  "source": "programs/builtin_conversion_extended_typecast_empty_shape.m",
+  "tags": ["r2022b", "wire-v2", "conversion-extended", "typecast", "empty", "shape"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "uint16",
+      "size": [0, 3],
+      "ndims": 2,
+      "numel": 0,
+      "complex": false,
+      "kind": "integer",
+      "integer": []
+    }
+  }
+}

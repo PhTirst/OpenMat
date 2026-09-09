@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "case_id": "size_dimension_queries",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      5
+    ],
+    "ndims": 2,
+    "numel": 5,
+    "kind": "numeric",
+    "real": [
+      "2",
+      "3",
+      "1",
+      "1",
+      "6"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

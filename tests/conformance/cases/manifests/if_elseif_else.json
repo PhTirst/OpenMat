@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "if_elseif_else",
+  "description": "If, elseif, and else each select exactly one branch.",
+  "source": "programs/if_elseif_else.m",
+  "tags": ["r2022b", "control-flow", "if", "elseif", "else"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 3],
+      "ndims": 2,
+      "numel": 3,
+      "kind": "numeric",
+      "real": ["10", "20", "30"],
+      "imag": ["0", "0", "0"]
+    }
+  }
+}

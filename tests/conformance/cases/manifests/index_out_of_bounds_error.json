@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "id": "index_out_of_bounds_error",
+  "description": "An out-of-range positive linear index raises an indexing error.",
+  "source": "programs/index_out_of_bounds_error.m",
+  "tags": ["r2022b", "arrays", "indexing", "error"],
+  "expected": {
+    "outcome": "error",
+    "error": { "category": "index-out-of-bounds" }
+  }
+}

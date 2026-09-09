@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "scalar_power_precedence",
+  "description": "Scalar power exposes associativity and unary-minus precedence.",
+  "source": "programs/scalar_power_precedence.m",
+  "tags": ["r2022b", "numeric", "operators", "power", "precedence"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 4],
+      "ndims": 2,
+      "numel": 4,
+      "kind": "numeric",
+      "real": ["64", "-4", "4", "0.25"],
+      "imag": ["0", "0", "0", "0"]
+    }
+  }
+}

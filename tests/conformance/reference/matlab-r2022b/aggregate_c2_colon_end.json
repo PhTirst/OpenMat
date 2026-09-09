@@ -1,0 +1,297 @@
+{
+  "schema_version": 2,
+  "case_id": "aggregate_c2_colon_end",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "cell",
+    "size": [
+      1,
+      4
+    ],
+    "ndims": 2,
+    "numel": 4,
+    "complex": false,
+    "kind": "cell",
+    "items": [
+      {
+        "class": "cell",
+        "size": [
+          4,
+          1
+        ],
+        "ndims": 2,
+        "numel": 4,
+        "complex": false,
+        "kind": "cell",
+        "items": [
+          {
+            "class": "double",
+            "size": [
+              1,
+              1
+            ],
+            "ndims": 2,
+            "numel": 1,
+            "complex": false,
+            "kind": "numeric",
+            "real": [
+              "11"
+            ],
+            "imag": [
+              "0"
+            ]
+          },
+          {
+            "class": "double",
+            "size": [
+              1,
+              1
+            ],
+            "ndims": 2,
+            "numel": 1,
+            "complex": false,
+            "kind": "numeric",
+            "real": [
+              "33"
+            ],
+            "imag": [
+              "0"
+            ]
+          },
+          {
+            "class": "double",
+            "size": [
+              1,
+              1
+            ],
+            "ndims": 2,
+            "numel": 1,
+            "complex": false,
+            "kind": "numeric",
+            "real": [
+              "22"
+            ],
+            "imag": [
+              "0"
+            ]
+          },
+          {
+            "class": "double",
+            "size": [
+              1,
+              1
+            ],
+            "ndims": 2,
+            "numel": 1,
+            "complex": false,
+            "kind": "numeric",
+            "real": [
+              "44"
+            ],
+            "imag": [
+              "0"
+            ]
+          }
+        ]
+      },
+      {
+        "class": "cell",
+        "size": [
+          1,
+          3
+        ],
+        "ndims": 2,
+        "numel": 3,
+        "complex": false,
+        "kind": "cell",
+        "items": [
+          {
+            "class": "double",
+            "size": [
+              1,
+              1
+            ],
+            "ndims": 2,
+            "numel": 1,
+            "complex": false,
+            "kind": "numeric",
+            "real": [
+              "44"
+            ],
+            "imag": [
+              "0"
+            ]
+          },
+          {
+            "class": "double",
+            "size": [
+              1,
+              1
+            ],
+            "ndims": 2,
+            "numel": 1,
+            "complex": false,
+            "kind": "numeric",
+            "real": [
+              "22"
+            ],
+            "imag": [
+              "0"
+            ]
+          },
+          {
+            "class": "double",
+            "size": [
+              1,
+              1
+            ],
+            "ndims": 2,
+            "numel": 1,
+            "complex": false,
+            "kind": "numeric",
+            "real": [
+              "33"
+            ],
+            "imag": [
+              "0"
+            ]
+          }
+        ]
+      },
+      {
+        "class": "cell",
+        "size": [
+          2,
+          1
+        ],
+        "ndims": 2,
+        "numel": 2,
+        "complex": false,
+        "kind": "cell",
+        "items": [
+          {
+            "class": "double",
+            "size": [
+              1,
+              1
+            ],
+            "ndims": 2,
+            "numel": 1,
+            "complex": false,
+            "kind": "numeric",
+            "real": [
+              "22"
+            ],
+            "imag": [
+              "0"
+            ]
+          },
+          {
+            "class": "double",
+            "size": [
+              1,
+              1
+            ],
+            "ndims": 2,
+            "numel": 1,
+            "complex": false,
+            "kind": "numeric",
+            "real": [
+              "44"
+            ],
+            "imag": [
+              "0"
+            ]
+          }
+        ]
+      },
+      {
+        "class": "struct",
+        "size": [
+          1,
+          2
+        ],
+        "ndims": 2,
+        "numel": 2,
+        "complex": false,
+        "kind": "struct",
+        "fields": [
+          "beta",
+          "alpha"
+        ],
+        "records": [
+          {
+            "beta": {
+              "class": "double",
+              "size": [
+                1,
+                1
+              ],
+              "ndims": 2,
+              "numel": 1,
+              "complex": false,
+              "kind": "numeric",
+              "real": [
+                "4"
+              ],
+              "imag": [
+                "0"
+              ]
+            },
+            "alpha": {
+              "class": "char",
+              "size": [
+                1,
+                1
+              ],
+              "ndims": 2,
+              "numel": 1,
+              "complex": false,
+              "kind": "char",
+              "code_units": [
+                100
+              ]
+            }
+          },
+          {
+            "beta": {
+              "class": "double",
+              "size": [
+                1,
+                1
+              ],
+              "ndims": 2,
+              "numel": 1,
+              "complex": false,
+              "kind": "numeric",
+              "real": [
+                "2"
+              ],
+              "imag": [
+                "0"
+              ]
+            },
+            "alpha": {
+              "class": "char",
+              "size": [
+                1,
+                1
+              ],
+              "ndims": 2,
+              "numel": 1,
+              "complex": false,
+              "kind": "char",
+              "code_units": [
+                98
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

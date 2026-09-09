@@ -1,0 +1,8 @@
+{
+  "schema_version": 2,
+  "id": "string_cellstr",
+  "description": "Cellstr comparison, case conversion, strip, length, pattern sets, shape preservation, startsWith, and endsWith match MATLAB R2022b.",
+  "source": "programs/string_cellstr.m",
+  "tags": ["r2022b", "wire-v2", "string-builtins", "cellstr", "shape"],
+  "expected": {"outcome":"ok","value":{"class":"double","size":[2,14],"ndims":2,"numel":28,"complex":false,"kind":"numeric","real":["1","1","1","1","1","1","1","1","1","1","1","1","3","0","1","3","1","0","0","1","1","0","0","1","1","0","1","1"],"imag":["0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0"],"tolerance":{"absolute":0,"relative":0}}}
+}

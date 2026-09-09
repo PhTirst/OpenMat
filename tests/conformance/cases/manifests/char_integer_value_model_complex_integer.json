@@ -1,0 +1,22 @@
+{
+  "schema_version": 2,
+  "id": "char_integer_value_model_complex_integer",
+  "description": "Complex integer observations preserve independent signed decimal components.",
+  "source": "programs/char_integer_value_model_complex_integer.m",
+  "tags": ["r2022b", "wire-v2", "integer", "complex"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "int16",
+      "size": [1, 2],
+      "ndims": 2,
+      "numel": 2,
+      "complex": true,
+      "kind": "integer",
+      "integer": [
+        {"real": "-32768", "imaginary": "1"},
+        {"real": "7", "imaginary": "-9"}
+      ]
+    }
+  }
+}

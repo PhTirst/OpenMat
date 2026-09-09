@@ -1,0 +1,54 @@
+{
+  "schema_version": 2,
+  "case_id": "builtin_conversion_extended_radix_encode",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "char",
+    "size": [
+      2,
+      16
+    ],
+    "ndims": 2,
+    "numel": 32,
+    "complex": false,
+    "kind": "char",
+    "code_units": [
+      48,
+      70,
+      48,
+      70,
+      48,
+      70,
+      48,
+      70,
+      48,
+      70,
+      48,
+      70,
+      48,
+      70,
+      48,
+      70,
+      48,
+      70,
+      48,
+      70,
+      48,
+      70,
+      48,
+      70,
+      48,
+      70,
+      48,
+      70,
+      48,
+      70,
+      48,
+      70
+    ]
+  }
+}

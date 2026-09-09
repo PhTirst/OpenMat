@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "case_id": "error_fixture",
+  "oracle": { "name": "OpenMat", "release": "test" },
+  "outcome": "error",
+  "error": { "category": "index-out-of-bounds" }
+}

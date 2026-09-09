@@ -1,0 +1,40 @@
+{
+  "schema_version": 2,
+  "case_id": "builtin_statistics_double",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      8
+    ],
+    "ndims": 2,
+    "numel": 8,
+    "complex": false,
+    "kind": "numeric",
+    "real": [
+      "1.5",
+      "3.5",
+      "5.5",
+      "3",
+      "4",
+      "2.5",
+      "1.4142135623730951",
+      "4.0000000000000009"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

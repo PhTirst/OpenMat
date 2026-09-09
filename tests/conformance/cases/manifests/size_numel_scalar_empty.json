@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "size_numel_scalar_empty",
+  "description": "size and numel distinguish a one-by-one scalar from a zero-by-three empty array.",
+  "source": "programs/size_numel_scalar_empty.m",
+  "tags": ["r2022b", "arrays", "shape", "size", "numel", "empty", "scalar"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 6],
+      "ndims": 2,
+      "numel": 6,
+      "kind": "numeric",
+      "real": ["1", "1", "1", "0", "3", "0"],
+      "imag": ["0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

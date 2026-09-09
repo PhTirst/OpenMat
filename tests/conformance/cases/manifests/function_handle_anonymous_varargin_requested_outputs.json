@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "function_handle_anonymous_varargin_requested_outputs",
+  "description": "Anonymous varargin wrappers forward the caller-requested output count through direct and nested closures.",
+  "source": "programs/function_handle_anonymous_varargin_requested_outputs.m",
+  "tags": ["r2022b", "function-handle-r2022b", "function-handle", "anonymous-function", "varargin", "multiple-outputs", "function-handle-anonymous-varargin-r2022b"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 7],
+      "ndims": 2,
+      "numel": 7,
+      "kind": "numeric",
+      "real": ["2", "3", "9", "27", "4", "16", "64"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

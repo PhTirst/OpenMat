@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "value_class_copy",
+  "description": "Mutating a returned value-class object does not mutate its copy.",
+  "source": "programs/value_class_copy.m",
+  "tags": ["r2022b", "classdef", "value-class", "copy-semantics", "methods"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 2],
+      "ndims": 2,
+      "numel": 2,
+      "kind": "numeric",
+      "real": ["6", "5"],
+      "imag": ["0", "0"]
+    }
+  }
+}

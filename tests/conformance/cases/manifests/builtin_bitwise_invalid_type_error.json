@@ -1,0 +1,11 @@
+{
+  "schema_version": 2,
+  "id": "builtin_bitwise_invalid_type_error",
+  "description": "Binary bitwise operations reject mismatched fixed-width integer classes.",
+  "source": "programs/builtin_bitwise_invalid_type_error.m",
+  "tags": ["r2022b", "wire-v2", "core-numeric-builtins", "bitwise", "error", "type"],
+  "expected": {
+    "outcome": "error",
+    "error": {"category": "type-error"}
+  }
+}

@@ -1,0 +1,2 @@
+classdef OpenMatSealedChild < OpenMatSealedBase
+end

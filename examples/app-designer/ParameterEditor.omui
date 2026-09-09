@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OpenMatUI version="3" kind="component" class="ParameterEditor">
+  <Component id="9a9dffc1-ef6b-4fa2-90c6-93fa20bfe425" type="Panel" name="Root">
+    <Layout mode="grid" x="16" y="16" width="480" height="88" row="1" column="1" rowSpan="1" columnSpan="1" columns="3" gap="12" padding="12" grow="0" />
+    <Property name="Title" type="string"></Property>
+    <Component id="485f3a39-3df0-41fe-a981-eccbaf85886c" type="Label" name="CaptionLabel">
+      <Layout mode="column" x="16" y="16" width="180" height="36" row="1" column="1" rowSpan="1" columnSpan="1" columns="2" gap="12" padding="12" grow="0" />
+    </Component>
+    <Component id="e94e3e6b-1562-4550-ba95-27ae34bf3b05" type="NumericField" name="Editor">
+      <Layout mode="column" x="16" y="16" width="180" height="36" row="1" column="2" rowSpan="1" columnSpan="1" columns="2" gap="12" padding="12" grow="0" />
+      <Event name="ValueChanged" handler="app.onInput" />
+    </Component>
+    <Component id="0da65441-4a3f-408d-bb99-9fcae2843fbb" type="Slider" name="Dial">
+      <Layout mode="column" x="16" y="16" width="180" height="36" row="1" column="3" rowSpan="1" columnSpan="1" columns="2" gap="12" padding="12" grow="0" />
+      <Event name="ValueChanged" handler="app.onInput" />
+    </Component>
+  </Component>
+</OpenMatUI>

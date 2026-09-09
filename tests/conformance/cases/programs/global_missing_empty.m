@@ -1,0 +1,2 @@
+global openmat_global_missing_value
+openmat_result = openmat_global_missing_value;

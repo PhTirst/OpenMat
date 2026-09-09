@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "id": "try_catch_skip_handler",
+  "description": "A normally completed try block skips its catch handler.",
+  "source": "programs/try_catch_skip_handler.m",
+  "tags": ["r2022b", "wire-v2", "single-try-r2022b", "try-catch", "control-flow", "normal-completion"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1, 1], "ndims": 2, "numel": 1,
+      "complex": false, "kind": "numeric", "real": ["3"], "imag": ["0"]
+    }
+  }
+}

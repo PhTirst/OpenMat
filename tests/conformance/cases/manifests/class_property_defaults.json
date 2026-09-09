@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "class_property_defaults",
+  "description": "A default constructor exposes independently initialized property defaults.",
+  "source": "programs/class_property_defaults.m",
+  "tags": ["r2022b", "classdef", "properties", "default-values"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 3],
+      "ndims": 2,
+      "numel": 3,
+      "kind": "numeric",
+      "real": ["7", "2", "4"],
+      "imag": ["0", "0", "0"]
+    }
+  }
+}

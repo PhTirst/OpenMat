@@ -1,0 +1,38 @@
+{
+  "schema_version": 2,
+  "case_id": "graphics_3d_view_zlim_label",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      7
+    ],
+    "ndims": 2,
+    "numel": 7,
+    "complex": false,
+    "kind": "numeric",
+    "real": [
+      "45",
+      "30",
+      "0",
+      "10",
+      "1",
+      "1",
+      "1"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

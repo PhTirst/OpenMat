@@ -1,0 +1,21 @@
+{
+  "schema_version": 2,
+  "id": "builtin_norm_matrix_orders",
+  "description": "norm covers R2022b spectral, one, infinity, Frobenius, complex matrix, vector p-norm, and empty behavior.",
+  "source": "programs/builtin_norm_matrix_orders.m",
+  "tags": ["r2022b", "wire-v2", "core-numeric-builtins", "norm-matrix", "linalg"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 8],
+      "ndims": 2,
+      "numel": 8,
+      "complex": false,
+      "kind": "numeric",
+      "real": ["5.464985704219043", "6", "7", "5.477225575051661", "5.79128784747792", "4.497941445275415", "3", "0"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0", "0"],
+      "tolerance": {"absolute": 1e-12, "relative": 1e-12}
+    }
+  }
+}

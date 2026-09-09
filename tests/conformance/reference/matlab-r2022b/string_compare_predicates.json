@@ -1,0 +1,44 @@
+{
+  "schema_version": 2,
+  "case_id": "string_compare_predicates",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      10
+    ],
+    "ndims": 2,
+    "numel": 10,
+    "complex": false,
+    "kind": "numeric",
+    "real": [
+      "1",
+      "0",
+      "1",
+      "1",
+      "1",
+      "1",
+      "0",
+      "1",
+      "1",
+      "1"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

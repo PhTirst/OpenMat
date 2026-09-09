@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "array_copy_on_write",
+  "description": "Indexed mutation of an array copy leaves the original value unchanged.",
+  "source": "programs/array_copy_on_write.m",
+  "tags": ["r2022b", "arrays", "copy-on-write", "assignment", "indexing"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 6],
+      "ndims": 2,
+      "numel": 6,
+      "kind": "numeric",
+      "real": ["1", "2", "3", "1", "99", "3"],
+      "imag": ["0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

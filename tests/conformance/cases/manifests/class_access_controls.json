@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "class_access_controls",
+  "description": "Public, protected, and private properties and methods are usable from their permitted scopes.",
+  "source": "programs/class_access_controls.m",
+  "tags": ["r2022b", "classdef", "access", "properties", "methods", "inheritance"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 5],
+      "ndims": 2,
+      "numel": 5,
+      "kind": "numeric",
+      "real": ["10", "20", "40", "3", "6"],
+      "imag": ["0", "0", "0", "0", "0"]
+    }
+  }
+}

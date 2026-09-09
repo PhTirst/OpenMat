@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "case_id": "function_variadic_arguments",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      14
+    ],
+    "ndims": 2,
+    "numel": 14,
+    "kind": "numeric",
+    "real": [
+      "1",
+      "0",
+      "4",
+      "3",
+      "2",
+      "4",
+      "5",
+      "6",
+      "1",
+      "10",
+      "3",
+      "10",
+      "11",
+      "12"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

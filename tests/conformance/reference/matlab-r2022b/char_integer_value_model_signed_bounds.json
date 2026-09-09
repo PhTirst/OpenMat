@@ -1,0 +1,30 @@
+{
+  "schema_version": 2,
+  "case_id": "char_integer_value_model_signed_bounds",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "int64",
+    "size": [
+      1,
+      2
+    ],
+    "ndims": 2,
+    "numel": 2,
+    "complex": false,
+    "kind": "integer",
+    "integer": [
+      {
+        "real": "-9223372036854775808",
+        "imaginary": "0"
+      },
+      {
+        "real": "9223372036854775807",
+        "imaginary": "0"
+      }
+    ]
+  }
+}

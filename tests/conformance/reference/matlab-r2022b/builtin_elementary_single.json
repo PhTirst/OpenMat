@@ -1,0 +1,1 @@
+{"schema_version":2,"case_id":"builtin_elementary_single","oracle":{"name":"MATLAB","release":"R2022b"},"outcome":"ok","value":{"class":"single","size":[1,4],"ndims":2,"numel":4,"complex":false,"kind":"numeric","real":["0","1","0.87758255","0.87758255"],"imag":["0","0","0","0"]}}

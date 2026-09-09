@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "id": "floating_tolerance",
+  "description": "Floating comparisons may opt into absolute and relative tolerance.",
+  "source": "programs/floating_tolerance.m",
+  "tags": ["r2022b", "numeric", "floating-point", "tolerance"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 1],
+      "ndims": 2,
+      "numel": 1,
+      "kind": "numeric",
+      "real": ["1.4142135623730951"],
+      "imag": ["0"],
+      "tolerance": { "absolute": 1e-15, "relative": 1e-15 }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "schema_version": 2,
+  "id": "graphics_2d_high_frequency_chart_classes",
+  "description": "High-frequency two-dimensional chart constructors expose their MATLAB R2022b public graphics classes.",
+  "source": "programs/graphics_2d_high_frequency_chart_classes.m",
+  "tags": ["r2022b", "wire-v2", "graphics", "plot-engine", "graphics-2d-primitives"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1, 6], "ndims": 2, "numel": 6,
+      "complex": false, "kind": "numeric",
+      "real": ["1", "1", "1", "1", "1", "1"],
+      "imag": ["0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

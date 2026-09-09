@@ -1,0 +1,15 @@
+{
+  "schema_version": 2,
+  "case_id": "aggregate_invalid_shape",
+  "oracle": {"name": "fixture", "release": "test"},
+  "outcome": "ok",
+  "value": {
+    "class": "cell", "size": [1, 2], "ndims": 2, "numel": 3,
+    "complex": false, "kind": "cell",
+    "items": [
+      {"class": "logical", "size": [0, 0], "ndims": 2, "numel": 0, "complex": false, "kind": "logical", "logical": []},
+      {"class": "logical", "size": [0, 0], "ndims": 2, "numel": 0, "complex": false, "kind": "logical", "logical": []},
+      {"class": "logical", "size": [0, 0], "ndims": 2, "numel": 0, "complex": false, "kind": "logical", "logical": []}
+    ]
+  }
+}

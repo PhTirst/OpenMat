@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "case_id": "index_out_of_bounds_error",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "error",
+  "error": {
+    "category": "index-out-of-bounds"
+  }
+}

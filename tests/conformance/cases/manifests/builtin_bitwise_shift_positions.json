@@ -1,0 +1,27 @@
+{
+  "schema_version": 2,
+  "id": "builtin_bitwise_shift_positions",
+  "description": "bitshift, bitget, and bitset cover signed arithmetic right shift, wrapping left shift, per-element controls, bit positions, nonzero set values, and 64-bit double positions.",
+  "source": "programs/builtin_bitwise_shift_positions.m",
+  "tags": ["r2022b", "wire-v2", "core-numeric-builtins", "bitwise", "signed-shift", "bit-position", "classes"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1,40], "ndims": 2, "numel": 40,
+      "complex": false, "kind": "numeric",
+      "real": [
+        "-64","-2","-1","-1","0","0","32","63",
+        "0","-6","-4","-2","0","2","-128","-2",
+        "0","0","127","0","0","1","12","4","32",
+        "1","1","1","1","1","2","128","127","2","1","1",
+        "1","1","1","1"
+      ],
+      "imag": [
+        "0","0","0","0","0","0","0","0","0","0",
+        "0","0","0","0","0","0","0","0","0","0",
+        "0","0","0","0","0","0","0","0","0","0",
+        "0","0","0","0","0","0","0","0","0","0"
+      ]
+    }
+  }
+}

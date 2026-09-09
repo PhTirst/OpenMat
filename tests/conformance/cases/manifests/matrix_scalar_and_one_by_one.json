@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "id": "matrix_scalar_and_one_by_one",
+  "description": "Scalar and one-by-one left and right division share the same double scalar result.",
+  "source": "programs/matrix_scalar_and_one_by_one.m",
+  "tags": ["r2022b", "wire-v2", "numeric", "matrix-division", "left-divide", "right-divide", "scalar"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 4],
+      "ndims": 2,
+      "numel": 4,
+      "complex": false,
+      "kind": "numeric",
+      "real": ["0.25", "0.25", "0.25", "0.25"],
+      "imag": ["0", "0", "0", "0"]
+    }
+  }
+}

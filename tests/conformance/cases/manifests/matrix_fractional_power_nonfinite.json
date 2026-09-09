@@ -1,0 +1,15 @@
+{
+  "schema_version": 2,
+  "id": "matrix_fractional_power_nonfinite",
+  "description": "Non-finite floating matrices propagate same-size NaN matrix-power results instead of entering Schur factorization.",
+  "source": "programs/matrix_fractional_power_nonfinite.m",
+  "tags": ["r2022b", "wire-v2", "matrix-functions", "matrix-power", "nonfinite"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1, 2], "ndims": 2, "numel": 2,
+      "complex": false, "kind": "numeric",
+      "real": ["4", "4"], "imag": ["0", "0"]
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "case_id": "colon_range",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      4
+    ],
+    "ndims": 2,
+    "numel": 4,
+    "kind": "numeric",
+    "real": [
+      "2",
+      "4",
+      "6",
+      "8"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

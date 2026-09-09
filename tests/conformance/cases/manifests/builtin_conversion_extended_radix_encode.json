@@ -1,0 +1,19 @@
+{
+  "schema_version": 2,
+  "id": "builtin_conversion_extended_radix_encode",
+  "description": "dec2hex keeps uint64 max exact and pads every row to the common width.",
+  "source": "programs/builtin_conversion_extended_radix_encode.m",
+  "tags": ["r2022b", "wire-v2", "conversion-extended", "dec2hex", "uint64", "padding"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "char",
+      "size": [2, 16],
+      "ndims": 2,
+      "numel": 32,
+      "complex": false,
+      "kind": "char",
+      "code_units": [48, 70, 48, 70, 48, 70, 48, 70, 48, 70, 48, 70, 48, 70, 48, 70, 48, 70, 48, 70, 48, 70, 48, 70, 48, 70, 48, 70, 48, 70, 48, 70]
+    }
+  }
+}

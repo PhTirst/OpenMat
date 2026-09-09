@@ -1,0 +1,212 @@
+.file-tree[role="tree"],
+.file-tree [role="group"] {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.current-folder-header {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+.current-folder-header .pane-title {
+  white-space: nowrap;
+}
+
+.current-folder-header .pane-icon-actions {
+  margin-left: auto;
+}
+
+.file-tree[role="tree"] {
+  padding: 8px;
+}
+
+.file-tree .file-item {
+  min-height: 30px;
+  padding-block: 5px;
+}
+
+.tree-disclosure {
+  display: inline-grid;
+  flex: 0 0 12px;
+  place-items: center;
+  color: var(--text-faint);
+  font-size: 10px;
+}
+
+.tree-entry-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-path-badge {
+  flex: 0 0 auto;
+  padding: 1px 4px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 999px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.workspace-tree-error {
+  display: grid;
+  gap: 4px;
+  padding: 8px 12px;
+  color: var(--danger);
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
+  font-size: 10px;
+}
+
+.workspace-tree-error code {
+  color: inherit;
+  font-size: 9px;
+}
+
+.workspace-context-menu {
+  position: fixed;
+  z-index: 80;
+  display: grid;
+  width: 224px;
+  padding: 4px;
+  max-height: calc(100vh - 16px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  color: var(--text);
+  background: var(--bg-pane);
+  border: 1px solid var(--dialog-border);
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+}
+
+.current-folder-pane.is-file-dragging .file-tree-nav {
+  outline: 2px solid color-mix(in srgb, var(--accent) 72%, transparent);
+  outline-offset: -3px;
+}
+
+.file-item.is-drop-target {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 20%, var(--bg-pane));
+  outline: 1px solid color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.workspace-drop-hint {
+  position: sticky;
+  z-index: 2;
+  top: 6px;
+  width: fit-content;
+  max-width: calc(100% - 24px);
+  padding: 5px 8px;
+  margin: 6px auto -34px;
+  overflow: hidden;
+  color: var(--text);
+  background: var(--bg-raised);
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  box-shadow: var(--shadow);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-operation-status {
+  padding: 5px 10px;
+  overflow: hidden;
+  color: var(--text-muted);
+  background: var(--bg-raised);
+  border-top: 1px solid var(--subtle-border);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-context-menu button {
+  padding: 7px 9px;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.workspace-context-menu button:hover,
+.workspace-context-menu button:focus-visible {
+  background: var(--hover-bg);
+  outline: none;
+}
+
+.workspace-context-menu button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.workspace-context-menu button.danger {
+  color: var(--danger);
+}
+
+.editor-empty-state {
+  display: grid;
+  height: 100%;
+  place-items: center;
+  padding: 24px;
+  color: var(--text-faint);
+  text-align: center;
+  font-size: 12px;
+}
+
+.code-editor-document {
+  height: 100%;
+}
+
+.open-editor-close {
+  display: inline-grid;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  flex: 0 0 auto;
+  margin: 0 3px 0 1px;
+  place-items: center;
+  color: var(--text-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.open-editor-close:hover {
+  color: var(--text);
+  background: var(--hover-bg);
+}
+
+.editor-operation-error {
+  max-width: 320px;
+  overflow: hidden;
+  color: var(--danger);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pane-icon-actions .is-refreshing .refresh-icon {
+  display: inline-flex;
+  animation: workspace-refresh-spin 0.8s linear infinite;
+}
+
+@keyframes workspace-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pane-icon-actions .is-refreshing .refresh-icon {
+    animation: none;
+  }
+}

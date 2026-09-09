@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "while_break_continue",
+  "description": "A while loop applies continue before accumulation and break before termination.",
+  "source": "programs/while_break_continue.m",
+  "tags": ["r2022b", "control-flow", "while", "break", "continue"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 2],
+      "ndims": 2,
+      "numel": 2,
+      "kind": "numeric",
+      "real": ["6", "13"],
+      "imag": ["0", "0"]
+    }
+  }
+}

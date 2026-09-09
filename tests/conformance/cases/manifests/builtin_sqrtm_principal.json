@@ -1,0 +1,17 @@
+{
+  "schema_version": 2,
+  "id": "builtin_sqrtm_principal",
+  "description": "sqrtm follows the principal branch, preserves single storage, returns the one-norm residual, and handles the zero-order matrix.",
+  "source": "programs/builtin_sqrtm_principal.m",
+  "tags": ["r2022b", "wire-v2", "matrix-functions", "sqrtm", "single", "complex", "empty"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1, 11], "ndims": 2, "numel": 11,
+      "complex": false, "kind": "numeric",
+      "real": ["0", "0", "0", "0", "1", "1", "0", "0", "1", "0", "0"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"],
+      "tolerance": {"absolute": 1e-5, "relative": 1e-5}
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "colon_matrix_indexing",
+  "description": "Colon indexing selects every row while preserving a column shape.",
+  "source": "programs/colon_matrix_indexing.m",
+  "tags": ["r2022b", "arrays", "colon", "indexing", "shape"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [2, 1],
+      "ndims": 2,
+      "numel": 2,
+      "kind": "numeric",
+      "real": ["2", "5"],
+      "imag": ["0", "0"]
+    }
+  }
+}

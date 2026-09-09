@@ -1,0 +1,40 @@
+{
+  "schema_version": 2,
+  "case_id": "builtin_svd_single_complex",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "single",
+    "size": [
+      1,
+      8
+    ],
+    "ndims": 2,
+    "numel": 8,
+    "complex": false,
+    "kind": "numeric",
+    "real": [
+      "5.39490316e-07",
+      "2.02746165e-07",
+      "1.2105761e-07",
+      "1",
+      "1",
+      "1",
+      "1",
+      "2"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

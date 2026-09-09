@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "id": "builtin_conversion_extended_num2cell_order",
+  "description": "num2cell honors the supplied grouped-dimension order before cell2mat tiles the resulting N-D blocks.",
+  "source": "programs/builtin_conversion_extended_num2cell_order.m",
+  "tags": ["r2022b", "wire-v2", "conversion-extended", "num2cell", "cell2mat", "nd", "column-major"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [4, 3, 2],
+      "ndims": 3,
+      "numel": 24,
+      "complex": false,
+      "kind": "numeric",
+      "real": ["1", "7", "13", "19", "3", "9", "15", "21", "5", "11", "17", "23", "2", "8", "14", "20", "4", "10", "16", "22", "6", "12", "18", "24"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

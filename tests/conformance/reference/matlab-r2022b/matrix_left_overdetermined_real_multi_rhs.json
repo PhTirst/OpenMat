@@ -1,0 +1,32 @@
+{
+  "schema_version": 2,
+  "case_id": "matrix_left_overdetermined_real_multi_rhs",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      2,
+      2
+    ],
+    "ndims": 2,
+    "numel": 4,
+    "complex": false,
+    "kind": "numeric",
+    "real": [
+      "0.76470588235294146",
+      "1.5882352941176472",
+      "2.1176470588235303",
+      "0.70588235294117663"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

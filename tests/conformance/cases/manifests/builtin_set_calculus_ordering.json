@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "id": "builtin_set_calculus_ordering",
+  "description": "issorted, mink, and maxk cover direction, dimensions, rows, complex comparison, ties, classes, indices, ND, NaN, Inf, and empties.",
+  "source": "programs/builtin_set_calculus_ordering.m",
+  "tags": ["r2022b", "wire-v2", "set-calculus", "ordering-selection"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1,49], "ndims": 2, "numel": 49,
+      "complex": false, "kind": "numeric",
+      "real": [
+        "1","1","1","1","1","-Inf","1","3","5","3","1","+Inf","3","3","6","1","4","1","2","2","2","8","5","7","6","2","2","2","2","1","1","2","2","4","1","2","1","0","1","3","1","1","2","1","2","0","3","1","1"
+      ],
+      "imag": [
+        "0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0"
+      ]
+    }
+  }
+}

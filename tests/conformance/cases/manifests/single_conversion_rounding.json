@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "id": "single_conversion_rounding",
+  "description": "Single conversion preserves matrix shape and exposes binary32 rounding at ordinary and integer precision boundaries.",
+  "source": "programs/single_conversion_rounding.m",
+  "tags": ["r2022b", "wire-v2", "single-try-r2022b", "single", "conversion", "shape", "rounding"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "single",
+      "size": [2, 2],
+      "ndims": 2,
+      "numel": 4,
+      "complex": false,
+      "kind": "numeric",
+      "real": ["0.100000001", "-2.5", "16777216", "0.333333343"],
+      "imag": ["0", "0", "0", "0"]
+    }
+  }
+}

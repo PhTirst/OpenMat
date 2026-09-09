@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "case_id": "global_missing_empty",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      0,
+      0
+    ],
+    "ndims": 2,
+    "numel": 0,
+    "kind": "numeric",
+    "real": [],
+    "imag": []
+  }
+}

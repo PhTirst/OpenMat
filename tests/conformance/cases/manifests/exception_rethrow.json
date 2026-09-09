@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "id": "exception_rethrow",
+  "description": "rethrow preserves the original R2022b MException identity, message, and catchability through nested and saved exception values.",
+  "source": "programs/exception_rethrow.m",
+  "tags": ["r2022b", "wire-v2", "programming", "error", "rethrow", "try-catch"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical", "size": [1, 1], "ndims": 2, "numel": 1,
+      "complex": false, "kind": "logical", "logical": [true]
+    }
+  }
+}

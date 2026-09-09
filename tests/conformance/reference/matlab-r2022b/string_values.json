@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "case_id": "string_values",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "string",
+    "size": [
+      1,
+      2
+    ],
+    "ndims": 2,
+    "numel": 2,
+    "kind": "string",
+    "string": [
+      "alpha",
+      "beta"
+    ],
+    "missing": [
+      false,
+      false
+    ]
+  }
+}

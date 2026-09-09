@@ -1,0 +1,30 @@
+{
+  "schema_version": 2,
+  "case_id": "graphics_plot_matrix_handle_vector",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      3
+    ],
+    "ndims": 2,
+    "numel": 3,
+    "complex": false,
+    "kind": "numeric",
+    "real": [
+      "2",
+      "2",
+      "1"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

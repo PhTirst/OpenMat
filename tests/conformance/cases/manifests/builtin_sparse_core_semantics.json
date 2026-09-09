@@ -1,0 +1,24 @@
+{
+  "schema_version": 2,
+  "id": "builtin_sparse_core_semantics",
+  "description": "Normalized CSC construction, sparse logical/double/complex values, queries, find, transpose, scalar indexing, empty rectangles, speye, and spalloc match MATLAB R2022b.",
+  "source": "programs/builtin_sparse_core_semantics.m",
+  "tags": ["r2022b", "wire-v2", "builtin-sparse", "csc", "empty", "complex"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical",
+      "size": [1, 30],
+      "ndims": 2,
+      "numel": 30,
+      "complex": false,
+      "kind": "logical",
+      "logical": [
+        true, true, true, true, true, true, true, true, true,
+        true, true, true, true, true, true, true, true, true,
+        true, true, true, true, true, true, true, true,
+        true, true, true, true
+      ]
+    }
+  }
+}

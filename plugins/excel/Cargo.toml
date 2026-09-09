@@ -1,0 +1,25 @@
+[package]
+license = "AGPL-3.0-only"
+name = "openmat-excel"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+publish = false
+
+[workspace]
+resolver = "3"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+oex = { path = "../../sdk/rust/oex" }
+calamine = "=0.36.1"
+rust_xlsxwriter = { version = "=0.99.0", default-features = false }
+tempfile = "3.23"
+
+[dev-dependencies]
+zip = { version = "7", default-features = false }
+
+[lints.rust]
+unsafe_code = "forbid"

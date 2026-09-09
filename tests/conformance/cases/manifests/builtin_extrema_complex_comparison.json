@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "id": "builtin_extrema_complex_comparison",
+  "description": "element-wise min follows the R2022b real-part comparison method for complex inputs.",
+  "source": "programs/builtin_extrema_complex_comparison.m",
+  "tags": ["r2022b", "wire-v2", "core-numeric-builtins", "extrema", "complex"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 2],
+      "ndims": 2,
+      "numel": 2,
+      "complex": true,
+      "kind": "numeric",
+      "real": ["3", "-2"],
+      "imag": ["4", "0"]
+    }
+  }
+}

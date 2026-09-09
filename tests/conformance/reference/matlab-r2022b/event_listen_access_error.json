@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "case_id": "event_listen_access_error",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "error",
+  "error": {
+    "category": "type-error"
+  }
+}

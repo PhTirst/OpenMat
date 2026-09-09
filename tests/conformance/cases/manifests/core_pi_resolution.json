@@ -1,0 +1,26 @@
+{
+  "schema_version": 2,
+  "id": "core_pi_resolution",
+  "description": "Bare and functional pi resolve to the R2022b double constant while an ordinary workspace value shadows both forms until cleared.",
+  "source": "programs/core_pi_resolution.m",
+  "tags": ["r2022b", "wire-v2", "common-syntax-r2022b", "core-builtins", "pi", "name-resolution"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 5],
+      "ndims": 2,
+      "numel": 5,
+      "complex": false,
+      "kind": "numeric",
+      "real": [
+        "3.1415926535897931",
+        "3.1415926535897931",
+        "7",
+        "7",
+        "3.1415926535897931"
+      ],
+      "imag": ["0", "0", "0", "0", "0"]
+    }
+  }
+}

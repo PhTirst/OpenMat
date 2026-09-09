@@ -1,0 +1,24 @@
+{
+  "schema_version": 2,
+  "id": "builtin_conversion_extended_typecast_native_bytes",
+  "description": "typecast exposes native little-endian bytes and preserves row-vector orientation on the Windows R2022b oracle host.",
+  "source": "programs/builtin_conversion_extended_typecast_native_bytes.m",
+  "tags": ["r2022b", "wire-v2", "conversion-extended", "typecast", "native-endian", "windows"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "uint8",
+      "size": [1, 4],
+      "ndims": 2,
+      "numel": 4,
+      "complex": false,
+      "kind": "integer",
+      "integer": [
+        {"real": "1", "imaginary": "0"},
+        {"real": "0", "imaginary": "0"},
+        {"real": "0", "imaginary": "0"},
+        {"real": "1", "imaginary": "0"}
+      ]
+    }
+  }
+}

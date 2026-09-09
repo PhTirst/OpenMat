@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "function_handle_anonymous_capture",
+  "description": "An anonymous handle retains construction-time lexical array and scalar values.",
+  "source": "programs/function_handle_anonymous_capture.m",
+  "tags": ["r2022b", "function-handle-r2022b", "function-handle", "anonymous-function", "lexical-capture", "copy-on-write"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 1],
+      "ndims": 2,
+      "numel": 1,
+      "kind": "numeric",
+      "real": ["15"],
+      "imag": ["0"]
+    }
+  }
+}

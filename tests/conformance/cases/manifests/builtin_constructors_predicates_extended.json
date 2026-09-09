@@ -1,0 +1,24 @@
+{
+  "schema_version": 2,
+  "id": "builtin_constructors_predicates_extended",
+  "description": "Typed zeros, ones, eye, logical constructors, imaginary constants, and common type/shape predicates match MATLAB R2022b.",
+  "source": "programs/builtin_constructors_predicates_extended.m",
+  "tags": ["r2022b", "wire-v2", "core-numeric-builtins", "typed-constructors", "type-predicates"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical",
+      "size": [1, 28],
+      "ndims": 2,
+      "numel": 28,
+      "complex": false,
+      "kind": "logical",
+      "logical": [
+        true, true, true, true, true, true, true, true,
+        true, true, true, true, true, true, true, true,
+        true, true, true, true, true, true, true, true,
+        true, true, true, true
+      ]
+    }
+  }
+}

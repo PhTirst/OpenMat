@@ -1,0 +1,32 @@
+{
+  "schema_version": 2,
+  "case_id": "graphics_close_new_current_unheld",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      4
+    ],
+    "ndims": 2,
+    "numel": 4,
+    "complex": false,
+    "kind": "numeric",
+    "real": [
+      "1",
+      "0",
+      "1",
+      "0"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

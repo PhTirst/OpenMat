@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "id": "event_nested_notify",
+  "description": "Nested notify takes its own listener snapshot and completes before outer dispatch resumes.",
+  "source": "programs/event_nested_notify.m",
+  "tags": ["r2022b", "classdef", "events", "nested"],
+  "expected": {"outcome":"ok","value":{"class":"double","size":[1,3],"ndims":2,"numel":3,"kind":"numeric","real":["2","1","2"],"imag":["0","0","0"]}}
+}

@@ -1,0 +1,262 @@
+{
+  "schema_version": 2,
+  "id": "aggregate_c3_transaction_rollback",
+  "description": "Failed cell shape and struct field-set assignments leave both roots and aliases unchanged.",
+  "source": "programs/aggregate_c3_transaction_rollback.m",
+  "tags": [
+    "r2022b",
+    "wire-v2",
+    "aggregate",
+    "c3",
+    "cell",
+    "struct",
+    "transaction",
+    "error"
+  ],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "cell",
+      "size": [
+        1,
+        6
+      ],
+      "ndims": 2,
+      "numel": 6,
+      "complex": false,
+      "kind": "cell",
+      "items": [
+        {
+          "class": "logical",
+          "size": [
+            1,
+            1
+          ],
+          "ndims": 2,
+          "numel": 1,
+          "complex": false,
+          "kind": "logical",
+          "logical": [
+            true
+          ]
+        },
+        {
+          "class": "cell",
+          "size": [
+            1,
+            2
+          ],
+          "ndims": 2,
+          "numel": 2,
+          "complex": false,
+          "kind": "cell",
+          "items": [
+            {
+              "class": "double",
+              "size": [
+                1,
+                1
+              ],
+              "ndims": 2,
+              "numel": 1,
+              "complex": false,
+              "kind": "numeric",
+              "real": [
+                "1"
+              ],
+              "imag": [
+                "0"
+              ]
+            },
+            {
+              "class": "double",
+              "size": [
+                1,
+                1
+              ],
+              "ndims": 2,
+              "numel": 1,
+              "complex": false,
+              "kind": "numeric",
+              "real": [
+                "2"
+              ],
+              "imag": [
+                "0"
+              ]
+            }
+          ]
+        },
+        {
+          "class": "cell",
+          "size": [
+            1,
+            2
+          ],
+          "ndims": 2,
+          "numel": 2,
+          "complex": false,
+          "kind": "cell",
+          "items": [
+            {
+              "class": "double",
+              "size": [
+                1,
+                1
+              ],
+              "ndims": 2,
+              "numel": 1,
+              "complex": false,
+              "kind": "numeric",
+              "real": [
+                "1"
+              ],
+              "imag": [
+                "0"
+              ]
+            },
+            {
+              "class": "double",
+              "size": [
+                1,
+                1
+              ],
+              "ndims": 2,
+              "numel": 1,
+              "complex": false,
+              "kind": "numeric",
+              "real": [
+                "2"
+              ],
+              "imag": [
+                "0"
+              ]
+            }
+          ]
+        },
+        {
+          "class": "logical",
+          "size": [
+            1,
+            1
+          ],
+          "ndims": 2,
+          "numel": 1,
+          "complex": false,
+          "kind": "logical",
+          "logical": [
+            true
+          ]
+        },
+        {
+          "class": "struct",
+          "size": [
+            1,
+            2
+          ],
+          "ndims": 2,
+          "numel": 2,
+          "complex": false,
+          "kind": "struct",
+          "fields": [
+            "a"
+          ],
+          "records": [
+            {
+              "a": {
+                "class": "double",
+                "size": [
+                  1,
+                  1
+                ],
+                "ndims": 2,
+                "numel": 1,
+                "complex": false,
+                "kind": "numeric",
+                "real": [
+                  "1"
+                ],
+                "imag": [
+                  "0"
+                ]
+              }
+            },
+            {
+              "a": {
+                "class": "double",
+                "size": [
+                  1,
+                  1
+                ],
+                "ndims": 2,
+                "numel": 1,
+                "complex": false,
+                "kind": "numeric",
+                "real": [
+                  "2"
+                ],
+                "imag": [
+                  "0"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "class": "struct",
+          "size": [
+            1,
+            2
+          ],
+          "ndims": 2,
+          "numel": 2,
+          "complex": false,
+          "kind": "struct",
+          "fields": [
+            "a"
+          ],
+          "records": [
+            {
+              "a": {
+                "class": "double",
+                "size": [
+                  1,
+                  1
+                ],
+                "ndims": 2,
+                "numel": 1,
+                "complex": false,
+                "kind": "numeric",
+                "real": [
+                  "1"
+                ],
+                "imag": [
+                  "0"
+                ]
+              }
+            },
+            {
+              "a": {
+                "class": "double",
+                "size": [
+                  1,
+                  1
+                ],
+                "ndims": 2,
+                "numel": 1,
+                "complex": false,
+                "kind": "numeric",
+                "real": [
+                  "2"
+                ],
+                "imag": [
+                  "0"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

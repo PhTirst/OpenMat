@@ -1,0 +1,4 @@
+{
+  "outcome": "error",
+  "error": { "category": "index-out-of-bounds" }
+}

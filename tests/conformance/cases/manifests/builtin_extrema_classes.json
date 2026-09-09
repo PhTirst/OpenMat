@@ -1,0 +1,29 @@
+{
+  "schema_version": 2,
+  "id": "builtin_extrema_classes",
+  "description": "min values and indices preserve the measured R2022b floating, integer, logical, and char class rules.",
+  "source": "programs/builtin_extrema_classes.m",
+  "tags": ["r2022b", "wire-v2", "core-numeric-builtins", "extrema", "classes"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "string",
+      "size": [1, 8],
+      "ndims": 2,
+      "numel": 8,
+      "complex": false,
+      "kind": "string",
+      "string_code_units": [
+        [115, 105, 110, 103, 108, 101],
+        [100, 111, 117, 98, 108, 101],
+        [105, 110, 116, 49, 54],
+        [108, 111, 103, 105, 99, 97, 108],
+        [100, 111, 117, 98, 108, 101],
+        [115, 105, 110, 103, 108, 101],
+        [105, 110, 116, 56],
+        [100, 111, 117, 98, 108, 101]
+      ],
+      "missing": [false, false, false, false, false, false, false, false]
+    }
+  }
+}

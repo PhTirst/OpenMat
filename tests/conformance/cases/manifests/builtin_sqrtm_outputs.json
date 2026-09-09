@@ -1,0 +1,17 @@
+{
+  "schema_version": 2,
+  "id": "builtin_sqrtm_outputs",
+  "description": "sqrtm distinguishes its two-output residual from the three-output stability factor and condition estimate.",
+  "source": "programs/builtin_sqrtm_outputs.m",
+  "tags": ["r2022b", "wire-v2", "matrix-functions", "sqrtm", "outputs", "condition"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1, 5], "ndims": 2, "numel": 5,
+      "complex": false, "kind": "numeric",
+      "real": ["0", "1.1306507024215573", "2.8477505624022008", "5.9336629442368287e-16", "5.9336629442368287e-16"],
+      "imag": ["0", "0", "0", "0", "0"],
+      "tolerance": {"absolute": 1e-10, "relative": 1e-10}
+    }
+  }
+}

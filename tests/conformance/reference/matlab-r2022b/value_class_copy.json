@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "case_id": "value_class_copy",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      2
+    ],
+    "ndims": 2,
+    "numel": 2,
+    "kind": "numeric",
+    "real": [
+      "6",
+      "5"
+    ],
+    "imag": [
+      "0",
+      "0"
+    ]
+  }
+}

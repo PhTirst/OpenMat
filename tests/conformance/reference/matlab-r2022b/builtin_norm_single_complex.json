@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "case_id": "builtin_norm_single_complex",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "single",
+    "size": [
+      1,
+      2
+    ],
+    "ndims": 2,
+    "numel": 2,
+    "complex": false,
+    "kind": "numeric",
+    "real": [
+      "5.46498585",
+      "5.7912879"
+    ],
+    "imag": [
+      "0",
+      "0"
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "schema_version": 2,
+  "id": "matrix_left_square_real_multi_rhs",
+  "description": "Square real left division preserves two right-hand sides and column-major results.",
+  "source": "programs/matrix_left_square_real_multi_rhs.m",
+  "tags": ["r2022b", "wire-v2", "numeric", "matrix-division", "left-divide", "square", "multi-rhs"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [2, 2],
+      "ndims": 2,
+      "numel": 4,
+      "complex": false,
+      "kind": "numeric",
+      "real": ["-0.099999999999999978", "1.3999999999999999", "0.099999999999999978", "1.6000000000000001"],
+      "imag": ["0", "0", "0", "0"],
+      "tolerance": {"absolute": 1e-12, "relative": 1e-12}
+    }
+  }
+}

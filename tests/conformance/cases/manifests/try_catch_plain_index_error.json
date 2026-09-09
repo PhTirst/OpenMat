@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "id": "try_catch_plain_index_error",
+  "description": "A plain catch handles a runtime index error and skips the remaining protected statement.",
+  "source": "programs/try_catch_plain_index_error.m",
+  "tags": ["r2022b", "wire-v2", "single-try-r2022b", "try-catch", "control-flow", "indexing", "error"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical", "size": [1, 2], "ndims": 2, "numel": 2,
+      "complex": false, "kind": "logical", "logical": [true, false]
+    }
+  }
+}

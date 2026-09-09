@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "function_handle_named_file",
+  "description": "A named handle resolves a function file on the configured source path and invokes it.",
+  "source": "programs/function_handle_named_file.m",
+  "tags": ["r2022b", "function-handle-r2022b", "function-handle", "named-function", "source-path"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 1],
+      "ndims": 2,
+      "numel": 1,
+      "kind": "numeric",
+      "real": ["78"],
+      "imag": ["0"]
+    }
+  }
+}

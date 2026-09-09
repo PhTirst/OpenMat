@@ -1,0 +1,14 @@
+[package]
+license = "AGPL-3.0-only"
+name = "openmat-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+openmat-kernel = { path = "../openmat-kernel" }
+openmat-protocol = { path = "../openmat-protocol" }
+serde_json = "1.0"
+
+[lints]
+workspace = true

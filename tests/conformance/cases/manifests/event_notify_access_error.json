@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "id": "event_notify_access_error",
+  "description": "External notify is rejected by private NotifyAccess.",
+  "source": "programs/event_notify_access_error.m",
+  "tags": ["r2022b", "classdef", "events", "access", "error"],
+  "expected": {"outcome":"error","error":{"category":"type-error"}}
+}

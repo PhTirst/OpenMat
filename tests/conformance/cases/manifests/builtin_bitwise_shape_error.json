@@ -1,0 +1,11 @@
+{
+  "schema_version": 2,
+  "id": "builtin_bitwise_shape_error",
+  "description": "bitshift rejects nonscalar control arrays whose shape differs from the primary input instead of applying implicit expansion.",
+  "source": "programs/builtin_bitwise_shape_error.m",
+  "tags": ["r2022b", "wire-v2", "core-numeric-builtins", "bitwise", "error", "shape", "scalar-expansion"],
+  "expected": {
+    "outcome": "error",
+    "error": {"category": "other"}
+  }
+}

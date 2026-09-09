@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "case_id": "function_handle_anonymous_varargin_positions",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      14
+    ],
+    "ndims": 2,
+    "numel": 14,
+    "kind": "numeric",
+    "real": [
+      "4",
+      "5",
+      "2",
+      "6",
+      "7",
+      "8",
+      "3",
+      "9",
+      "2",
+      "10",
+      "3",
+      "2",
+      "11",
+      "12"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

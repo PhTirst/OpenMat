@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "colon_range",
+  "description": "The three-operand colon form constructs an inclusive row range.",
+  "source": "programs/colon_range.m",
+  "tags": ["r2022b", "arrays", "colon", "range"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 4],
+      "ndims": 2,
+      "numel": 4,
+      "kind": "numeric",
+      "real": ["2", "4", "6", "8"],
+      "imag": ["0", "0", "0", "0"]
+    }
+  }
+}

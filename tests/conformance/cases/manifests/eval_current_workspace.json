@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "id": "eval_current_workspace",
+  "description": "eval executes expressions and statements in the current script or function workspace, preserves completed side effects on failure, supports multiple outputs, and remains dynamically callable.",
+  "source": "programs/eval_current_workspace.m",
+  "tags": ["r2022b", "wire-v2", "eval", "dynamic-call", "current-workspace"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical", "size": [1, 1], "ndims": 2, "numel": 1,
+      "complex": false, "kind": "logical", "logical": [true]
+    }
+  }
+}

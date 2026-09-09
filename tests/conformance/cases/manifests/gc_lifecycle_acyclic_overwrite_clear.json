@@ -1,0 +1,16 @@
+{
+  "schema_version": 2,
+  "id": "gc_lifecycle_acyclic_overwrite_clear",
+  "description": "Acyclic handle replacement and clear run delete at the reference release's observed statement boundaries.",
+  "source": "programs/gc_lifecycle_acyclic_overwrite_clear.m",
+  "tags": ["r2022b", "wire-v2", "gc-lifecycle-r2022b", "classdef", "handle-class", "delete"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1, 9], "ndims": 2, "numel": 9,
+      "complex": false, "kind": "numeric",
+      "real": ["101", "10", "102", "201", "301", "11", "202", "302", "12"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

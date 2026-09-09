@@ -1,0 +1,8 @@
+{
+  "schema_version": 2,
+  "id": "string_transform_utf16",
+  "description": "Char and string case mapping, raw UTF-16 reverse, trimming, missing propagation, and code-unit lengths match MATLAB R2022b.",
+  "source": "programs/string_transform_utf16.m",
+  "tags": ["r2022b", "wire-v2", "string-builtins", "string-transform", "utf16"],
+  "expected": {"outcome":"ok","value":{"class":"double","size":[1,13],"ndims":2,"numel":13,"complex":false,"kind":"numeric","real":["1","1","1","1","1","1","1","1","1","3","1","NaN","2"],"imag":["0","0","0","0","0","0","0","0","0","0","0","0","0"],"tolerance":{"absolute":0,"relative":0}}}
+}

@@ -1,0 +1,16 @@
+[package]
+license = "AGPL-3.0-only"
+name = "openmat-mat"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+flate2 = { version = "1.1.10", default-features = false, features = ["rust_backend"] }
+hdf5-metno = { version = "=0.14.1", default-features = false, features = ["static", "zlib"] }
+hdf5-metno-sys = { version = "=0.12.3", default-features = false, features = ["static", "zlib"] }
+openmat-array = { path = "../openmat-array" }
+openmat-value = { path = "../openmat-value" }
+
+[lints]
+workspace = true

@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "case_id": "aggregate_invalid_record_width",
+  "oracle": {"name": "fixture", "release": "test"},
+  "outcome": "ok",
+  "value": {
+    "class": "struct", "size": [1, 1], "ndims": 2, "numel": 1,
+    "complex": false, "kind": "struct",
+    "fields": ["beta", "alpha"],
+    "records": [{
+      "beta": {"class": "logical", "size": [1, 1], "ndims": 2, "numel": 1, "complex": false, "kind": "logical", "logical": [true]}
+    }]
+  }
+}

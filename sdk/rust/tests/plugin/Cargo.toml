@@ -1,0 +1,18 @@
+[package]
+license = "AGPL-3.0-only"
+name = "oex-rust-test-plugin"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+test = false
+doctest = false
+
+[dependencies]
+oex = { path = "../../oex" }
+
+[lints]
+workspace = true

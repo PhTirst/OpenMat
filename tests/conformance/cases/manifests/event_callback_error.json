@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "id": "event_callback_error",
+  "description": "A listener callback error is contained and later listeners in the snapshot still run.",
+  "source": "programs/event_callback_error.m",
+  "tags": ["r2022b", "classdef", "events", "callback", "error"],
+  "expected": {"outcome":"ok","value":{"class":"logical","size":[1,2],"ndims":2,"numel":2,"kind":"logical","logical":[false,false]}}
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "id": "function_dynamic_invocation",
+  "description": "feval, str2func, and func2str dynamically invoke built-ins, local functions, class methods, anonymous handles, strings, multiple outputs, and lazy missing names.",
+  "source": "programs/function_dynamic_invocation.m",
+  "tags": ["r2022b", "wire-v2", "function-handles", "feval", "str2func", "func2str", "dynamic-call"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical", "size": [1, 1], "ndims": 2, "numel": 1,
+      "complex": false, "kind": "logical", "logical": [true]
+    }
+  }
+}

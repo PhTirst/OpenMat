@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "function_handle_anonymous_varargin_basic",
+  "description": "Anonymous varargin accepts zero or many inputs and supports cell indexing and comma-separated expansion.",
+  "source": "programs/function_handle_anonymous_varargin_basic.m",
+  "tags": ["r2022b", "function-handle-r2022b", "function-handle", "anonymous-function", "varargin", "function-handle-anonymous-varargin-r2022b"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 14],
+      "ndims": 2,
+      "numel": 14,
+      "kind": "numeric",
+      "real": ["0", "0", "1", "3", "4", "6", "9", "0", "3", "3", "2", "4", "5", "6"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

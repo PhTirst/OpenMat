@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "case_id": "floating_tolerance",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      1
+    ],
+    "ndims": 2,
+    "numel": 1,
+    "kind": "numeric",
+    "real": [
+      "1.4142135623730951"
+    ],
+    "imag": [
+      "0"
+    ]
+  }
+}

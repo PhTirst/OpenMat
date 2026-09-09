@@ -1,0 +1,19 @@
+{
+  "schema_version": 2,
+  "id": "graphics_command_figure_close_all",
+  "description": "Figure name-value construction exposes normalized colors and command-form close all matches functional close of all ordinary Figures and clears the current Figure.",
+  "source": "programs/graphics_command_figure_close_all.m",
+  "tags": ["r2022b", "wire-v2", "command-semantics-probe", "graphics", "figure", "close", "command-form"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical",
+      "size": [1, 8],
+      "ndims": 2,
+      "numel": 8,
+      "complex": false,
+      "kind": "logical",
+      "logical": [true, true, true, true, true, true, true, true]
+    }
+  }
+}

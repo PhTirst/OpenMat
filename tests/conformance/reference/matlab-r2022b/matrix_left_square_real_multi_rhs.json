@@ -1,0 +1,32 @@
+{
+  "schema_version": 2,
+  "case_id": "matrix_left_square_real_multi_rhs",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      2,
+      2
+    ],
+    "ndims": 2,
+    "numel": 4,
+    "complex": false,
+    "kind": "numeric",
+    "real": [
+      "-0.099999999999999978",
+      "1.3999999999999999",
+      "0.099999999999999978",
+      "1.6000000000000001"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

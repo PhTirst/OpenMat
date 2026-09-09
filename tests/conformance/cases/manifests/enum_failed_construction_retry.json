@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "id": "enum_failed_construction_retry",
+  "description": "A failed enumeration construction rolls back atomically and a later qualified lookup retries the member factory.",
+  "source": "programs/enum_failed_construction_retry.m",
+  "tags": ["r2022b", "classdef", "enumeration", "runtime", "rollback"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical",
+      "size": [1, 2],
+      "ndims": 2,
+      "numel": 2,
+      "kind": "logical",
+      "logical": [true, true]
+    }
+  }
+}

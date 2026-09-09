@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "function_nargin_nargout",
+  "description": "nargin and nargout report fixed inputs and the caller-requested output count.",
+  "source": "programs/function_nargin_nargout.m",
+  "tags": ["r2022b", "functions", "arguments", "multiple-output", "arity"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 7],
+      "ndims": 2,
+      "numel": 7,
+      "kind": "numeric",
+      "real": ["2", "1", "4", "2", "2", "4", "5"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

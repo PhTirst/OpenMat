@@ -1,0 +1,36 @@
+{
+  "schema_version": 2,
+  "case_id": "graphics_2d_contour_image_semantics",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      6
+    ],
+    "ndims": 2,
+    "numel": 6,
+    "complex": false,
+    "kind": "numeric",
+    "real": [
+      "1",
+      "2",
+      "1",
+      "1",
+      "1",
+      "1"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

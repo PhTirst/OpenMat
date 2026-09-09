@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "function_handle_cell_call",
+  "description": "A named handle remains callable after storage in and extraction from a cell.",
+  "source": "programs/function_handle_cell_call.m",
+  "tags": ["r2022b", "function-handle-r2022b", "function-handle", "named-function", "cell", "call"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 1],
+      "ndims": 2,
+      "numel": 1,
+      "kind": "numeric",
+      "real": ["78"],
+      "imag": ["0"]
+    }
+  }
+}

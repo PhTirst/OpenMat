@@ -1,0 +1,14 @@
+[package]
+license = "AGPL-3.0-only"
+name = "openmat-value"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+openmat-array = { path = "../openmat-array" }
+openmat-graphics-model = { path = "../openmat-graphics-model" }
+openmat-sparse = { path = "../openmat-sparse" }
+
+[lints]
+workspace = true

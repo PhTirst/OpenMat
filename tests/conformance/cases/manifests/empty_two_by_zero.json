@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "empty_two_by_zero",
+  "description": "An empty array retains a two-by-zero shape.",
+  "source": "programs/empty_two_by_zero.m",
+  "tags": ["r2022b", "arrays", "empty", "shape"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [2, 0],
+      "ndims": 2,
+      "numel": 0,
+      "kind": "numeric",
+      "real": [],
+      "imag": []
+    }
+  }
+}

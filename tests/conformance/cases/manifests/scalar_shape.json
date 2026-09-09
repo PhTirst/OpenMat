@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "scalar_shape",
+  "description": "A numeric scalar is a two-dimensional one-by-one double array.",
+  "source": "programs/scalar_shape.m",
+  "tags": ["smoke", "r2022b", "numeric", "shape", "scalar"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 1],
+      "ndims": 2,
+      "numel": 1,
+      "kind": "numeric",
+      "real": ["42"],
+      "imag": ["0"]
+    }
+  }
+}

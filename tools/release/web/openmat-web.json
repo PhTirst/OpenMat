@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "webPort": 42001,
+  "kernelPort": 42000,
+  "workspaceRoot": "workspace"
+}

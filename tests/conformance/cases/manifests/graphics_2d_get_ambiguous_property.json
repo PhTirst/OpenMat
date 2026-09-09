@@ -1,0 +1,22 @@
+{
+  "schema_version": 2,
+  "id": "graphics_2d_get_ambiguous_property",
+  "description": "The Line property prefix Line is ambiguous and is rejected through the normalized error boundary.",
+  "source": "programs/graphics_2d_get_ambiguous_property.m",
+  "tags": [
+    "r2022b",
+    "wire-v2",
+    "graphics",
+    "plot-engine",
+    "graphics-2d",
+    "get",
+    "properties",
+    "error"
+  ],
+  "expected": {
+    "outcome": "error",
+    "error": {
+      "category": "other"
+    }
+  }
+}

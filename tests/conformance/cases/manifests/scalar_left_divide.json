@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "scalar_left_divide",
+  "description": "Scalar left division handles positive, negative, and complex divisors.",
+  "source": "programs/scalar_left_divide.m",
+  "tags": ["r2022b", "numeric", "operators", "left-divide", "complex"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 3],
+      "ndims": 2,
+      "numel": 3,
+      "kind": "numeric",
+      "real": ["0.25", "-0.5", "0"],
+      "imag": ["0", "0", "-2"]
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "linear_indexing",
+  "description": "Linear indices address a matrix in column-major order.",
+  "source": "programs/linear_indexing.m",
+  "tags": ["r2022b", "arrays", "indexing", "linear-indexing", "column-major"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 3],
+      "ndims": 2,
+      "numel": 3,
+      "kind": "numeric",
+      "real": ["10", "50", "60"],
+      "imag": ["0", "0", "0"]
+    }
+  }
+}

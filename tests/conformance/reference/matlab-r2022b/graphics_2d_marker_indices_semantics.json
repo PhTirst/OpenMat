@@ -1,0 +1,213 @@
+{
+  "schema_version": 2,
+  "case_id": "graphics_2d_marker_indices_semantics",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "cell",
+    "size": [
+      1,
+      9
+    ],
+    "ndims": 2,
+    "numel": 9,
+    "complex": false,
+    "kind": "cell",
+    "items": [
+      {
+        "class": "char",
+        "size": [
+          1,
+          6
+        ],
+        "ndims": 2,
+        "numel": 6,
+        "complex": false,
+        "kind": "char",
+        "code_units": [
+          117,
+          105,
+          110,
+          116,
+          54,
+          52
+        ]
+      },
+      {
+        "class": "double",
+        "size": [
+          1,
+          2
+        ],
+        "ndims": 2,
+        "numel": 2,
+        "complex": false,
+        "kind": "numeric",
+        "real": [
+          "1",
+          "6"
+        ],
+        "imag": [
+          "0",
+          "0"
+        ]
+      },
+      {
+        "class": "uint64",
+        "size": [
+          1,
+          6
+        ],
+        "ndims": 2,
+        "numel": 6,
+        "complex": false,
+        "kind": "integer",
+        "integer": [
+          {
+            "real": "1",
+            "imaginary": "0"
+          },
+          {
+            "real": "2",
+            "imaginary": "0"
+          },
+          {
+            "real": "3",
+            "imaginary": "0"
+          },
+          {
+            "real": "4",
+            "imaginary": "0"
+          },
+          {
+            "real": "5",
+            "imaginary": "0"
+          },
+          {
+            "real": "6",
+            "imaginary": "0"
+          }
+        ]
+      },
+      {
+        "class": "double",
+        "size": [
+          1,
+          2
+        ],
+        "ndims": 2,
+        "numel": 2,
+        "complex": false,
+        "kind": "numeric",
+        "real": [
+          "1",
+          "4"
+        ],
+        "imag": [
+          "0",
+          "0"
+        ]
+      },
+      {
+        "class": "double",
+        "size": [
+          1,
+          4
+        ],
+        "ndims": 2,
+        "numel": 4,
+        "complex": false,
+        "kind": "numeric",
+        "real": [
+          "5",
+          "2",
+          "9",
+          "5"
+        ],
+        "imag": [
+          "0",
+          "0",
+          "0",
+          "0"
+        ]
+      },
+      {
+        "class": "double",
+        "size": [
+          1,
+          4
+        ],
+        "ndims": 2,
+        "numel": 4,
+        "complex": false,
+        "kind": "numeric",
+        "real": [
+          "5",
+          "2",
+          "9",
+          "5"
+        ],
+        "imag": [
+          "0",
+          "0",
+          "0",
+          "0"
+        ]
+      },
+      {
+        "class": "char",
+        "size": [
+          1,
+          6
+        ],
+        "ndims": 2,
+        "numel": 6,
+        "complex": false,
+        "kind": "char",
+        "code_units": [
+          100,
+          111,
+          117,
+          98,
+          108,
+          101
+        ]
+      },
+      {
+        "class": "double",
+        "size": [
+          1,
+          2
+        ],
+        "ndims": 2,
+        "numel": 2,
+        "complex": false,
+        "kind": "numeric",
+        "real": [
+          "0",
+          "0"
+        ],
+        "imag": [
+          "0",
+          "0"
+        ]
+      },
+      {
+        "class": "double",
+        "size": [
+          0,
+          0
+        ],
+        "ndims": 2,
+        "numel": 0,
+        "complex": false,
+        "kind": "numeric",
+        "real": [],
+        "imag": []
+      }
+    ]
+  }
+}

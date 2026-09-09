@@ -1,0 +1,16 @@
+{
+  "schema_version": 2,
+  "id": "gc_lifecycle_function_return",
+  "description": "Function return deletes an unreturned acyclic handle but preserves a returned handle until its caller root is cleared.",
+  "source": "programs/gc_lifecycle_function_return.m",
+  "tags": ["r2022b", "wire-v2", "gc-lifecycle-r2022b", "classdef", "handle-class", "function-return", "delete"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1, 11], "ndims": 2, "numel": 11,
+      "complex": false, "kind": "numeric",
+      "real": ["101", "10", "201", "301", "11", "102", "12", "13", "202", "302", "14"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "id": "event_listener_keeps_source",
+  "description": "A live listener handle keeps its event source alive until the listener is also unreachable.",
+  "source": "programs/event_listener_keeps_source.m",
+  "tags": ["r2022b", "classdef", "events", "listener", "gc"],
+  "expected": {"outcome":"ok","value":{"class":"double","size":[1,3],"ndims":2,"numel":3,"kind":"numeric","real":["0","1","2"],"imag":["0","0","0"]}}
+}

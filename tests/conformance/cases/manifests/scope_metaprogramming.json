@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "id": "scope_metaprogramming",
+  "description": "evalin and assignin address immediate caller and base workspaces, retain completed writes on failure, remain dynamically callable, and preserve value-copy semantics.",
+  "source": "programs/scope_metaprogramming.m",
+  "tags": ["r2022b", "wire-v2", "evalin", "assignin", "dynamic-call", "workspace"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical", "size": [1, 1], "ndims": 2, "numel": 1,
+      "complex": false, "kind": "logical", "logical": [true]
+    }
+  }
+}

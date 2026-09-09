@@ -1,0 +1,40 @@
+{
+  "schema_version": 2,
+  "case_id": "builtin_rank_cond_single",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "single",
+    "size": [
+      1,
+      8
+    ],
+    "ndims": 2,
+    "numel": 8,
+    "complex": false,
+    "kind": "numeric",
+    "real": [
+      "2",
+      "38.9743385",
+      "56.0000153",
+      "56.0000153",
+      "39.0000114",
+      "+Inf",
+      "0",
+      "1"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "schema_version": 2,
+  "case_id": "builtin_conversion_extended_radix_decode",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      2,
+      2
+    ],
+    "ndims": 2,
+    "numel": 4,
+    "complex": false,
+    "kind": "numeric",
+    "real": [
+      "15",
+      "10",
+      "16",
+      "255"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

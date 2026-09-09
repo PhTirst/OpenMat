@@ -1,0 +1,3 @@
+openmat_global_preserve_value = 23;
+global openmat_global_preserve_value
+openmat_result = openmat_global_preserve_value;

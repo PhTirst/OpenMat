@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "case_id": "function_nargin_nargout",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      7
+    ],
+    "ndims": 2,
+    "numel": 7,
+    "kind": "numeric",
+    "real": [
+      "2",
+      "1",
+      "4",
+      "2",
+      "2",
+      "4",
+      "5"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

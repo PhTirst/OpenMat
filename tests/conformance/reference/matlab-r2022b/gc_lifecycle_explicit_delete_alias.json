@@ -1,0 +1,42 @@
+{
+  "schema_version": 2,
+  "case_id": "gc_lifecycle_explicit_delete_alias",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      9
+    ],
+    "ndims": 2,
+    "numel": 9,
+    "complex": false,
+    "kind": "numeric",
+    "real": [
+      "101",
+      "10",
+      "201",
+      "301",
+      "11",
+      "12",
+      "90",
+      "0",
+      "0"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

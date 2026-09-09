@@ -1,0 +1,27 @@
+{
+  "schema_version": 2,
+  "id": "builtin_math_binary_extended",
+  "description": "mod, rem, hypot, and atan2 cover N-D implicit expansion, signed zero, infinities, NaN, complex hypot, single precision, and empty shapes.",
+  "source": "programs/builtin_math_binary_extended.m",
+  "tags": ["r2022b", "wire-v2", "core-numeric-builtins", "math-extended", "binary", "implicit-expansion", "special-values"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1,45], "ndims": 2, "numel": 45,
+      "complex": false, "kind": "numeric",
+      "real": [
+        "1","-0","0","-1","NaN","NaN","-2","-0","0","2","NaN","NaN",
+        "-1","0","1","NaN","NaN","NaN","5","+Inf","-Inf","-5","5","+Inf","NaN",
+        "7.0710678118654755","-3.1415926535897931","3.1415926535897931","1.5707963267948966",
+        "-1.5707963267948966","0.78539816339744828","2.3561944901923448","NaN","5",
+        "6.4031243324279785","0.78539818525314331","3.1415927410125732","1","0","3",
+        "1","1","1","1","1"
+      ],
+      "imag": [
+        "0","0","0","0","0","0","0","0","0","0","0","0","0","0","0",
+        "0","0","0","0","0","0","0","0","0","0","0","0","0","0","0",
+        "0","0","0","0","0","0","0","0","0","0","0","0","0","0","0"
+      ]
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "schema_version": 2,
+  "case_id": "char_integer_value_model_char",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "char",
+    "size": [
+      1,
+      3
+    ],
+    "ndims": 2,
+    "numel": 3,
+    "complex": false,
+    "kind": "char",
+    "code_units": [
+      65,
+      55357,
+      66
+    ]
+  }
+}

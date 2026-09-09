@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "switch_cell_case_list",
+  "description": "Switch supports cell-valued case lists, char/string text matching, and first-match selection without fallthrough.",
+  "source": "programs/switch_cell_case_list.m",
+  "tags": ["r2022b", "common-syntax-r2022b", "control-flow", "switch", "case", "cell", "char", "string"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 3],
+      "ndims": 2,
+      "numel": 3,
+      "kind": "numeric",
+      "real": ["1", "1", "1"],
+      "imag": ["0", "0", "0"]
+    }
+  }
+}

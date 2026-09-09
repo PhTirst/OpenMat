@@ -1,0 +1,36 @@
+{
+  "schema_version": 2,
+  "case_id": "matrix_right_complex_relation",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      6
+    ],
+    "ndims": 2,
+    "numel": 6,
+    "complex": true,
+    "kind": "numeric",
+    "real": [
+      "1.4999999999999993",
+      "1.9999999999999989",
+      "0",
+      "0",
+      "0",
+      "0"
+    ],
+    "imag": [
+      "0.49999999999999956",
+      "1",
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

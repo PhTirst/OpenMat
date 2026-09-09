@@ -1,0 +1,23 @@
+[package]
+license = "AGPL-3.0-only"
+name = "openmat-builtins"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+num-complex = "0.4"
+openmat-array = { path = "../openmat-array" }
+openmat-fft = { path = "../openmat-fft" }
+openmat-graphics-model = { path = "../openmat-graphics-model" }
+openmat-linalg = { path = "../openmat-linalg" }
+openmat-mat = { path = "../openmat-mat" }
+openmat-runtime = { path = "../openmat-runtime" }
+openmat-text = { path = "../openmat-text" }
+openmat-value = { path = "../openmat-value" }
+
+[dev-dependencies]
+openmat-bytecode = { path = "../openmat-bytecode" }
+
+[lints]
+workspace = true

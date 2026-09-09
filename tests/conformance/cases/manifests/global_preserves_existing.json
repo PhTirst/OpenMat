@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "global_preserves_existing",
+  "description": "A global declaration after an existing script value preserves that value.",
+  "source": "programs/global_preserves_existing.m",
+  "tags": ["r2022b", "global-persistent", "global", "declaration", "workspace"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 1],
+      "ndims": 2,
+      "numel": 1,
+      "kind": "numeric",
+      "real": ["23"],
+      "imag": ["0"]
+    }
+  }
+}

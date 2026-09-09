@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "id": "try_catch_callee_error",
+  "description": "A caller try catches a runtime index error raised inside a support function.",
+  "source": "programs/try_catch_callee_error.m",
+  "tags": ["r2022b", "wire-v2", "single-try-r2022b", "try-catch", "control-flow", "functions", "error-propagation"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical", "size": [1, 1], "ndims": 2, "numel": 1,
+      "complex": false, "kind": "logical", "logical": [true]
+    }
+  }
+}

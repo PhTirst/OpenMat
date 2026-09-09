@@ -1,0 +1,16 @@
+a = [0, -1, 0; 1, 0, 0; 0, 0, 3];
+[v, d, w] = eig(a);
+[vector_v, vector_d, vector_w] = eig(a, 'vector');
+right_residual = a * v - v * d;
+left_residual = w' * a - d * w';
+vector_diagonal = diag(vector_d);
+vector_right_residual = a * vector_v - vector_v * vector_diagonal;
+vector_left_residual = vector_w' * a - vector_diagonal * vector_w';
+trace_error = sum(vector_d) - sum(diag(a));
+determinant_error = prod(vector_d) - det(a);
+openmat_result = [ ...
+    norm(right_residual(:)), norm(left_residual(:)), ...
+    norm(vector_right_residual(:)), norm(vector_left_residual(:)), ...
+    abs(trace_error), abs(determinant_error), ...
+    double(any(imag(vector_d))), size(vector_d, 2) ...
+];

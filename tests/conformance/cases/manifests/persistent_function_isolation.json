@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "persistent_function_isolation",
+  "description": "Same-named persistent variables in two local functions retain isolated state.",
+  "source": "programs/persistent_function_isolation.m",
+  "tags": ["r2022b", "global-persistent", "persistent", "functions", "scope", "state"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 4],
+      "ndims": 2,
+      "numel": 4,
+      "kind": "numeric",
+      "real": ["1", "100", "2", "110"],
+      "imag": ["0", "0", "0", "0"]
+    }
+  }
+}

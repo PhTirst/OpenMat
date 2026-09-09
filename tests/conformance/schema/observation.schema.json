@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openmat.dev/schema/observation-v1.json",
+  "title": "OpenMat normalized observation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "case_id", "oracle", "outcome"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "case_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "oracle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "release"],
+      "properties": {
+        "name": { "type": "string" },
+        "release": { "type": "string" }
+      }
+    },
+    "outcome": { "enum": ["ok", "error"] },
+    "value": { "$ref": "#/$defs/value" },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["category"],
+      "properties": {
+        "category": { "type": "string" }
+      }
+    }
+  },
+  "$defs": {
+    "value": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "size", "ndims", "numel", "kind"],
+      "properties": {
+        "class": { "type": "string" },
+        "size": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "type": "integer", "minimum": 0 }
+        },
+        "ndims": { "type": "integer", "minimum": 2 },
+        "numel": { "type": "integer", "minimum": 0 },
+        "kind": {
+          "enum": ["numeric", "integer", "logical", "char", "string", "cell", "struct", "object"]
+        },
+        "real": { "$ref": "#/$defs/numberStrings" },
+        "imag": { "$ref": "#/$defs/numberStrings" },
+        "integer": { "type": "array", "items": { "type": "string" } },
+        "logical": { "type": "array", "items": { "type": "boolean" } },
+        "code_units": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
+        "string": { "type": "array", "items": { "type": "string" } },
+        "missing": { "type": "array", "items": { "type": "boolean" } },
+        "items": { "type": "array", "items": { "$ref": "#/$defs/value" } },
+        "fields": { "type": "array", "items": { "type": "string" } },
+        "records": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": { "$ref": "#/$defs/value" }
+          }
+        }
+      }
+    },
+    "numberStrings": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^(NaN|[+-]Inf|-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?)$"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "outcome": { "const": "ok" } } },
+      "then": { "required": ["value"], "not": { "required": ["error"] } },
+      "else": { "required": ["error"], "not": { "required": ["value"] } }
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "id": "builtin_warning_lastwarn",
+  "description": "warning and lastwarn preserve R2022b formatting, identifier-specific state, muted last-warning updates, queries, and prior-value returns.",
+  "source": "programs/builtin_warning_lastwarn.m",
+  "tags": ["r2022b", "wire-v2", "programming", "warning", "lastwarn"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical", "size": [1, 1], "ndims": 2, "numel": 1,
+      "complex": false, "kind": "logical", "logical": [true]
+    }
+  }
+}

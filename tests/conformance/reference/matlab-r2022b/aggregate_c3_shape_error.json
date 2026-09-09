@@ -1,0 +1,12 @@
+{
+  "schema_version": 2,
+  "case_id": "aggregate_c3_shape_error",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "error",
+  "error": {
+    "category": "index-out-of-bounds"
+  }
+}

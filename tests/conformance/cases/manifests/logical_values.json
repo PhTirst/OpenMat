@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "id": "logical_values",
+  "description": "Logical arrays retain class, shape, and column-major values.",
+  "source": "programs/logical_values.m",
+  "tags": ["r2022b", "arrays", "logical", "shape"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical",
+      "size": [2, 2],
+      "ndims": 2,
+      "numel": 4,
+      "kind": "logical",
+      "logical": [true, false, true, false]
+    }
+  }
+}

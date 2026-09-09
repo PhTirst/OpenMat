@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "id": "class_abstract_instantiation_error",
+  "description": "Direct construction of a declared abstract class fails at instantiation.",
+  "source": "programs/class_abstract_instantiation_error.m",
+  "tags": ["r2022b", "classdef", "class-advanced", "abstract", "error"],
+  "expected": {
+    "outcome": "error",
+    "error": { "category": "type-error" }
+  }
+}

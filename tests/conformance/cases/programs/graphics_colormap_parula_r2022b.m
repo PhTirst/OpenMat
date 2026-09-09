@@ -1,0 +1,19 @@
+figure_handle = figure();
+default_map = colormap();
+selected = default_map([1 2 32 64 96 128 160 224 256], :);
+resampled = parula(5);
+
+custom = [0 0.1 0.2; 0.3 0.4 0.5; 0.6 0.7 0.8];
+colormap(custom);
+custom_query = colormap();
+colormap parula;
+named_query = colormap();
+
+openmat_result = [ ...
+    size(default_map), ...
+    selected(:).', ...
+    resampled(:).', ...
+    custom_query(:).', ...
+    named_query(:).' ...
+];
+close(figure_handle);

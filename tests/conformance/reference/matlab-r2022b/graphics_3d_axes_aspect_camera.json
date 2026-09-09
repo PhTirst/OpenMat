@@ -1,0 +1,12 @@
+{
+  "schema_version": 2,
+  "case_id": "graphics_3d_axes_aspect_camera",
+  "oracle": {"name": "MATLAB", "release": "R2022b"},
+  "outcome": "ok",
+  "value": {
+    "class": "double", "size": [1, 16], "ndims": 2, "numel": 16,
+    "complex": false, "kind": "numeric",
+    "real": ["1", "1", "1", "1", "1", "2", "1", "1", "1", "2", "3", "2", "1", "1", "1", "1"],
+    "imag": ["0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
+  }
+}

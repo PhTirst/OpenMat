@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "class_constructor",
+  "description": "A core class constructor initializes a public property.",
+  "source": "programs/class_constructor.m",
+  "tags": ["r2022b", "classdef", "constructor", "properties"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 1],
+      "ndims": 2,
+      "numel": 1,
+      "kind": "numeric",
+      "real": ["9"],
+      "imag": ["0"]
+    }
+  }
+}

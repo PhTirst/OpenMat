@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "class_dependent_property",
+  "description": "Dependent-property getter and setter methods mediate a private stored value.",
+  "source": "programs/class_dependent_property.m",
+  "tags": ["r2022b", "classdef", "dependent-property", "access", "properties"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 2],
+      "ndims": 2,
+      "numel": 2,
+      "kind": "numeric",
+      "real": ["8", "18"],
+      "imag": ["0", "0"]
+    }
+  }
+}

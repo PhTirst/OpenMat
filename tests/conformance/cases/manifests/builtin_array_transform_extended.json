@@ -1,0 +1,15 @@
+{
+  "schema_version": 2,
+  "id": "builtin_array_transform_extended",
+  "description": "flip variants, circshift, and ndgrid preserve R2022b column-major mappings, N-D shapes, input classes, and aggregate values.",
+  "source": "programs/builtin_array_transform_extended.m",
+  "tags": ["r2022b", "wire-v2", "core-numeric-builtins", "array-common-extended", "rearrangement", "ndgrid", "single", "integer", "complex", "empty"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical", "size": [1,18], "ndims": 2, "numel": 18,
+      "complex": false, "kind": "logical",
+      "logical": [true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true]
+    }
+  }
+}

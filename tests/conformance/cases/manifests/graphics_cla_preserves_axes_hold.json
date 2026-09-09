@@ -1,0 +1,19 @@
+{
+  "schema_version": 2,
+  "id": "graphics_cla_preserves_axes_hold",
+  "description": "cla preserves its Axes handle and that Axes remains held.",
+  "source": "programs/graphics_cla_preserves_axes_hold.m",
+  "tags": ["r2022b", "wire-v2", "graphics", "plot-engine", "cla", "hold", "ishold"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical",
+      "size": [1, 1],
+      "ndims": 2,
+      "numel": 1,
+      "complex": false,
+      "kind": "logical",
+      "logical": [true]
+    }
+  }
+}

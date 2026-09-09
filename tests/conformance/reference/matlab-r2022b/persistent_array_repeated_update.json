@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "case_id": "persistent_array_repeated_update",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      12
+    ],
+    "ndims": 2,
+    "numel": 12,
+    "kind": "numeric",
+    "real": [
+      "2",
+      "4",
+      "6",
+      "2",
+      "7",
+      "6",
+      "2",
+      "7",
+      "6",
+      "2",
+      "5",
+      "6"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

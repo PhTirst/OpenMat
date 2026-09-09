@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "persistent_counter_initialization",
+  "description": "A persistent starts empty, initializes conditionally, and increments on repeated calls.",
+  "source": "programs/persistent_counter_initialization.m",
+  "tags": ["r2022b", "global-persistent", "persistent", "functions", "initialization", "state"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 6],
+      "ndims": 2,
+      "numel": 6,
+      "kind": "numeric",
+      "real": ["1", "10", "0", "11", "0", "12"],
+      "imag": ["0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

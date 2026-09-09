@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "id": "builtin_array_set_extended",
+  "description": "unique and ismember match R2022b sorted and stable indices, NaN behavior, cross-class numeric identity, complex values, and empties.",
+  "source": "programs/builtin_array_set_extended.m",
+  "tags": ["r2022b", "wire-v2", "core-numeric-builtins", "array-common-extended", "set-functions", "single", "integer", "complex", "empty"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1,66], "ndims": 2, "numel": 66,
+      "complex": false, "kind": "numeric",
+      "real": [
+        "-0","1","3","NaN","NaN","6","3","1","2","5","3","4","2","3","5","1","1",
+        "3","1","2","1","2","4","1","2","1","3","1","3","2","1","1","1","2","-1",
+        "1","0","2","1","3","2","1","3","2","1","0","1","1","2","0","1","4","1","1",
+        "2","1","1","0","1","1","0","2","0","3","1","1"
+      ],
+      "imag": [
+        "0","0","0","0","0","0","0","0","0","0","0",
+        "0","0","0","0","0","0","0","0","0","0","0",
+        "0","0","0","0","0","0","0","0","0","0","0",
+        "0","0","0","0","0","0","0","0","0","0","0",
+        "0","0","0","0","0","0","0","0","0","0","0",
+        "0","0","0","0","0","0","0","0","0","0","0"
+      ]
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "schema_version": 2,
+  "id": "gc_lifecycle_no_resurrection",
+  "description": "Saving self from delete leaves only an invalid alias and cannot resurrect the handle.",
+  "source": "programs/gc_lifecycle_no_resurrection.m",
+  "tags": ["r2022b", "wire-v2", "gc-lifecycle-r2022b", "classdef", "handle-class", "isvalid", "resurrection", "delete"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1, 10], "ndims": 2, "numel": 10,
+      "complex": false, "kind": "numeric",
+      "real": ["101", "10", "201", "301", "401", "11", "90", "1", "0", "0"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

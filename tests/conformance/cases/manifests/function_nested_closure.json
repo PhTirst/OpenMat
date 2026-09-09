@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "function_nested_closure",
+  "description": "Nested function handles share lexical variables, retain them after the parent returns, and isolate separate parent invocations.",
+  "source": "programs/function_nested_closure.m",
+  "tags": ["r2022b", "functions", "nested-function", "closure", "shared-workspace", "common-syntax-r2022b"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 4],
+      "ndims": 2,
+      "numel": 4,
+      "kind": "numeric",
+      "real": ["11", "13", "103", "17"],
+      "imag": ["0", "0", "0", "0"]
+    }
+  }
+}

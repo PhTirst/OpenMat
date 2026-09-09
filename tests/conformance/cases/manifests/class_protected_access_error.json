@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "id": "class_protected_access_error",
+  "description": "Reading a protected property outside its class hierarchy raises an access error.",
+  "source": "programs/class_protected_access_error.m",
+  "tags": ["r2022b", "classdef", "access", "protected", "properties", "error"],
+  "expected": {
+    "outcome": "error",
+    "error": { "category": "access-violation" }
+  }
+}

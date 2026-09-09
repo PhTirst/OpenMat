@@ -1,0 +1,15 @@
+[workspace]
+resolver = "3"
+members = ["oex-sys", "oex", "examples/rust-plugin", "tests/plugin"]
+default-members = ["oex-sys", "oex"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[workspace.lints.clippy]
+undocumented_unsafe_blocks = "deny"

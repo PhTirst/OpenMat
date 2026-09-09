@@ -1,0 +1,18 @@
+{
+  "schema_version": 2,
+  "case_id": "sparse_warning_solve_fallbacks",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "logical",
+    "size": [1, 10],
+    "ndims": 2,
+    "numel": 10,
+    "complex": false,
+    "kind": "logical",
+    "logical": [true, true, true, true, true, true, true, true, true, true]
+  }
+}

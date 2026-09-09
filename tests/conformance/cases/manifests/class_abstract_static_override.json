@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "class_abstract_static_override",
+  "description": "A static method implements an inherited instance abstract slot by name and object-qualified dispatch omits the receiver.",
+  "source": "programs/class_abstract_static_override.m",
+  "tags": ["r2022b", "classdef", "class-advanced", "abstract", "static", "dispatch"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 1],
+      "ndims": 2,
+      "numel": 1,
+      "kind": "numeric",
+      "real": ["12"],
+      "imag": ["0"]
+    }
+  }
+}

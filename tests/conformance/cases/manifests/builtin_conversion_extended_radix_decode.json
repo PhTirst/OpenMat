@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "id": "builtin_conversion_extended_radix_decode",
+  "description": "hex2dec accepts prefixed and mixed-case string arrays while preserving their shape.",
+  "source": "programs/builtin_conversion_extended_radix_decode.m",
+  "tags": ["r2022b", "wire-v2", "conversion-extended", "hex2dec", "string", "shape"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [2, 2],
+      "ndims": 2,
+      "numel": 4,
+      "complex": false,
+      "kind": "numeric",
+      "real": ["15", "10", "16", "255"],
+      "imag": ["0", "0", "0", "0"]
+    }
+  }
+}

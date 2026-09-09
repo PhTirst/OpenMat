@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "id": "evalc_capture",
+  "description": "evalc captures formatted command-window text, returns later expression outputs, supports lazy fallback source, and nests without leaking inner output.",
+  "source": "programs/evalc_capture.m",
+  "tags": ["r2022b", "wire-v2", "evalc", "eval", "catch", "dynamic-call", "workspace", "display"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical", "size": [1, 1], "ndims": 2, "numel": 1,
+      "complex": false, "kind": "logical", "logical": [true]
+    }
+  }
+}

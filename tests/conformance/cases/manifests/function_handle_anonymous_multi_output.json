@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "function_handle_anonymous_multi_output",
+  "description": "A top-level call in an anonymous handle forwards the caller's requested outputs.",
+  "source": "programs/function_handle_anonymous_multi_output.m",
+  "tags": ["r2022b", "function-handle-r2022b", "function-handle", "anonymous-function", "multiple-outputs"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 3],
+      "ndims": 2,
+      "numel": 3,
+      "kind": "numeric",
+      "real": ["3", "9", "27"],
+      "imag": ["0", "0", "0"]
+    }
+  }
+}

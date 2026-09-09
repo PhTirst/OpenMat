@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "id": "class_homogeneous_array",
+  "description": "Indexed assignment builds a basic row array of one value class.",
+  "source": "programs/class_homogeneous_array.m",
+  "tags": ["r2022b", "classdef", "object-array", "value-class", "indexing"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "OpenMatValueCounter",
+      "size": [1, 2],
+      "ndims": 2,
+      "numel": 2,
+      "kind": "object"
+    }
+  }
+}

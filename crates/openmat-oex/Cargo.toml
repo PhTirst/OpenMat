@@ -1,0 +1,23 @@
+[package]
+license = "AGPL-3.0-only"
+name = "openmat-oex"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[dependencies]
+openmat-array = { path = "../openmat-array" }
+openmat-runtime = { path = "../openmat-runtime" }
+openmat-value = { path = "../openmat-value" }
+
+[target.'cfg(windows)'.dependencies]
+libloading = "0.9.0"
+
+[dev-dependencies]
+openmat-bytecode = { path = "../openmat-bytecode" }
+
+[lints]
+workspace = true

@@ -1,0 +1,15 @@
+{
+  "schema_version": 2,
+  "id": "graphics_property_chart_posthoc",
+  "description": "High-frequency R2022b chart handles retain and propagate their supported post-hoc line, marker, patch, baseline, width, and cap properties.",
+  "source": "programs/graphics_property_chart_posthoc.m",
+  "tags": ["r2022b", "wire-v2", "graphics", "graphics-2d-primitives", "properties", "graphics-properties-posthoc"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1, 1], "ndims": 2, "numel": 1,
+      "complex": false, "kind": "numeric",
+      "real": ["47"], "imag": ["0"]
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": 2,
+  "id": "graphics_property_figure_posthoc",
+  "description": "Figure Name, NumberTitle, Position, and Color support R2022b post-hoc get/set semantics and accepted prefixes.",
+  "source": "programs/graphics_property_figure_posthoc.m",
+  "tags": ["r2022b", "wire-v2", "graphics", "figure", "properties", "graphics-properties-posthoc"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1, 1], "ndims": 2, "numel": 1,
+      "complex": false, "kind": "numeric",
+      "real": ["4"], "imag": ["0"]
+    }
+  }
+}

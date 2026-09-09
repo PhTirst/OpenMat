@@ -1,0 +1,34 @@
+{
+  "schema_version": 2,
+  "case_id": "builtin_sqrtm_outputs",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      5
+    ],
+    "ndims": 2,
+    "numel": 5,
+    "complex": false,
+    "kind": "numeric",
+    "real": [
+      "0",
+      "1.1306507024215573",
+      "2.8477505624022008",
+      "5.9336629442368287e-16",
+      "5.9336629442368287e-16"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

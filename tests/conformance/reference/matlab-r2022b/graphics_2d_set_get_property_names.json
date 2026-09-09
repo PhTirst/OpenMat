@@ -1,0 +1,106 @@
+{
+  "schema_version": 2,
+  "case_id": "graphics_2d_set_get_property_names",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "cell",
+    "size": [
+      1,
+      5
+    ],
+    "ndims": 2,
+    "numel": 5,
+    "complex": false,
+    "kind": "cell",
+    "items": [
+      {
+        "class": "double",
+        "size": [
+          1,
+          3
+        ],
+        "ndims": 2,
+        "numel": 3,
+        "complex": false,
+        "kind": "numeric",
+        "real": [
+          "0.20000000000000001",
+          "0.40000000000000002",
+          "0.59999999999999998"
+        ],
+        "imag": [
+          "0",
+          "0",
+          "0"
+        ]
+      },
+      {
+        "class": "double",
+        "size": [
+          1,
+          1
+        ],
+        "ndims": 2,
+        "numel": 1,
+        "complex": false,
+        "kind": "numeric",
+        "real": [
+          "3.25"
+        ],
+        "imag": [
+          "0"
+        ]
+      },
+      {
+        "class": "char",
+        "size": [
+          1,
+          2
+        ],
+        "ndims": 2,
+        "numel": 2,
+        "complex": false,
+        "kind": "char",
+        "code_units": [
+          45,
+          46
+        ]
+      },
+      {
+        "class": "char",
+        "size": [
+          1,
+          1
+        ],
+        "ndims": 2,
+        "numel": 1,
+        "complex": false,
+        "kind": "char",
+        "code_units": [
+          120
+        ]
+      },
+      {
+        "class": "double",
+        "size": [
+          1,
+          1
+        ],
+        "ndims": 2,
+        "numel": 1,
+        "complex": false,
+        "kind": "numeric",
+        "real": [
+          "11"
+        ],
+        "imag": [
+          "0"
+        ]
+      }
+    ]
+  }
+}

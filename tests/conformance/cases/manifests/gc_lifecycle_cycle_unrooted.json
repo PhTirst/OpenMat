@@ -1,0 +1,16 @@
+{
+  "schema_version": 2,
+  "id": "gc_lifecycle_cycle_unrooted",
+  "description": "Two handles retained only by a mutual-reference cycle expose whether function return reclaims that cycle and in what order.",
+  "source": "programs/gc_lifecycle_cycle_unrooted.m",
+  "tags": ["r2022b", "wire-v2", "gc-lifecycle-r2022b", "classdef", "handle-class", "cycle", "delete"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1, 8], "ndims": 2, "numel": 8,
+      "complex": false, "kind": "numeric",
+      "real": ["101", "102", "10", "202", "302", "201", "301", "11"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

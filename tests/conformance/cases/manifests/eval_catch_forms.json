@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "id": "eval_catch_forms",
+  "description": "eval and evalin run lazy catch source text in the invoking workspace, retain completed writes, and remain dynamically callable.",
+  "source": "programs/eval_catch_forms.m",
+  "tags": ["r2022b", "wire-v2", "eval", "evalin", "catch", "dynamic-call", "workspace"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical", "size": [1, 1], "ndims": 2, "numel": 1,
+      "complex": false, "kind": "logical", "logical": [true]
+    }
+  }
+}

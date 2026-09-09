@@ -1,0 +1,10 @@
+[package]
+license = "AGPL-3.0-only"
+name = "oex-sys"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Raw Rust bindings to the OpenMat OEX C ABI"
+
+[lints]
+workspace = true

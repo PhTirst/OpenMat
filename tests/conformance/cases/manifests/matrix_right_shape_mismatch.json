@@ -1,0 +1,11 @@
+{
+  "schema_version": 2,
+  "id": "matrix_right_shape_mismatch",
+  "description": "Right division rejects operands whose column counts are incompatible.",
+  "source": "programs/matrix_right_shape_mismatch.m",
+  "tags": ["r2022b", "wire-v2", "numeric", "matrix-division", "right-divide", "error", "shape"],
+  "expected": {
+    "outcome": "error",
+    "error": {"category": "dimension-mismatch"}
+  }
+}

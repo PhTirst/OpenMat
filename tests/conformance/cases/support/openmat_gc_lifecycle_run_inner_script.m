@@ -1,0 +1,4 @@
+function openmat_gc_lifecycle_run_inner_script(case_id)
+openmat_gc_lifecycle_inner_script
+openmat_gc_lifecycle_append(case_id, 11);
+end

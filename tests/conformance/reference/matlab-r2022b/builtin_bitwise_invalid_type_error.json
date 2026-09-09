@@ -1,0 +1,12 @@
+{
+  "schema_version": 2,
+  "case_id": "builtin_bitwise_invalid_type_error",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "error",
+  "error": {
+    "category": "type-error"
+  }
+}

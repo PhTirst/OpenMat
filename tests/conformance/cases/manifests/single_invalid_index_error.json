@@ -1,0 +1,11 @@
+{
+  "schema_version": 2,
+  "id": "single_invalid_index_error",
+  "description": "A non-integer single subscript reports the normalized indexing error category.",
+  "source": "programs/single_invalid_index_error.m",
+  "tags": ["r2022b", "wire-v2", "single-try-r2022b", "single", "indexing", "error"],
+  "expected": {
+    "outcome": "error",
+    "error": {"category": "index-out-of-bounds"}
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "id": "event_destruction_order",
+  "description": "ObjectBeingDestroyed ordering is observed relative to the user delete method and listener invalidation.",
+  "source": "programs/event_destruction_order.m",
+  "tags": ["r2022b", "classdef", "events", "listener", "delete"],
+  "expected": {"outcome":"ok","value":{"class":"double","size":[1,3],"ndims":2,"numel":3,"kind":"numeric","real":["1","2","1"],"imag":["0","0","0"]}}
+}

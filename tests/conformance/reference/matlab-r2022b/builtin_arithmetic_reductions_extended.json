@@ -1,0 +1,44 @@
+{
+  "schema_version": 2,
+  "case_id": "builtin_arithmetic_reductions_extended",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      10
+    ],
+    "ndims": 2,
+    "numel": 10,
+    "complex": false,
+    "kind": "numeric",
+    "real": [
+      "8",
+      "84",
+      "100",
+      "116",
+      "3",
+      "4",
+      "24",
+      "1",
+      "255",
+      "255"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

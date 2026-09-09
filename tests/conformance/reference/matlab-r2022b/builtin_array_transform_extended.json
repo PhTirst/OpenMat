@@ -1,0 +1,40 @@
+{
+  "schema_version": 2,
+  "case_id": "builtin_array_transform_extended",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "logical",
+    "size": [
+      1,
+      18
+    ],
+    "ndims": 2,
+    "numel": 18,
+    "complex": false,
+    "kind": "logical",
+    "logical": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  }
+}

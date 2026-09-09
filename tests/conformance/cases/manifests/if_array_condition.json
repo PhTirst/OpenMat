@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "if_array_condition",
+  "description": "If treats all-nonzero arrays as true and mixed or empty arrays as false.",
+  "source": "programs/if_array_condition.m",
+  "tags": ["r2022b", "control-flow", "if", "arrays", "logical"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 3],
+      "ndims": 2,
+      "numel": 3,
+      "kind": "numeric",
+      "real": ["1", "-1", "-1"],
+      "imag": ["0", "0", "0"]
+    }
+  }
+}

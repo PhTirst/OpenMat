@@ -1,0 +1,16 @@
+{
+  "schema_version": 2,
+  "id": "graphics_3d_scatter3_scalar_cdata",
+  "description": "randn vectors drive scalar CData scatter3 markers, automatic CLim, colorbar, labels, title, and the three-dimensional grid.",
+  "source": "programs/graphics_3d_scatter3_scalar_cdata.m",
+  "tags": ["r2022b", "wire-v2", "graphics", "plot-engine", "graphics-3d", "scatter3", "random"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1, 16], "ndims": 2, "numel": 16,
+      "complex": false, "kind": "numeric",
+      "real": ["500", "1", "500", "1", "500", "1", "500", "1", "500", "1", "40", "1", "1", "1", "1", "1"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

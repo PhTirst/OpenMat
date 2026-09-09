@@ -1,0 +1,148 @@
+{
+  "schema_version": 2,
+  "case_id": "aggregate_c1_nested_structs",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "cell",
+    "size": [
+      1,
+      2
+    ],
+    "ndims": 2,
+    "numel": 2,
+    "complex": false,
+    "kind": "cell",
+    "items": [
+      {
+        "class": "struct",
+        "size": [
+          1,
+          1
+        ],
+        "ndims": 2,
+        "numel": 1,
+        "complex": false,
+        "kind": "struct",
+        "fields": [
+          "beta",
+          "alpha"
+        ],
+        "records": [
+          {
+            "beta": {
+              "class": "cell",
+              "size": [
+                1,
+                2
+              ],
+              "ndims": 2,
+              "numel": 2,
+              "complex": false,
+              "kind": "cell",
+              "items": [
+                {
+                  "class": "uint8",
+                  "size": [
+                    1,
+                    1
+                  ],
+                  "ndims": 2,
+                  "numel": 1,
+                  "complex": false,
+                  "kind": "integer",
+                  "integer": [
+                    {
+                      "real": "5",
+                      "imaginary": "0"
+                    }
+                  ]
+                },
+                {
+                  "class": "cell",
+                  "size": [
+                    1,
+                    2
+                  ],
+                  "ndims": 2,
+                  "numel": 2,
+                  "complex": false,
+                  "kind": "cell",
+                  "items": [
+                    {
+                      "class": "logical",
+                      "size": [
+                        1,
+                        1
+                      ],
+                      "ndims": 2,
+                      "numel": 1,
+                      "complex": false,
+                      "kind": "logical",
+                      "logical": [
+                        true
+                      ]
+                    },
+                    {
+                      "class": "char",
+                      "size": [
+                        1,
+                        1
+                      ],
+                      "ndims": 2,
+                      "numel": 1,
+                      "complex": false,
+                      "kind": "char",
+                      "code_units": [
+                        113
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "alpha": {
+              "class": "string",
+              "size": [
+                1,
+                1
+              ],
+              "ndims": 2,
+              "numel": 1,
+              "complex": false,
+              "kind": "string",
+              "string_code_units": [
+                [
+                  65,
+                  55357
+                ]
+              ],
+              "missing": [
+                false
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "class": "struct",
+        "size": [
+          0,
+          3
+        ],
+        "ndims": 2,
+        "numel": 0,
+        "complex": false,
+        "kind": "struct",
+        "fields": [
+          "beta",
+          "alpha"
+        ],
+        "records": []
+      }
+    ]
+  }
+}

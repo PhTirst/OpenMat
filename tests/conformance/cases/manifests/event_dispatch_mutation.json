@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "id": "event_dispatch_mutation",
+  "description": "Listener dispatch uses a registration snapshot while honoring deletion and deferring additions.",
+  "source": "programs/event_dispatch_mutation.m",
+  "tags": ["r2022b", "classdef", "events", "runtime", "mutation"],
+  "expected": {"outcome":"ok","value":{"class":"double","size":[1,5],"ndims":2,"numel":5,"kind":"numeric","real":["1","-1","1","3","1"],"imag":["0","0","0","0","0"]}}
+}

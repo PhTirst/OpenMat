@@ -1,0 +1,3 @@
+function openmat_exception_call_throw_as_caller(exception)
+openmat_exception_throw_as_caller(exception);
+end

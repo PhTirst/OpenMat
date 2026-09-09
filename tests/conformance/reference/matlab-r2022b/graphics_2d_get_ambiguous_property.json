@@ -1,0 +1,12 @@
+{
+  "schema_version": 2,
+  "case_id": "graphics_2d_get_ambiguous_property",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "error",
+  "error": {
+    "category": "other"
+  }
+}

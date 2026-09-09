@@ -1,0 +1,16 @@
+{
+  "schema_version": 2,
+  "case_id": "aggregate_fielded_shaped_empty_struct",
+  "oracle": {"name": "fixture", "release": "test"},
+  "outcome": "ok",
+  "value": {
+    "class": "struct",
+    "size": [0, 3],
+    "ndims": 2,
+    "numel": 0,
+    "complex": false,
+    "kind": "struct",
+    "fields": ["beta", "alpha"],
+    "records": []
+  }
+}

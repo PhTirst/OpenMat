@@ -1,0 +1,18 @@
+{
+  "schema_version": 2,
+  "case_id": "exception_rethrow",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "logical",
+    "size": [1, 1],
+    "ndims": 2,
+    "numel": 1,
+    "complex": false,
+    "kind": "logical",
+    "logical": [true]
+  }
+}

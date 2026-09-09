@@ -1,0 +1,8 @@
+{
+  "schema_version": 2,
+  "id": "string_compare_predicates",
+  "description": "Case-insensitive comparison, UTF-16 prefix counts, missing values, pattern sets, scalar expansion, and IgnoreCase match MATLAB R2022b.",
+  "source": "programs/string_compare_predicates.m",
+  "tags": ["r2022b", "wire-v2", "string-builtins", "string-compare", "string-search"],
+  "expected": {"outcome":"ok","value":{"class":"double","size":[1,10],"ndims":2,"numel":10,"complex":false,"kind":"numeric","real":["1","0","1","1","1","1","0","1","1","1"],"imag":["0","0","0","0","0","0","0","0","0","0"],"tolerance":{"absolute":0,"relative":0}}}
+}

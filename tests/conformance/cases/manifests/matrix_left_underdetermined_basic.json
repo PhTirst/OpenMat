@@ -1,0 +1,21 @@
+{
+  "schema_version": 2,
+  "id": "matrix_left_underdetermined_basic",
+  "description": "Full-row-rank underdetermined left division returns the R2022b basic solution for multiple right-hand sides.",
+  "source": "programs/matrix_left_underdetermined_basic.m",
+  "tags": ["r2022b", "wire-v2", "numeric", "matrix-division", "left-divide", "underdetermined", "multi-rhs"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [3, 2],
+      "ndims": 2,
+      "numel": 6,
+      "complex": false,
+      "kind": "numeric",
+      "real": ["-1", "0", "1.9999999999999998", "-1.0000000000000002", "0", "2.9999999999999991"],
+      "imag": ["0", "0", "0", "0", "0", "0"],
+      "tolerance": {"absolute": 1e-12, "relative": 1e-12}
+    }
+  }
+}

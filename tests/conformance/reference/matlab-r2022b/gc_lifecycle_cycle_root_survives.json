@@ -1,0 +1,50 @@
+{
+  "schema_version": 2,
+  "case_id": "gc_lifecycle_cycle_root_survives",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      13
+    ],
+    "ndims": 2,
+    "numel": 13,
+    "complex": false,
+    "kind": "numeric",
+    "real": [
+      "101",
+      "102",
+      "10",
+      "11",
+      "12",
+      "202",
+      "302",
+      "201",
+      "301",
+      "13",
+      "90",
+      "1",
+      "1"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

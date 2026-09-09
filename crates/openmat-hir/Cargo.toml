@@ -1,0 +1,14 @@
+[package]
+license = "AGPL-3.0-only"
+name = "openmat-hir"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+# Lowering consumes the stable CST interface and stays parser-independent.
+[dependencies]
+openmat-source = { path = "../openmat-source" }
+openmat-syntax = { path = "../openmat-syntax" }
+
+[lints]
+workspace = true

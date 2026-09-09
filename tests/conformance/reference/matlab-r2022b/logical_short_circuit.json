@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "case_id": "logical_short_circuit",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "logical",
+    "size": [
+      1,
+      4
+    ],
+    "ndims": 2,
+    "numel": 4,
+    "kind": "logical",
+    "logical": [
+      false,
+      true,
+      true,
+      true
+    ]
+  }
+}

@@ -1,0 +1,253 @@
+{
+  "schema_version": 2,
+  "id": "aggregate_c3_delete_growth",
+  "description": "Cell row deletion and linear growth combine with struct deletion, gap fill, and field write-back.",
+  "source": "programs/aggregate_c3_delete_growth.m",
+  "tags": [
+    "r2022b",
+    "wire-v2",
+    "aggregate",
+    "c3",
+    "cell",
+    "struct",
+    "deletion",
+    "growth"
+  ],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "cell",
+      "size": [
+        1,
+        2
+      ],
+      "ndims": 2,
+      "numel": 2,
+      "complex": false,
+      "kind": "cell",
+      "items": [
+        {
+          "class": "cell",
+          "size": [
+            1,
+            4
+          ],
+          "ndims": 2,
+          "numel": 4,
+          "complex": false,
+          "kind": "cell",
+          "items": [
+            {
+              "class": "double",
+              "size": [
+                1,
+                1
+              ],
+              "ndims": 2,
+              "numel": 1,
+              "complex": false,
+              "kind": "numeric",
+              "real": [
+                "3"
+              ],
+              "imag": [
+                "0"
+              ]
+            },
+            {
+              "class": "double",
+              "size": [
+                1,
+                1
+              ],
+              "ndims": 2,
+              "numel": 1,
+              "complex": false,
+              "kind": "numeric",
+              "real": [
+                "4"
+              ],
+              "imag": [
+                "0"
+              ]
+            },
+            {
+              "class": "double",
+              "size": [
+                0,
+                0
+              ],
+              "ndims": 2,
+              "numel": 0,
+              "complex": false,
+              "kind": "numeric",
+              "real": [],
+              "imag": []
+            },
+            {
+              "class": "double",
+              "size": [
+                1,
+                1
+              ],
+              "ndims": 2,
+              "numel": 1,
+              "complex": false,
+              "kind": "numeric",
+              "real": [
+                "40"
+              ],
+              "imag": [
+                "0"
+              ]
+            }
+          ]
+        },
+        {
+          "class": "struct",
+          "size": [
+            1,
+            4
+          ],
+          "ndims": 2,
+          "numel": 4,
+          "complex": false,
+          "kind": "struct",
+          "fields": [
+            "beta",
+            "alpha"
+          ],
+          "records": [
+            {
+              "beta": {
+                "class": "double",
+                "size": [
+                  1,
+                  1
+                ],
+                "ndims": 2,
+                "numel": 1,
+                "complex": false,
+                "kind": "numeric",
+                "real": [
+                  "1"
+                ],
+                "imag": [
+                  "0"
+                ]
+              },
+              "alpha": {
+                "class": "char",
+                "size": [
+                  1,
+                  1
+                ],
+                "ndims": 2,
+                "numel": 1,
+                "complex": false,
+                "kind": "char",
+                "code_units": [
+                  97
+                ]
+              }
+            },
+            {
+              "beta": {
+                "class": "double",
+                "size": [
+                  1,
+                  1
+                ],
+                "ndims": 2,
+                "numel": 1,
+                "complex": false,
+                "kind": "numeric",
+                "real": [
+                  "3"
+                ],
+                "imag": [
+                  "0"
+                ]
+              },
+              "alpha": {
+                "class": "char",
+                "size": [
+                  1,
+                  1
+                ],
+                "ndims": 2,
+                "numel": 1,
+                "complex": false,
+                "kind": "char",
+                "code_units": [
+                  99
+                ]
+              }
+            },
+            {
+              "beta": {
+                "class": "double",
+                "size": [
+                  0,
+                  0
+                ],
+                "ndims": 2,
+                "numel": 0,
+                "complex": false,
+                "kind": "numeric",
+                "real": [],
+                "imag": []
+              },
+              "alpha": {
+                "class": "double",
+                "size": [
+                  0,
+                  0
+                ],
+                "ndims": 2,
+                "numel": 0,
+                "complex": false,
+                "kind": "numeric",
+                "real": [],
+                "imag": []
+              }
+            },
+            {
+              "beta": {
+                "class": "double",
+                "size": [
+                  1,
+                  1
+                ],
+                "ndims": 2,
+                "numel": 1,
+                "complex": false,
+                "kind": "numeric",
+                "real": [
+                  "40"
+                ],
+                "imag": [
+                  "0"
+                ]
+              },
+              "alpha": {
+                "class": "char",
+                "size": [
+                  1,
+                  1
+                ],
+                "ndims": 2,
+                "numel": 1,
+                "complex": false,
+                "kind": "char",
+                "code_units": [
+                  100
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

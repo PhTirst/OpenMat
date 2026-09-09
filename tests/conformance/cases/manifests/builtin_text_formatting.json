@@ -1,0 +1,27 @@
+{
+  "schema_version": 2,
+  "id": "builtin_text_formatting",
+  "description": "sprintf and num2str preserve R2022b format cycling, column-major traversal, dynamic fields, output text classes, and common numeric formatting.",
+  "source": "programs/builtin_text_formatting.m",
+  "tags": ["r2022b", "wire-v2", "string", "text-conversion", "sprintf", "num2str"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "string",
+      "size": [1, 6],
+      "ndims": 2,
+      "numel": 6,
+      "complex": false,
+      "kind": "string",
+      "string_code_units": [
+        [49, 44, 51, 44, 50, 44, 52, 44],
+        [32, 32, 32, 49, 46, 50, 53, 48],
+        [48, 48, 49, 50],
+        [51, 46, 49, 52, 49, 54],
+        [49, 32, 32, 50, 32, 32, 51],
+        [49, 46, 50, 51, 48, 46, 48, 48]
+      ],
+      "missing": [false, false, false, false, false, false]
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "schema_version": 2,
+  "case_id": "graphics_property_chart_posthoc",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      1
+    ],
+    "ndims": 2,
+    "numel": 1,
+    "complex": false,
+    "kind": "numeric",
+    "real": [
+      "47"
+    ],
+    "imag": [
+      "0"
+    ]
+  }
+}

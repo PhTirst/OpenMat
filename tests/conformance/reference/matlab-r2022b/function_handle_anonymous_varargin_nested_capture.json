@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "case_id": "function_handle_anonymous_varargin_nested_capture",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      7
+    ],
+    "ndims": 2,
+    "numel": 7,
+    "kind": "numeric",
+    "real": [
+      "12",
+      "7",
+      "11",
+      "1",
+      "2",
+      "8",
+      "9"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

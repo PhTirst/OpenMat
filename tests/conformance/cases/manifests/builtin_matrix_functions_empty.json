@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "id": "builtin_matrix_functions_empty",
+  "description": "inv, pinv, and kron preserve R2022b transposed and multiplied empty matrix shapes.",
+  "source": "programs/builtin_matrix_functions_empty.m",
+  "tags": ["r2022b", "wire-v2", "core-numeric-builtins", "matrix-functions", "empty"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 6],
+      "ndims": 2,
+      "numel": 6,
+      "complex": false,
+      "kind": "numeric",
+      "real": ["0", "0", "3", "0", "0", "8"],
+      "imag": ["0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

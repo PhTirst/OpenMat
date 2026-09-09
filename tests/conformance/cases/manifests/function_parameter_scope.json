@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "function_parameter_scope",
+  "description": "A function parameter is local and does not overwrite a caller variable.",
+  "source": "programs/function_parameter_scope.m",
+  "tags": ["r2022b", "functions", "arguments", "scope"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 2],
+      "ndims": 2,
+      "numel": 2,
+      "kind": "numeric",
+      "real": ["4", "100"],
+      "imag": ["0", "0"]
+    }
+  }
+}

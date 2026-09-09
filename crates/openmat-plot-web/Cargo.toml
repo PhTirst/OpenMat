@@ -1,0 +1,29 @@
+[package]
+license = "AGPL-3.0-only"
+name = "openmat-plot-web"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+openmat-graphics-model = { path = "../openmat-graphics-model" }
+openmat-plot-geometry = { path = "../openmat-plot-geometry" }
+openmat-plot-layout = { path = "../openmat-plot-layout" }
+openmat-plot-mir = { path = "../openmat-plot-mir" }
+openmat-plot-protocol = { path = "../openmat-plot-protocol" }
+openmat-plot-wgpu = { path = "../openmat-plot-wgpu" }
+serde = { version = "1", features = ["derive"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+js-sys = "0.3"
+serde-wasm-bindgen = "0.6"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = ["Document", "Element", "Event", "HtmlCanvasElement", "Navigator", "ResizeObserver", "ResizeObserverEntry", "WebSocket", "Window"] }
+wgpu = { version = "=30.0.1", default-features = false, features = ["webgpu"] }
+
+[lints]
+workspace = true

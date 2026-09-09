@@ -1,0 +1,40 @@
+{
+  "schema_version": 2,
+  "case_id": "builtin_sequences_round",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      8
+    ],
+    "ndims": 2,
+    "numel": 8,
+    "complex": false,
+    "kind": "numeric",
+    "real": [
+      "0",
+      "0.33333333333333331",
+      "0.66666666666666663",
+      "1",
+      "1",
+      "10",
+      "100",
+      "1.01"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

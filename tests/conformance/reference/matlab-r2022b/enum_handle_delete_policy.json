@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "case_id": "enum_handle_delete_policy",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "logical",
+    "size": [
+      1,
+      3
+    ],
+    "ndims": 2,
+    "numel": 3,
+    "kind": "logical",
+    "logical": [
+      false,
+      false,
+      false
+    ]
+  }
+}

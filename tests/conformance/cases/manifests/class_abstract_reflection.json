@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "class_abstract_reflection",
+  "description": "Class metadata reports effective Abstract and Sealed flags plus abstract method slots.",
+  "source": "programs/class_abstract_reflection.m",
+  "tags": ["r2022b", "classdef", "class-advanced", "abstract", "sealed", "reflection"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 5],
+      "ndims": 2,
+      "numel": 5,
+      "kind": "numeric",
+      "real": ["1", "0", "0", "1", "2"],
+      "imag": ["0", "0", "0", "0", "0"]
+    }
+  }
+}

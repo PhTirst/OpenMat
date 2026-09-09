@@ -1,0 +1,22 @@
+{
+  "schema_version": 2,
+  "id": "graphics_2d_set_invalid_linewidth",
+  "description": "A negative LineWidth is rejected through the normalized error boundary.",
+  "source": "programs/graphics_2d_set_invalid_linewidth.m",
+  "tags": [
+    "r2022b",
+    "wire-v2",
+    "graphics",
+    "plot-engine",
+    "graphics-2d",
+    "set",
+    "properties",
+    "error"
+  ],
+  "expected": {
+    "outcome": "error",
+    "error": {
+      "category": "type-error"
+    }
+  }
+}

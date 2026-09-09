@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "id": "builtin_str2double_special",
+  "description": "str2double maps infinities, NaN, empty strings, whitespace, and invalid text to R2022b real double values.",
+  "source": "programs/builtin_str2double_special.m",
+  "tags": ["r2022b", "wire-v2", "string", "text-conversion", "str2double", "special-values"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 5],
+      "ndims": 2,
+      "numel": 5,
+      "complex": false,
+      "kind": "numeric",
+      "real": ["-Inf", "NaN", "NaN", "NaN", "NaN"],
+      "imag": ["0", "0", "0", "0", "0"]
+    }
+  }
+}

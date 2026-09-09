@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "id": "builtin_conversion_extended_cast_like_complex",
+  "description": "cast like a complex single prototype preserves shape, class, and complex storage.",
+  "source": "programs/builtin_conversion_extended_cast_like_complex.m",
+  "tags": ["r2022b", "wire-v2", "conversion-extended", "cast", "like", "complex"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "single",
+      "size": [1, 2],
+      "ndims": 2,
+      "numel": 2,
+      "complex": true,
+      "kind": "numeric",
+      "real": ["1", "2"],
+      "imag": ["3", "0"]
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "clear_workspace_and_locals",
+  "description": "Named clear removes selected script and function values, while bare clear resets ordinary values in a function workspace.",
+  "source": "programs/clear_workspace_and_locals.m",
+  "tags": ["r2022b", "clear", "workspace", "functions", "common-syntax-r2022b"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 5],
+      "ndims": 2,
+      "numel": 5,
+      "kind": "numeric",
+      "real": ["7", "3", "2", "4", "5"],
+      "imag": ["0", "0", "0", "0", "0"]
+    }
+  }
+}

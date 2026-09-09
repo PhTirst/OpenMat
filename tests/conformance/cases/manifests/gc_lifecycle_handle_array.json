@@ -1,0 +1,16 @@
+{
+  "schema_version": 2,
+  "id": "gc_lifecycle_handle_array",
+  "description": "Deleting a handle array invokes per-element destruction and invalidates every array element.",
+  "source": "programs/gc_lifecycle_handle_array.m",
+  "tags": ["r2022b", "wire-v2", "gc-lifecycle-r2022b", "classdef", "handle-class", "object-array", "isvalid", "delete"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1, 18], "ndims": 2, "numel": 18,
+      "complex": false, "kind": "numeric",
+      "real": ["101", "102", "103", "10", "501", "201", "301", "501", "202", "302", "501", "203", "303", "11", "90", "0", "0", "0"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

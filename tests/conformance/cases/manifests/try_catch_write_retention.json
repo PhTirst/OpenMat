@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "id": "try_catch_write_retention",
+  "description": "An ordinary variable write completed before an error remains visible in and after the catch handler.",
+  "source": "programs/try_catch_write_retention.m",
+  "tags": ["r2022b", "wire-v2", "single-try-r2022b", "try-catch", "control-flow", "assignment", "side-effects"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1, 2], "ndims": 2, "numel": 2,
+      "complex": false, "kind": "numeric", "real": ["7", "7"], "imag": ["0", "0"]
+    }
+  }
+}

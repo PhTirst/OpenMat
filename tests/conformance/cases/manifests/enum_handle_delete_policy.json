@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "id": "enum_handle_delete_policy",
+  "description": "Deleting a handle-valued enumeration member invalidates every alias and qualified lookup keeps the interned identity.",
+  "source": "programs/enum_handle_delete_policy.m",
+  "tags": ["r2022b", "classdef", "enumeration", "handle", "delete"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical",
+      "size": [1, 3],
+      "ndims": 2,
+      "numel": 3,
+      "kind": "logical",
+      "logical": [false, false, false]
+    }
+  }
+}

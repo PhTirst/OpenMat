@@ -1,0 +1,19 @@
+{
+  "schema_version": 2,
+  "id": "command_semantics_expression_arguments",
+  "description": "Operator expressions remain expressions, whereas command-form words, operators, and save-style dash options are passed as character arguments.",
+  "source": "programs/command_semantics_expression_arguments.m",
+  "tags": ["r2022b", "wire-v2", "command-semantics-probe", "command-form", "expression-ambiguity", "dash-option"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical",
+      "size": [1, 5],
+      "ndims": 2,
+      "numel": 5,
+      "complex": false,
+      "kind": "logical",
+      "logical": [true, true, true, true, true]
+    }
+  }
+}

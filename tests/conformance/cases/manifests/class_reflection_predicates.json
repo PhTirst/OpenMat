@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "id": "class_reflection_predicates",
+  "description": "class, isa, and isobject report exact, inherited, and non-object relationships.",
+  "source": "programs/class_reflection_predicates.m",
+  "tags": ["r2022b", "classdef", "reflection", "inheritance"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical",
+      "size": [1, 6],
+      "ndims": 2,
+      "numel": 6,
+      "kind": "logical",
+      "logical": [true, true, true, false, true, false]
+    }
+  }
+}

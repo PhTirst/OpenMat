@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "id": "graphics_close_new_current_unheld",
+  "description": "After closing a held Figure, gcf and gca select a new unheld Figure and Axes.",
+  "source": "programs/graphics_close_new_current_unheld.m",
+  "tags": ["r2022b", "wire-v2", "graphics", "plot-engine", "close", "gcf", "gca", "ishold"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 4],
+      "ndims": 2,
+      "numel": 4,
+      "complex": false,
+      "kind": "numeric",
+      "real": ["1", "0", "1", "0"],
+      "imag": ["0", "0", "0", "0"]
+    }
+  }
+}

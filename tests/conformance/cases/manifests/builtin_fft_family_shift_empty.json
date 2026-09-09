@@ -1,0 +1,21 @@
+{
+  "schema_version": 2,
+  "id": "builtin_fft_family_shift_empty",
+  "description": "Frequency shifts, symmetric inverse output, and empty FFT resizing match R2022b.",
+  "source": "programs/builtin_fft_family_shift_empty.m",
+  "tags": ["r2022b", "wire-v2", "core-numeric-builtins", "fft"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 17],
+      "ndims": 2,
+      "numel": 17,
+      "complex": false,
+      "kind": "numeric",
+      "real": ["4", "5", "1", "2", "3", "3", "4", "5", "1", "2", "1.6666666666666667", "-0.33333333333333331", "-0.33333333333333331", "2", "3", "1", "1"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"],
+      "tolerance": {"absolute": 1e-12, "relative": 1e-12}
+    }
+  }
+}

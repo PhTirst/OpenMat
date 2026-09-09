@@ -1,0 +1,318 @@
+{
+  "schema_version": 2,
+  "id": "aggregate_c3_writeback_cow",
+  "description": "Nested cell and struct write-back detaches an alias while preserving the original aggregate.",
+  "source": "programs/aggregate_c3_writeback_cow.m",
+  "tags": [
+    "r2022b",
+    "wire-v2",
+    "aggregate",
+    "c3",
+    "cell",
+    "struct",
+    "writeback",
+    "copy-on-write"
+  ],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "cell",
+      "size": [
+        1,
+        2
+      ],
+      "ndims": 2,
+      "numel": 2,
+      "complex": false,
+      "kind": "cell",
+      "items": [
+        {
+          "class": "cell",
+          "size": [
+            1,
+            2
+          ],
+          "ndims": 2,
+          "numel": 2,
+          "complex": false,
+          "kind": "cell",
+          "items": [
+            {
+              "class": "struct",
+              "size": [
+                1,
+                1
+              ],
+              "ndims": 2,
+              "numel": 1,
+              "complex": false,
+              "kind": "struct",
+              "fields": [
+                "count",
+                "nested"
+              ],
+              "records": [
+                {
+                  "count": {
+                    "class": "double",
+                    "size": [
+                      1,
+                      1
+                    ],
+                    "ndims": 2,
+                    "numel": 1,
+                    "complex": false,
+                    "kind": "numeric",
+                    "real": [
+                      "1"
+                    ],
+                    "imag": [
+                      "0"
+                    ]
+                  },
+                  "nested": {
+                    "class": "cell",
+                    "size": [
+                      1,
+                      2
+                    ],
+                    "ndims": 2,
+                    "numel": 2,
+                    "complex": false,
+                    "kind": "cell",
+                    "items": [
+                      {
+                        "class": "double",
+                        "size": [
+                          1,
+                          1
+                        ],
+                        "ndims": 2,
+                        "numel": 1,
+                        "complex": false,
+                        "kind": "numeric",
+                        "real": [
+                          "10"
+                        ],
+                        "imag": [
+                          "0"
+                        ]
+                      },
+                      {
+                        "class": "double",
+                        "size": [
+                          1,
+                          1
+                        ],
+                        "ndims": 2,
+                        "numel": 1,
+                        "complex": false,
+                        "kind": "numeric",
+                        "real": [
+                          "20"
+                        ],
+                        "imag": [
+                          "0"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "class": "cell",
+              "size": [
+                1,
+                2
+              ],
+              "ndims": 2,
+              "numel": 2,
+              "complex": false,
+              "kind": "cell",
+              "items": [
+                {
+                  "class": "double",
+                  "size": [
+                    1,
+                    1
+                  ],
+                  "ndims": 2,
+                  "numel": 1,
+                  "complex": false,
+                  "kind": "numeric",
+                  "real": [
+                    "30"
+                  ],
+                  "imag": [
+                    "0"
+                  ]
+                },
+                {
+                  "class": "double",
+                  "size": [
+                    1,
+                    1
+                  ],
+                  "ndims": 2,
+                  "numel": 1,
+                  "complex": false,
+                  "kind": "numeric",
+                  "real": [
+                    "40"
+                  ],
+                  "imag": [
+                    "0"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "class": "cell",
+          "size": [
+            1,
+            2
+          ],
+          "ndims": 2,
+          "numel": 2,
+          "complex": false,
+          "kind": "cell",
+          "items": [
+            {
+              "class": "struct",
+              "size": [
+                1,
+                1
+              ],
+              "ndims": 2,
+              "numel": 1,
+              "complex": false,
+              "kind": "struct",
+              "fields": [
+                "count",
+                "nested"
+              ],
+              "records": [
+                {
+                  "count": {
+                    "class": "double",
+                    "size": [
+                      1,
+                      1
+                    ],
+                    "ndims": 2,
+                    "numel": 1,
+                    "complex": false,
+                    "kind": "numeric",
+                    "real": [
+                      "99"
+                    ],
+                    "imag": [
+                      "0"
+                    ]
+                  },
+                  "nested": {
+                    "class": "cell",
+                    "size": [
+                      1,
+                      2
+                    ],
+                    "ndims": 2,
+                    "numel": 2,
+                    "complex": false,
+                    "kind": "cell",
+                    "items": [
+                      {
+                        "class": "double",
+                        "size": [
+                          1,
+                          1
+                        ],
+                        "ndims": 2,
+                        "numel": 1,
+                        "complex": false,
+                        "kind": "numeric",
+                        "real": [
+                          "10"
+                        ],
+                        "imag": [
+                          "0"
+                        ]
+                      },
+                      {
+                        "class": "double",
+                        "size": [
+                          1,
+                          1
+                        ],
+                        "ndims": 2,
+                        "numel": 1,
+                        "complex": false,
+                        "kind": "numeric",
+                        "real": [
+                          "77"
+                        ],
+                        "imag": [
+                          "0"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "class": "cell",
+              "size": [
+                1,
+                2
+              ],
+              "ndims": 2,
+              "numel": 2,
+              "complex": false,
+              "kind": "cell",
+              "items": [
+                {
+                  "class": "double",
+                  "size": [
+                    1,
+                    1
+                  ],
+                  "ndims": 2,
+                  "numel": 1,
+                  "complex": false,
+                  "kind": "numeric",
+                  "real": [
+                    "88"
+                  ],
+                  "imag": [
+                    "0"
+                  ]
+                },
+                {
+                  "class": "double",
+                  "size": [
+                    1,
+                    1
+                  ],
+                  "ndims": 2,
+                  "numel": 1,
+                  "complex": false,
+                  "kind": "numeric",
+                  "real": [
+                    "40"
+                  ],
+                  "imag": [
+                    "0"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

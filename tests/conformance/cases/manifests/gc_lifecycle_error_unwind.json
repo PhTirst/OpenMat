@@ -1,0 +1,16 @@
+{
+  "schema_version": 2,
+  "id": "gc_lifecycle_error_unwind",
+  "description": "Error unwinding finalizes an acyclic local handle before control reaches the caller catch block.",
+  "source": "programs/gc_lifecycle_error_unwind.m",
+  "tags": ["r2022b", "wire-v2", "gc-lifecycle-r2022b", "classdef", "handle-class", "error", "unwind", "delete"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1, 8], "ndims": 2, "numel": 8,
+      "complex": false, "kind": "numeric",
+      "real": ["101", "10", "201", "301", "11", "12", "90", "1"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

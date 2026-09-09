@@ -1,0 +1,21 @@
+{
+  "schema_version": 2,
+  "id": "matrix_left_overdetermined_real_multi_rhs",
+  "description": "Full-column-rank overdetermined left division computes real least-squares solutions for multiple right-hand sides.",
+  "source": "programs/matrix_left_overdetermined_real_multi_rhs.m",
+  "tags": ["r2022b", "wire-v2", "numeric", "matrix-division", "left-divide", "overdetermined", "multi-rhs"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [2, 2],
+      "ndims": 2,
+      "numel": 4,
+      "complex": false,
+      "kind": "numeric",
+      "real": ["0.76470588235294146", "1.5882352941176472", "2.1176470588235303", "0.70588235294117663"],
+      "imag": ["0", "0", "0", "0"],
+      "tolerance": {"absolute": 1e-12, "relative": 1e-12}
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "id": "builtin_arithmetic_reductions_extended",
+  "description": "sum and prod cover R2022b all, vecdim, omitnan, empty identity, and saturating native integer behavior.",
+  "source": "programs/builtin_arithmetic_reductions_extended.m",
+  "tags": ["r2022b", "wire-v2", "core-numeric-builtins", "arithmetic-reductions"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 10],
+      "ndims": 2,
+      "numel": 10,
+      "complex": false,
+      "kind": "numeric",
+      "real": ["8", "84", "100", "116", "3", "4", "24", "1", "255", "255"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

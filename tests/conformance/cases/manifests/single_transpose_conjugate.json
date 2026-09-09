@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "id": "single_transpose_conjugate",
+  "description": "Single complex conjugate transpose and non-conjugate transpose differ only in imaginary signs.",
+  "source": "programs/single_transpose_conjugate.m",
+  "tags": ["r2022b", "wire-v2", "single-try-r2022b", "single", "complex", "transpose", "ctranspose"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "single",
+      "size": [2, 2],
+      "ndims": 2,
+      "numel": 4,
+      "complex": true,
+      "kind": "numeric",
+      "real": ["1", "3", "1", "3"],
+      "imag": ["-2", "4", "2", "-4"]
+    }
+  }
+}

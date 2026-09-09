@@ -1,0 +1,32 @@
+{
+  "schema_version": 2,
+  "case_id": "matrix_left_complex_multi_rhs",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      2,
+      2
+    ],
+    "ndims": 2,
+    "numel": 4,
+    "complex": true,
+    "kind": "numeric",
+    "real": [
+      "0",
+      "0.875",
+      "0",
+      "0.75"
+    ],
+    "imag": [
+      "-0.125",
+      "0.25",
+      "0.75",
+      "0.5"
+    ]
+  }
+}

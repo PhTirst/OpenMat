@@ -1,0 +1,16 @@
+{
+  "schema_version": 2,
+  "id": "graphics_patch_xy_defaults",
+  "description": "patch(X,Y,ColorSpec) creates a first-class MATLAB Patch with canonical Faces, Vertices, derived coordinate data, and R2022b defaults.",
+  "source": "programs/graphics_patch_xy_defaults.m",
+  "tags": ["r2022b", "wire-v2", "graphics", "plot-engine", "patch-engine"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1, 42], "ndims": 2, "numel": 42,
+      "complex": false, "kind": "numeric",
+      "real": ["1", "4", "1", "0", "1", "1", "0", "4", "1", "0", "0", "1", "1", "0", "0", "1", "4", "1", "2", "3", "4", "4", "2", "0", "1", "1", "0", "0", "0", "1", "1", "0", "0", "1", "1", "1", "1", "0.5", "1", "1", "0", "90"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

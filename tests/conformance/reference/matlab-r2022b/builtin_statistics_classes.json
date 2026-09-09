@@ -1,0 +1,108 @@
+{
+  "schema_version": 2,
+  "case_id": "builtin_statistics_classes",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "cell",
+    "size": [
+      1,
+      5
+    ],
+    "ndims": 2,
+    "numel": 5,
+    "complex": false,
+    "kind": "cell",
+    "items": [
+      {
+        "class": "single",
+        "size": [
+          1,
+          1
+        ],
+        "ndims": 2,
+        "numel": 1,
+        "complex": false,
+        "kind": "numeric",
+        "real": [
+          "0"
+        ],
+        "imag": [
+          "0"
+        ]
+      },
+      {
+        "class": "int8",
+        "size": [
+          1,
+          1
+        ],
+        "ndims": 2,
+        "numel": 1,
+        "complex": false,
+        "kind": "integer",
+        "integer": [
+          {
+            "real": "2",
+            "imaginary": "0"
+          }
+        ]
+      },
+      {
+        "class": "char",
+        "size": [
+          1,
+          1
+        ],
+        "ndims": 2,
+        "numel": 1,
+        "complex": false,
+        "kind": "char",
+        "code_units": [
+          98
+        ]
+      },
+      {
+        "class": "double",
+        "size": [
+          1,
+          1
+        ],
+        "ndims": 2,
+        "numel": 1,
+        "complex": false,
+        "kind": "numeric",
+        "real": [
+          "97.5"
+        ],
+        "imag": [
+          "0"
+        ]
+      },
+      {
+        "class": "double",
+        "size": [
+          1,
+          3
+        ],
+        "ndims": 2,
+        "numel": 3,
+        "complex": false,
+        "kind": "numeric",
+        "real": [
+          "NaN",
+          "NaN",
+          "NaN"
+        ],
+        "imag": [
+          "0",
+          "0",
+          "0"
+        ]
+      }
+    ]
+  }
+}

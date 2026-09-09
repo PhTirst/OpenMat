@@ -1,0 +1,11 @@
+{
+  "schema_version": 2,
+  "id": "matrix_left_shape_mismatch",
+  "description": "Left division rejects a right-hand side whose row count differs from the coefficient matrix.",
+  "source": "programs/matrix_left_shape_mismatch.m",
+  "tags": ["r2022b", "wire-v2", "numeric", "matrix-division", "left-divide", "error", "shape"],
+  "expected": {
+    "outcome": "error",
+    "error": {"category": "dimension-mismatch"}
+  }
+}

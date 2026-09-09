@@ -1,0 +1,22 @@
+{
+  "schema_version": 2,
+  "id": "char_integer_value_model_unsigned_bounds",
+  "description": "Unsigned integer observations preserve zero and the exact uint64 maximum.",
+  "source": "programs/char_integer_value_model_unsigned_bounds.m",
+  "tags": ["r2022b", "wire-v2", "integer", "unsigned"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "uint64",
+      "size": [1, 2],
+      "ndims": 2,
+      "numel": 2,
+      "complex": false,
+      "kind": "integer",
+      "integer": [
+        {"real": "0", "imaginary": "0"},
+        {"real": "18446744073709551615", "imaginary": "0"}
+      ]
+    }
+  }
+}

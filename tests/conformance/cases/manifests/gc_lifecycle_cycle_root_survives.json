@@ -1,0 +1,16 @@
+{
+  "schema_version": 2,
+  "id": "gc_lifecycle_cycle_root_survives",
+  "description": "A mutual-reference cycle remains valid while one external root exists, then an explicitly broken acyclic remainder is finalized.",
+  "source": "programs/gc_lifecycle_cycle_root_survives.m",
+  "tags": ["r2022b", "wire-v2", "gc-lifecycle-r2022b", "classdef", "handle-class", "cycle", "root", "delete"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1, 13], "ndims": 2, "numel": 13,
+      "complex": false, "kind": "numeric",
+      "real": ["101", "102", "10", "11", "12", "202", "302", "201", "301", "13", "90", "1", "1"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": 2,
+  "id": "sparse_warning_solve_fallbacks",
+  "description": "Singular square and rank-deficient tall sparse left division return full fallback values while updating lastwarn.",
+  "source": "programs/sparse_warning_solve_fallbacks.m",
+  "tags": ["r2022b", "wire-v2", "sparse", "sparse-g1", "left-divide", "warning", "singular", "rank-deficient", "multi-rhs"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical",
+      "size": [1, 10],
+      "ndims": 2,
+      "numel": 10,
+      "complex": false,
+      "kind": "logical",
+      "logical": [true, true, true, true, true, true, true, true, true, true]
+    }
+  }
+}

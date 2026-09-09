@@ -1,0 +1,42 @@
+{
+  "schema_version": 2,
+  "case_id": "builtin_polynomial_roots_provider",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      9
+    ],
+    "ndims": 2,
+    "numel": 9,
+    "complex": true,
+    "kind": "numeric",
+    "real": [
+      "0",
+      "0",
+      "1.0000000000000002",
+      "1.999999999999998",
+      "3.0000000000000018",
+      "1.3877787807814457e-17",
+      "2",
+      "5",
+      "1"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "-1",
+      "-2.7755575615628914e-17",
+      "0",
+      "0"
+    ]
+  }
+}

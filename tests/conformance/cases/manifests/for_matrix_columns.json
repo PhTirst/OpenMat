@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "for_matrix_columns",
+  "description": "A for loop iterates a matrix one column at a time in column-major order.",
+  "source": "programs/for_matrix_columns.m",
+  "tags": ["r2022b", "common-syntax-r2022b", "control-flow", "for", "matrix", "column-major"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 3],
+      "ndims": 2,
+      "numel": 3,
+      "kind": "numeric",
+      "real": ["5", "7", "9"],
+      "imag": ["0", "0", "0"]
+    }
+  }
+}

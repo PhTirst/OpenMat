@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "global_script_function_share",
+  "description": "A script and its local function share a declared global and observe the function write-back.",
+  "source": "programs/global_script_function_share.m",
+  "tags": ["r2022b", "global-persistent", "global", "functions", "workspace", "side-effects"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 3],
+      "ndims": 2,
+      "numel": 3,
+      "kind": "numeric",
+      "real": ["5", "11", "11"],
+      "imag": ["0", "0", "0"]
+    }
+  }
+}

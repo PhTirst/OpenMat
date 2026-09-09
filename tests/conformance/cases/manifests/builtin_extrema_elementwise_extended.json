@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "id": "builtin_extrema_elementwise_extended",
+  "description": "element-wise min and max cover R2022b implicit expansion, NaN inclusion, and mixed single behavior.",
+  "source": "programs/builtin_extrema_elementwise_extended.m",
+  "tags": ["r2022b", "wire-v2", "core-numeric-builtins", "extrema", "implicit-expansion"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 14],
+      "ndims": 2,
+      "numel": 14,
+      "complex": false,
+      "kind": "numeric",
+      "real": ["1", "4", "3", "2", "1", "2", "1", "3", "3", "5", "4", "3", "NaN", "NaN"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

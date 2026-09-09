@@ -1,0 +1,51 @@
+{
+  "schema_version": 2,
+  "id": "graphics_2d_replace_invalidates_lines",
+  "description": "Leaving hold mode and plotting replaces prior Lines, invalidates old handles, and leaves one live child.",
+  "source": "programs/graphics_2d_replace_invalidates_lines.m",
+  "tags": [
+    "r2022b",
+    "wire-v2",
+    "graphics",
+    "plot-engine",
+    "graphics-2d",
+    "plot",
+    "hold",
+    "lifetime",
+    "children"
+  ],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [
+        1,
+        8
+      ],
+      "ndims": 2,
+      "numel": 8,
+      "complex": false,
+      "kind": "numeric",
+      "real": [
+        "1",
+        "1",
+        "0",
+        "0",
+        "1",
+        "1",
+        "2",
+        "0"
+      ],
+      "imag": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    }
+  }
+}

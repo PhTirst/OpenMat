@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "id": "builtin_error_assert",
+  "description": "error and assert preserve R2022b user identifiers, formatted messages, scalar-condition rules, and catchable MException fields.",
+  "source": "programs/builtin_error_assert.m",
+  "tags": ["r2022b", "wire-v2", "programming", "error", "assert", "try-catch"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical", "size": [1, 1], "ndims": 2, "numel": 1,
+      "complex": false, "kind": "logical", "logical": [true]
+    }
+  }
+}

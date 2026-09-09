@@ -1,0 +1,32 @@
+{
+  "schema_version": 2,
+  "id": "builtin_conversion_extended_mat2cell_roundtrip",
+  "description": "mat2cell N-D partitions and cell2mat reconstruction preserve exact int16 column-major data.",
+  "source": "programs/builtin_conversion_extended_mat2cell_roundtrip.m",
+  "tags": ["r2022b", "wire-v2", "conversion-extended", "mat2cell", "cell2mat", "int16", "nd"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "int16",
+      "size": [4, 3, 2],
+      "ndims": 3,
+      "numel": 24,
+      "complex": false,
+      "kind": "integer",
+      "integer": [
+        {"real": "1", "imaginary": "0"}, {"real": "2", "imaginary": "0"},
+        {"real": "3", "imaginary": "0"}, {"real": "4", "imaginary": "0"},
+        {"real": "5", "imaginary": "0"}, {"real": "6", "imaginary": "0"},
+        {"real": "7", "imaginary": "0"}, {"real": "8", "imaginary": "0"},
+        {"real": "9", "imaginary": "0"}, {"real": "10", "imaginary": "0"},
+        {"real": "11", "imaginary": "0"}, {"real": "12", "imaginary": "0"},
+        {"real": "13", "imaginary": "0"}, {"real": "14", "imaginary": "0"},
+        {"real": "15", "imaginary": "0"}, {"real": "16", "imaginary": "0"},
+        {"real": "17", "imaginary": "0"}, {"real": "18", "imaginary": "0"},
+        {"real": "19", "imaginary": "0"}, {"real": "20", "imaginary": "0"},
+        {"real": "21", "imaginary": "0"}, {"real": "22", "imaginary": "0"},
+        {"real": "23", "imaginary": "0"}, {"real": "24", "imaginary": "0"}
+      ]
+    }
+  }
+}

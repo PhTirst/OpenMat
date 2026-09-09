@@ -1,0 +1,127 @@
+name: OpenMat quality gates
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  public-source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.19.0
+      - name: Public-source guard tests
+        run: node --test tools/release/check-public-source.test.mjs
+      - name: Check tracked public source
+        run: node tools/release/check-public-source.mjs
+  windows:
+    runs-on: windows-latest
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/target
+      CARGO_BUILD_JOBS: '4'
+      CARGO_INCREMENTAL: '0'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned Rust toolchain
+        shell: pwsh
+        run: |
+          rustup toolchain install 1.90.0 --profile minimal --component clippy,rustfmt --target wasm32-unknown-unknown
+          cargo install wasm-bindgen-cli --version 0.2.127 --locked
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Desktop format
+        run: cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml --check
+      - name: Clippy (all targets and features)
+        run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings -D clippy::pedantic
+      - name: Require compiler for C plugin tests
+        run: gcc --version
+      - name: Workspace tests
+        run: cargo test --locked --workspace
+      - name: Conformance comparator self-test
+        shell: pwsh
+        run: pwsh -NoProfile -File tools/openmat-conformance/tests/Test-Comparator.ps1
+      - name: Conformance runner exit-code self-test
+        shell: pwsh
+        run: pwsh -NoProfile -File tools/openmat-conformance/tests/Test-RunnerExitCodes.ps1
+      - name: Build command-line hosts
+        run: cargo build --locked -p openmat-cli -p openmat-server
+      - name: OpenMat conformance baseline
+        shell: pwsh
+        run: pwsh -NoProfile -File tools/openmat-conformance/Invoke-OpenMatConformance.ps1 -OpenMatPath .\target\debug\openmat-cli.exe -JsonSummary
+      - name: Persistent runtime settings tests
+        shell: pwsh
+        run: pwsh -NoProfile -File tools/openmat-dev/tests/Test-RuntimeSettings.ps1
+      - name: Development launcher tests
+        shell: pwsh
+        run: pwsh -NoProfile -File tools/openmat-dev/tests/Test-OpenMatDev.ps1 -ServerPath .\target\debug\openmat-server.exe
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+          run_install: false
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.19.0
+          cache: pnpm
+          cache-dependency-path: apps/web/pnpm-lock.yaml
+      - name: Install web dependencies
+        working-directory: apps/web
+        run: pnpm install --frozen-lockfile
+      - name: Web typecheck
+        working-directory: apps/web
+        run: pnpm typecheck
+      - name: Web tests
+        working-directory: apps/web
+        run: pnpm test
+      - name: Web production build
+        working-directory: apps/web
+        run: pnpm build
+      - name: Prepare desktop build resources
+        shell: pwsh
+        run: pwsh -NoProfile -File tools/release/Build-OpenMatWindows.ps1 -PrepareOnly -DisableCompilerCache
+      - name: OpenBLAS runtime tests
+        env:
+          OPENMAT_TEST_OPENBLAS_DLL: ${{ github.workspace }}/apps/desktop/src-tauri/resources/openblas/libopenblas.dll
+          OPENBLAS_NUM_THREADS: '1'
+        run: cargo test --locked -p openmat-openblas --test provider -- --test-threads=1
+      - name: Desktop Clippy (all targets)
+        run: cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --locked --all-targets -- -D warnings -D clippy::pedantic
+      - name: Desktop tests
+        run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --locked
+      - name: Desktop build with embedded frontend
+        run: cargo build --manifest-path apps/desktop/src-tauri/Cargo.toml --locked --features tauri/custom-protocol
+      - name: Ensure WebView2 Runtime
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          # Microsoft's documented per-machine and per-user Evergreen runtime keys.
+          $runtimeKeys = @(
+            'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
+            'HKCU:\Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'
+          )
+          function Test-WebView2Runtime {
+            foreach ($key in $runtimeKeys) {
+              $version = Get-ItemPropertyValue -LiteralPath $key -Name pv -ErrorAction SilentlyContinue
+              if ($version -and [version] $version -gt [version] '0.0.0.0') { return $true }
+            }
+            return $false
+          }
+          if (-not (Test-WebView2Runtime)) {
+            $bootstrapper = Join-Path $env:RUNNER_TEMP 'MicrosoftEdgeWebview2Setup.exe'
+            Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile $bootstrapper
+            $setup = Start-Process -FilePath $bootstrapper -ArgumentList '/silent', '/install' -WindowStyle Hidden -PassThru -Wait
+            if (-not (Test-WebView2Runtime)) {
+              throw "WebView2 Runtime installation failed (exit $($setup.ExitCode))."
+            }
+          }
+      - name: Desktop kernel smoke
+        shell: pwsh
+        run: pwsh -NoProfile -File tools/release/Test-OpenMatDesktop.ps1 -Executable .\target\debug\openmat-desktop.exe

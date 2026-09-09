@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "handle_class_alias",
+  "description": "Mutating a handle-class alias is visible through both references.",
+  "source": "programs/handle_class_alias.m",
+  "tags": ["r2022b", "classdef", "handle-class", "alias-semantics", "methods"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 2],
+      "ndims": 2,
+      "numel": 2,
+      "kind": "numeric",
+      "real": ["6", "6"],
+      "imag": ["0", "0"]
+    }
+  }
+}

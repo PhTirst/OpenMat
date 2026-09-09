@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "id": "class_abstract_missing_implementation_error",
+  "description": "An inherited unresolved abstract slot makes an otherwise concrete-looking subclass effectively abstract.",
+  "source": "programs/class_abstract_missing_implementation_error.m",
+  "tags": ["r2022b", "classdef", "class-advanced", "abstract", "inheritance", "error"],
+  "expected": {
+    "outcome": "error",
+    "error": { "category": "type-error" }
+  }
+}

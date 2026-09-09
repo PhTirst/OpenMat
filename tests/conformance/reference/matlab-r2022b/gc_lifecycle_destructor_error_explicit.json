@@ -1,0 +1,44 @@
+{
+  "schema_version": 2,
+  "case_id": "gc_lifecycle_destructor_error_explicit",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      10
+    ],
+    "ndims": 2,
+    "numel": 10,
+    "complex": false,
+    "kind": "numeric",
+    "real": [
+      "101",
+      "10",
+      "201",
+      "301",
+      "11",
+      "13",
+      "90",
+      "0",
+      "0",
+      "1"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

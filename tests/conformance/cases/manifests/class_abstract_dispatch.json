@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "class_abstract_dispatch",
+  "description": "Concrete overrides discharge abstract slots across multiple inheritance layers and remain dynamically dispatched.",
+  "source": "programs/class_abstract_dispatch.m",
+  "tags": ["r2022b", "classdef", "class-advanced", "abstract", "inheritance", "dispatch"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 2],
+      "ndims": 2,
+      "numel": 2,
+      "kind": "numeric",
+      "real": ["20", "16"],
+      "imag": ["0", "0"]
+    }
+  }
+}

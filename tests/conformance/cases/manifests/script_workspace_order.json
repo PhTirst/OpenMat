@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "script_workspace_order",
+  "description": "A called script observes and mutates its caller workspace in statement order.",
+  "source": "programs/script_workspace_order.m",
+  "tags": ["r2022b", "scripts", "workspace", "side-effects", "order"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 2],
+      "ndims": 2,
+      "numel": 2,
+      "kind": "numeric",
+      "real": ["9", "6"],
+      "imag": ["0", "0"]
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "id": "class_abstract_unimplemented_call_error",
+  "description": "A class-qualified call to an unresolved static abstract slot fails when dispatch is attempted.",
+  "source": "programs/class_abstract_unimplemented_call_error.m",
+  "tags": ["r2022b", "classdef", "class-advanced", "abstract", "static", "error"],
+  "expected": {
+    "outcome": "error",
+    "error": { "category": "undefined-name" }
+  }
+}

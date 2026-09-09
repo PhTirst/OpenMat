@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "id": "event_access_internal",
+  "description": "Private listen and notify access are available from methods of the declaring class.",
+  "source": "programs/event_access_internal.m",
+  "tags": ["r2022b", "classdef", "events", "access"],
+  "expected": {"outcome":"ok","value":{"class":"double","size":[1,2],"ndims":2,"numel":2,"kind":"numeric","real":["1","1"],"imag":["0","0"]}}
+}

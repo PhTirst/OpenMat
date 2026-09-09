@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "id": "syntax_command_form_common",
+  "description": "General command form passes character text across comments and continuations, preserves on/off variables, and coexists with bare figure and functional calls.",
+  "source": "programs/syntax_command_form_common.m",
+  "tags": ["r2022b", "wire-v2", "common-syntax-r2022b", "command-form", "graphics"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 13],
+      "ndims": 2,
+      "numel": 13,
+      "complex": false,
+      "kind": "numeric",
+      "real": ["91", "92", "0", "1", "0", "1", "0", "1", "1", "1", "1", "1", "1"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "id": "graphics_hold_preserves_children",
+  "description": "A second plot while hold is enabled preserves the first Line as a second Axes child.",
+  "source": "programs/graphics_hold_preserves_children.m",
+  "tags": ["r2022b", "wire-v2", "graphics", "plot-engine", "plot", "hold", "children"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 1],
+      "ndims": 2,
+      "numel": 1,
+      "complex": false,
+      "kind": "numeric",
+      "real": ["2"],
+      "imag": ["0"]
+    }
+  }
+}

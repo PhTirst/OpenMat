@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "function_handle_anonymous_multi_input",
+  "description": "An anonymous handle binds multiple ordered input parameters.",
+  "source": "programs/function_handle_anonymous_multi_input.m",
+  "tags": ["r2022b", "function-handle-r2022b", "function-handle", "anonymous-function", "multiple-inputs"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 1],
+      "ndims": 2,
+      "numel": 1,
+      "kind": "numeric",
+      "real": ["321"],
+      "imag": ["0"]
+    }
+  }
+}

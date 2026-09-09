@@ -1,0 +1,21 @@
+{
+  "schema_version": 2,
+  "id": "matrix_left_complex_multi_rhs",
+  "description": "Square complex left division preserves complex double class, shape, and two right-hand sides.",
+  "source": "programs/matrix_left_complex_multi_rhs.m",
+  "tags": ["r2022b", "wire-v2", "numeric", "matrix-division", "left-divide", "square", "complex", "multi-rhs"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [2, 2],
+      "ndims": 2,
+      "numel": 4,
+      "complex": true,
+      "kind": "numeric",
+      "real": ["0", "0.875", "0", "0.75"],
+      "imag": ["-0.125", "0.25", "0.75", "0.5"],
+      "tolerance": {"absolute": 1e-12, "relative": 1e-12}
+    }
+  }
+}

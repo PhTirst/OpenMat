@@ -1,0 +1,34 @@
+{
+  "schema_version": 2,
+  "id": "builtin_unwrap",
+  "description": "unwrap follows R2022b dimension, tolerance, class, nonfinite, integer, char, and empty-shape behavior.",
+  "source": "programs/builtin_unwrap.m",
+  "tags": ["r2022b", "wire-v2", "core-numeric-builtins", "unwrap", "goal-coordinates", "single", "integer", "nonfinite", "empty"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 37],
+      "ndims": 2,
+      "numel": 37,
+      "complex": false,
+      "kind": "numeric",
+      "real": [
+        "0", "-2.7831853071795862", "-5.5663706143591725", "NaN", "-6.2831853071795862", "-8.5663706143591725",
+        "0", "-2.7831854820251465", "-5.566370964050293",
+        "0", "1", "-2.2831853071795862", "-1.2831853071795862", "-4.5663706143591725", "-3.5663706143591725",
+        "0", "-2.2831853071795862",
+        "0", "-2", "-3", "-4",
+        "0", "0", "0", "0",
+        "0", "+Inf", "-2.2831853071795862", "-Inf", "-4.5663706143591725",
+        "1", "1", "1", "0", "3", "2", "0"
+      ],
+      "imag": [
+        "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0",
+        "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0",
+        "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"
+      ],
+      "tolerance": { "absolute": 1e-6, "relative": 1e-6 }
+    }
+  }
+}

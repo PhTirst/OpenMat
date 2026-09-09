@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "id": "event_listener_lifecycle",
+  "description": "Explicit listener deletion detaches it while the source retains listeners whose local handle is cleared.",
+  "source": "programs/event_listener_lifecycle.m",
+  "tags": ["r2022b", "classdef", "events", "listener", "gc"],
+  "expected": {"outcome":"ok","value":{"class":"logical","size":[1,2],"ndims":2,"numel":2,"kind":"logical","logical":[false,false]}}
+}

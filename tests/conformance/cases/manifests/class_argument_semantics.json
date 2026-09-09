@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "class_argument_semantics",
+  "description": "A callee mutation is isolated for a value object but visible for a handle object.",
+  "source": "programs/class_argument_semantics.m",
+  "tags": ["r2022b", "classdef", "value-class", "handle-class", "arguments", "copy-semantics"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 2],
+      "ndims": 2,
+      "numel": 2,
+      "kind": "numeric",
+      "real": ["5", "9"],
+      "imag": ["0", "0"]
+    }
+  }
+}

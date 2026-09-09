@@ -1,0 +1,40 @@
+{
+  "schema_version": 2,
+  "case_id": "builtin_norm_matrix_orders",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      1,
+      8
+    ],
+    "ndims": 2,
+    "numel": 8,
+    "complex": false,
+    "kind": "numeric",
+    "real": [
+      "5.4649857042190426",
+      "6",
+      "7",
+      "5.4772255750516612",
+      "5.7912878474779204",
+      "4.4979414452754147",
+      "3",
+      "0"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "schema_version": 2,
+  "id": "string_find_replace",
+  "description": "UTF-16 strfind positions, cell outputs, scalar expansion, replacement sets, empty patterns, and missing propagation match MATLAB R2022b.",
+  "source": "programs/string_find_replace.m",
+  "tags": ["r2022b", "wire-v2", "string-builtins", "string-search", "string-replace", "utf16"],
+  "expected": {"outcome":"ok","value":{"class":"double","size":[1,12],"ndims":2,"numel":12,"complex":false,"kind":"numeric","real":["2","5","1","2","1","1","1","1","1","1","1","1"],"imag":["0","0","0","0","0","0","0","0","0","0","0","0"],"tolerance":{"absolute":0,"relative":0}}}
+}

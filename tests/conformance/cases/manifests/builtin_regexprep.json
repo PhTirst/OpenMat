@@ -1,0 +1,30 @@
+{
+  "schema_version": 2,
+  "id": "builtin_regexprep",
+  "description": "regexprep and regexp text outputs preserve R2022b string class, capture expansion, replacement modes, empty matches, matches, and split pieces.",
+  "source": "programs/builtin_regexprep.m",
+  "tags": ["r2022b", "wire-v2", "string", "text-regex", "regexp", "regexprep"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "string",
+      "size": [1, 9],
+      "ndims": 2,
+      "numel": 9,
+      "complex": false,
+      "kind": "string",
+      "string_code_units": [
+        [97, 98, 99, 60, 49, 50, 51, 62, 100, 101, 102],
+        [120, 120, 120],
+        [97, 35, 98, 50, 50],
+        [58, 97, 58, 98, 58, 99, 58],
+        [49],
+        [50, 50],
+        [],
+        [32],
+        []
+      ],
+      "missing": [false, false, false, false, false, false, false, false, false]
+    }
+  }
+}

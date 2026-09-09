@@ -1,0 +1,32 @@
+{
+  "schema_version": 2,
+  "case_id": "single_conversion_rounding",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "single",
+    "size": [
+      2,
+      2
+    ],
+    "ndims": 2,
+    "numel": 4,
+    "complex": false,
+    "kind": "numeric",
+    "real": [
+      "0.100000001",
+      "-2.5",
+      "16777216",
+      "0.333333343"
+    ],
+    "imag": [
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}

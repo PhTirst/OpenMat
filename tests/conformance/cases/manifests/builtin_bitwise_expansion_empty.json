@@ -1,0 +1,24 @@
+{
+  "schema_version": 2,
+  "id": "builtin_bitwise_expansion_empty",
+  "description": "Binary bitwise implicit expansion, scalar-only expansion for shift/get/set, zero-sized dimensions, shape preservation, and output classes match R2022b.",
+  "source": "programs/builtin_bitwise_expansion_empty.m",
+  "tags": ["r2022b", "wire-v2", "core-numeric-builtins", "bitwise", "implicit-expansion", "scalar-expansion", "empty", "shape"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1,33], "ndims": 2, "numel": 33,
+      "complex": false, "kind": "numeric",
+      "real": [
+        "1","0","0","2","1","2","9","10","12","-4","4",
+        "1","2","4","1","1","0","0","2","4",
+        "0","3","0","3","0","3","0","3","1","1","1","1","1"
+      ],
+      "imag": [
+        "0","0","0","0","0","0","0","0","0","0","0",
+        "0","0","0","0","0","0","0","0","0","0","0",
+        "0","0","0","0","0","0","0","0","0","0","0"
+      ]
+    }
+  }
+}

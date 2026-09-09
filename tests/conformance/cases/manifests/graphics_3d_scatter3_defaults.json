@@ -1,0 +1,16 @@
+{
+  "schema_version": 2,
+  "id": "graphics_3d_scatter3_defaults",
+  "description": "scatter3 creates a MATLAB Scatter with ZData, marker data, three-dimensional view, and limits.",
+  "source": "programs/graphics_3d_scatter3_defaults.m",
+  "tags": ["r2022b", "wire-v2", "graphics", "plot-engine", "graphics-3d", "graphics-3d-next", "scatter3"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1, 23], "ndims": 2, "numel": 23,
+      "complex": false, "kind": "numeric",
+      "real": ["1", "1", "2", "3", "4", "5", "6", "7", "8", "10", "25", "1", "0", "0", "-37.5", "30", "1", "3", "4", "6", "7", "10", "1"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

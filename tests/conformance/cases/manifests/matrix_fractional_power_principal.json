@@ -1,0 +1,17 @@
+{
+  "schema_version": 2,
+  "id": "matrix_fractional_power_principal",
+  "description": "Non-integer matrix powers preserve Jordan derivatives and principal complex branches while integer powers keep their existing path.",
+  "source": "programs/matrix_fractional_power_principal.m",
+  "tags": ["r2022b", "wire-v2", "matrix-functions", "matrix-power", "single", "complex", "jordan", "integer-path"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1, 10], "ndims": 2, "numel": 10,
+      "complex": false, "kind": "numeric",
+      "real": ["0", "0", "0", "0", "0", "0", "0", "1", "0", "0"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0", "0", "0", "0"],
+      "tolerance": {"absolute": 5e-5, "relative": 5e-5}
+    }
+  }
+}

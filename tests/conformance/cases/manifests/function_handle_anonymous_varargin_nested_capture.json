@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "function_handle_anonymous_varargin_nested_capture",
+  "description": "Anonymous varargin composes with construction-time capture, nested closures, and nested parameter shadowing.",
+  "source": "programs/function_handle_anonymous_varargin_nested_capture.m",
+  "tags": ["r2022b", "function-handle-r2022b", "function-handle", "anonymous-function", "varargin", "lexical-capture", "function-handle-anonymous-varargin-r2022b"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 7],
+      "ndims": 2,
+      "numel": 7,
+      "kind": "numeric",
+      "real": ["12", "7", "11", "1", "2", "8", "9"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

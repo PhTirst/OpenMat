@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "id": "try_catch_binding_overwrite",
+  "description": "A named catch binding overwrites a preexisting ordinary variable and persists in the surrounding script scope.",
+  "source": "programs/try_catch_binding_overwrite.m",
+  "tags": ["r2022b", "wire-v2", "single-try-r2022b", "try-catch", "control-flow", "binding", "scope", "assignment"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1, 4], "ndims": 2, "numel": 4,
+      "complex": false, "kind": "numeric", "real": ["17", "1", "1", "1"], "imag": ["0", "0", "0", "0"]
+    }
+  }
+}

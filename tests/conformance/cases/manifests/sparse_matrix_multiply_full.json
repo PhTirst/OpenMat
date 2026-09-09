@@ -1,0 +1,23 @@
+{
+  "schema_version": 2,
+  "id": "sparse_matrix_multiply_full",
+  "description": "Non-scalar sparse-by-full and full-by-sparse products preserve real, complex, multi-column, empty-shape, and full-result semantics.",
+  "source": "programs/sparse_matrix_multiply_full.m",
+  "tags": ["r2022b", "wire-v2", "sparse", "sparse-g1", "matrix-multiply", "complex", "empty", "multi-column"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical",
+      "size": [1, 18],
+      "ndims": 2,
+      "numel": 18,
+      "complex": false,
+      "kind": "logical",
+      "logical": [
+        true, true, true, true, true, true,
+        true, true, true, true, true, true,
+        true, true, true, true, true, true
+      ]
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "persistent_conditional_declaration",
+  "description": "A conditional persistent declaration affects state only when execution reaches its branch.",
+  "source": "programs/persistent_conditional_declaration.m",
+  "tags": ["r2022b", "global-persistent", "persistent", "declaration", "control-flow", "state"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 8],
+      "ndims": 2,
+      "numel": 8,
+      "kind": "numeric",
+      "real": ["-1", "0", "8", "1", "-1", "0", "9", "0"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

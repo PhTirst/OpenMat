@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "id": "builtin_regexp",
+  "description": "regexp and regexpi preserve R2022b UTF-16 indices, named-pattern parsing, empty-match policy, case folding, lookbehind, backreferences, and selected outputs.",
+  "source": "programs/builtin_regexp.m",
+  "tags": ["r2022b", "wire-v2", "string", "text-regex", "regexp", "regexpi"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 13],
+      "ndims": 2,
+      "numel": 13,
+      "complex": false,
+      "kind": "numeric",
+      "real": ["1", "6", "4", "10", "1", "2", "3", "4", "1", "2", "3", "2", "5"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

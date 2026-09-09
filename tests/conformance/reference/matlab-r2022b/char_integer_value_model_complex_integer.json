@@ -1,0 +1,30 @@
+{
+  "schema_version": 2,
+  "case_id": "char_integer_value_model_complex_integer",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "int16",
+    "size": [
+      1,
+      2
+    ],
+    "ndims": 2,
+    "numel": 2,
+    "complex": true,
+    "kind": "integer",
+    "integer": [
+      {
+        "real": "-32768",
+        "imaginary": "1"
+      },
+      {
+        "real": "7",
+        "imaginary": "-9"
+      }
+    ]
+  }
+}

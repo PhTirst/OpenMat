@@ -1,0 +1,19 @@
+{
+  "schema_version": 2,
+  "id": "builtin_conversion_extended_dec2bin_signed",
+  "description": "dec2bin selects a common signed byte width and sign-extends negative fixed-width integers.",
+  "source": "programs/builtin_conversion_extended_dec2bin_signed.m",
+  "tags": ["r2022b", "wire-v2", "conversion-extended", "dec2bin", "signed", "padding"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "char",
+      "size": [2, 16],
+      "ndims": 2,
+      "numel": 32,
+      "complex": false,
+      "kind": "char",
+      "code_units": [49, 48, 49, 48, 49, 48, 49, 48, 49, 48, 49, 48, 49, 48, 49, 49, 49, 48, 49, 48, 49, 48, 49, 48, 49, 48, 49, 48, 49, 48, 49, 48]
+    }
+  }
+}

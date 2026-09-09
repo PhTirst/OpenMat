@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "id": "event_source_delete_cleanup",
+  "description": "Deleting an event source detaches callbacks but leaves attached listener handles valid.",
+  "source": "programs/event_source_delete_cleanup.m",
+  "tags": ["r2022b", "classdef", "events", "listener", "delete"],
+  "expected": {"outcome":"ok","value":{"class":"logical","size":[1,2],"ndims":2,"numel":2,"kind":"logical","logical":[false,true]}}
+}

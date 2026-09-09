@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "class_public_access",
+  "description": "Public property access and an internal private-property accessor succeed.",
+  "source": "programs/class_public_access.m",
+  "tags": ["r2022b", "classdef", "access", "properties", "methods"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 2],
+      "ndims": 2,
+      "numel": 2,
+      "kind": "numeric",
+      "real": ["7", "11"],
+      "imag": ["0", "0"]
+    }
+  }
+}

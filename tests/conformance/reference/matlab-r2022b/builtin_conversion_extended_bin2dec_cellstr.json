@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "case_id": "builtin_conversion_extended_bin2dec_cellstr",
+  "oracle": {
+    "name": "MATLAB",
+    "release": "R2022b"
+  },
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [
+      2,
+      1
+    ],
+    "ndims": 2,
+    "numel": 2,
+    "complex": false,
+    "kind": "numeric",
+    "real": [
+      "2",
+      "3"
+    ],
+    "imag": [
+      "0",
+      "0"
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "id": "single_indexing_column_major",
+  "description": "A real single index array selects single matrix elements in column-major order and preserves index shape.",
+  "source": "programs/single_indexing_column_major.m",
+  "tags": ["r2022b", "wire-v2", "single-try-r2022b", "single", "indexing", "linear-indexing", "column-major", "shape"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "single",
+      "size": [1, 3],
+      "ndims": 2,
+      "numel": 3,
+      "complex": false,
+      "kind": "numeric",
+      "real": ["10", "50", "60"],
+      "imag": ["0", "0", "0"]
+    }
+  }
+}

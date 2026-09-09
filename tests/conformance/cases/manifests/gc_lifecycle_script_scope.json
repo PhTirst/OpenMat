@@ -1,0 +1,16 @@
+{
+  "schema_version": 2,
+  "id": "gc_lifecycle_script_scope",
+  "description": "A script shares its caller function workspace, so script completion alone does not release its acyclic handle.",
+  "source": "programs/gc_lifecycle_script_scope.m",
+  "tags": ["r2022b", "wire-v2", "gc-lifecycle-r2022b", "classdef", "handle-class", "script", "workspace", "delete"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1, 6], "ndims": 2, "numel": 6,
+      "complex": false, "kind": "numeric",
+      "real": ["101", "10", "11", "201", "301", "12"],
+      "imag": ["0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

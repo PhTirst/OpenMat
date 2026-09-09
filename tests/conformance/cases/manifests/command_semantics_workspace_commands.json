@@ -1,0 +1,19 @@
+{
+  "schema_version": 2,
+  "id": "command_semantics_workspace_commands",
+  "description": "Command-window and workspace commands preserve or mutate stable session state according to MATLAB R2022b without comparing displayed messages.",
+  "source": "programs/command_semantics_workspace_commands.m",
+  "tags": ["r2022b", "wire-v2", "command-semantics-probe", "clc", "format", "who", "whos", "clearvars"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical",
+      "size": [1, 12],
+      "ndims": 2,
+      "numel": 12,
+      "complex": false,
+      "kind": "logical",
+      "logical": [true, true, true, true, true, true, true, true, true, true, true, true]
+    }
+  }
+}

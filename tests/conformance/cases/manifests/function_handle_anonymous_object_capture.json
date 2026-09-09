@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "function_handle_anonymous_object_capture",
+  "description": "Anonymous capture copies a value-class object while retaining handle-class identity.",
+  "source": "programs/function_handle_anonymous_object_capture.m",
+  "tags": ["r2022b", "function-handle-r2022b", "function-handle", "anonymous-function", "lexical-capture", "value-class", "handle-class"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 2],
+      "ndims": 2,
+      "numel": 2,
+      "kind": "numeric",
+      "real": ["1", "8"],
+      "imag": ["0", "0"]
+    }
+  }
+}

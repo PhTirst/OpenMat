@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "function_handle_anonymous_varargin_positions",
+  "description": "Only a final anonymous parameter named varargin is variadic; earlier occurrences remain ordinary fixed parameters.",
+  "source": "programs/function_handle_anonymous_varargin_positions.m",
+  "tags": ["r2022b", "function-handle-r2022b", "function-handle", "anonymous-function", "varargin", "function-handle-anonymous-varargin-r2022b"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 14],
+      "ndims": 2,
+      "numel": 14,
+      "kind": "numeric",
+      "real": ["4", "5", "2", "6", "7", "8", "3", "9", "2", "10", "3", "2", "11", "12"],
+      "imag": ["0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "schema_version": 2,
+  "case_id": "aggregate_table_nx0",
+  "oracle": { "name": "fixture", "release": "test" },
+  "outcome": "ok",
+  "value": {
+    "class": "table",
+    "size": [3, 0],
+    "ndims": 2,
+    "numel": 0,
+    "complex": false,
+    "kind": "table",
+    "variableNames": [],
+    "variables": []
+  }
+}

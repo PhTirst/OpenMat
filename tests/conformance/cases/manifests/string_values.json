@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "string_values",
+  "description": "Double-quoted literals form a one-by-two string array.",
+  "source": "programs/string_values.m",
+  "tags": ["r2022b", "arrays", "string", "shape"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "string",
+      "size": [1, 2],
+      "ndims": 2,
+      "numel": 2,
+      "kind": "string",
+      "string": ["alpha", "beta"],
+      "missing": [false, false]
+    }
+  }
+}

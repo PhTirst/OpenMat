@@ -1,0 +1,15 @@
+[package]
+license = "AGPL-3.0-only"
+name = "oex-excel-test-host"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+openmat-kernel = { path = "../../../../crates/openmat-kernel" }
+openmat-protocol = { path = "../../../../crates/openmat-protocol" }
+calamine = "=0.36.1"
+rust_xlsxwriter = { version = "=0.99.0", default-features = false }
+tempfile = "3.23"

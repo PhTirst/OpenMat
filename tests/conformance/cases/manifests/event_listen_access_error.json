@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "id": "event_listen_access_error",
+  "description": "External addlistener is rejected by private ListenAccess.",
+  "source": "programs/event_listen_access_error.m",
+  "tags": ["r2022b", "classdef", "events", "access", "error"],
+  "expected": {"outcome":"error","error":{"category":"type-error"}}
+}

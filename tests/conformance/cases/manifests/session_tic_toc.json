@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "id": "session_tic_toc",
+  "description": "tic and toc preserve R2022b timer-handle classes, default-timer separation, elapsed values, output arity, and catchable identifiers.",
+  "source": "programs/session_tic_toc.m",
+  "tags": ["r2022b", "wire-v2", "session", "tic", "toc", "try-catch"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical", "size": [1, 1], "ndims": 2, "numel": 1,
+      "complex": false, "kind": "logical", "logical": [true]
+    }
+  }
+}

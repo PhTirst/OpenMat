@@ -1,0 +1,12 @@
+{
+  "outcome": "ok",
+  "value": {
+    "class": "double",
+    "size": [1, 2],
+    "ndims": 2,
+    "numel": 2,
+    "kind": "numeric",
+    "real": ["1", "NaN"],
+    "imag": ["0", "0"]
+  }
+}

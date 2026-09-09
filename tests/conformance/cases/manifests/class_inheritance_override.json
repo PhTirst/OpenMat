@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "class_inheritance_override",
+  "description": "A derived constructor initializes its superclass and an inherited method dispatches an override.",
+  "source": "programs/class_inheritance_override.m",
+  "tags": ["r2022b", "classdef", "inheritance", "constructor", "override", "dispatch"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 3],
+      "ndims": 2,
+      "numel": 3,
+      "kind": "numeric",
+      "real": ["12", "4", "12"],
+      "imag": ["0", "0", "0"]
+    }
+  }
+}

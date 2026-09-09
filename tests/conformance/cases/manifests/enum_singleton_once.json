@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "enum_singleton_once",
+  "description": "An enumeration member evaluates its arguments and constructor once across repeated qualified lookup.",
+  "source": "programs/enum_singleton_once.m",
+  "tags": ["r2022b", "classdef", "enumeration", "runtime"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double",
+      "size": [1, 3],
+      "ndims": 2,
+      "numel": 3,
+      "kind": "numeric",
+      "real": ["17", "17", "1"],
+      "imag": ["0", "0", "0"]
+    }
+  }
+}

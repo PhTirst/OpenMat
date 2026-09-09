@@ -1,0 +1,49 @@
+{
+  "schema_version": 2,
+  "id": "builtin_file_io_text_matrix",
+  "description": "Language-level UTF-8 text and delimited numeric reads preserve R2022b character, complex double, single, missing-field, and column-major behavior.",
+  "source": "programs/builtin_file_io_text_matrix.m",
+  "tags": ["r2022b", "wire-v2", "file-io", "fileread", "readmatrix", "single", "complex"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "cell",
+      "size": [1, 3],
+      "ndims": 2,
+      "numel": 3,
+      "complex": false,
+      "kind": "cell",
+      "items": [
+        {
+          "class": "char",
+          "size": [1, 11],
+          "ndims": 2,
+          "numel": 11,
+          "complex": false,
+          "kind": "char",
+          "code_units": [97, 108, 112, 104, 97, 10, 98, 101, 116, 97, 10]
+        },
+        {
+          "class": "double",
+          "size": [2, 3],
+          "ndims": 2,
+          "numel": 6,
+          "complex": true,
+          "kind": "numeric",
+          "real": ["NaN", "NaN", "1", "3", "2", "NaN"],
+          "imag": ["0", "0", "0", "4", "0", "0"]
+        },
+        {
+          "class": "single",
+          "size": [2, 3],
+          "ndims": 2,
+          "numel": 6,
+          "complex": true,
+          "kind": "numeric",
+          "real": ["NaN", "NaN", "1", "3", "2", "NaN"],
+          "imag": ["0", "0", "0", "4", "0", "0"]
+        }
+      ]
+    }
+  }
+}

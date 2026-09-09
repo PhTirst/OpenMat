@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "id": "event_registration_order",
+  "description": "Event listeners run newest-first in stable reverse registration order.",
+  "source": "programs/event_registration_order.m",
+  "tags": ["r2022b", "classdef", "events", "runtime"],
+  "expected": {"outcome":"ok","value":{"class":"double","size":[1,2],"ndims":2,"numel":2,"kind":"numeric","real":["2","1"],"imag":["0","0"]}}
+}

@@ -1,0 +1,329 @@
+.openmat-window-layer {
+  position: relative;
+  z-index: 20;
+  grid-row: 3;
+  grid-column: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.openmat-dialog-layer {
+  position: fixed;
+  z-index: 130000;
+  inset: 0;
+  display: grid;
+  overflow: auto;
+  padding: 24px;
+  place-items: center;
+  background: rgba(7, 13, 18, 0.52);
+  backdrop-filter: blur(2px);
+}
+
+.openmat-window {
+  position: absolute;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: 36px minmax(0, 1fr);
+  overflow: hidden;
+  color: var(--text);
+  background: var(--bg-pane);
+  border: 1px solid var(--dialog-border);
+  border-radius: 7px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.24);
+  pointer-events: auto;
+}
+
+.openmat-window.active {
+  border-color: var(--accent);
+  box-shadow:
+    0 16px 42px rgba(0, 0, 0, 0.3),
+    0 0 0 1px color-mix(in srgb, var(--accent) 38%, transparent);
+}
+
+.openmat-window.maximized {
+  inset: 0;
+  width: auto;
+  height: auto;
+  border-width: 0;
+  border-radius: 0;
+}
+
+.openmat-window-titlebar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  min-width: 0;
+  padding-left: 11px;
+  color: var(--dialog-title-text);
+  background: color-mix(in srgb, var(--dialog-title-bg) 92%, var(--bg-pane));
+  border-bottom: 1px solid var(--border-strong);
+  cursor: move;
+  touch-action: none;
+  user-select: none;
+}
+
+.openmat-window.active > .openmat-window-titlebar {
+  background: color-mix(in srgb, var(--dialog-title-bg) 82%, var(--accent-soft));
+}
+
+.openmat-window.maximized > .openmat-window-titlebar {
+  cursor: default;
+}
+
+.openmat-window-titlebar > strong {
+  min-width: 0;
+  overflow: hidden;
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.openmat-window-controls {
+  display: flex;
+  align-self: stretch;
+}
+
+.openmat-window-control {
+  position: relative;
+  display: grid;
+  width: 38px;
+  min-width: 38px;
+  height: 100%;
+  padding: 0;
+  place-items: center;
+  color: var(--dialog-title-text);
+  background: transparent;
+  border: 0;
+}
+
+.openmat-window-control:hover,
+.openmat-window-control:focus-visible {
+  background: var(--hover-bg);
+}
+
+.openmat-window-control.close:hover,
+.openmat-window-control.close:focus-visible {
+  color: #fff;
+  background: #c42b1c;
+}
+
+.openmat-window-control:disabled {
+  cursor: wait;
+  opacity: 0.45;
+}
+
+.openmat-window-control > span {
+  position: relative;
+  display: block;
+  width: 11px;
+  height: 11px;
+}
+
+.openmat-window-control.minimize > span::after {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  left: 1px;
+  height: 1px;
+  content: "";
+  background: currentColor;
+}
+
+.openmat-window-control.maximize > span,
+.openmat-window-control.restore > span::before,
+.openmat-window-control.restore > span::after {
+  border: 1px solid currentColor;
+}
+
+.openmat-window-control.restore > span::before,
+.openmat-window-control.restore > span::after {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  content: "";
+}
+
+.openmat-window-control.restore > span::before {
+  top: 0;
+  right: 0;
+}
+
+.openmat-window-control.restore > span::after {
+  bottom: 0;
+  left: 0;
+  background: var(--dialog-title-bg);
+}
+
+.openmat-window-control.close > span::before,
+.openmat-window-control.close > span::after {
+  position: absolute;
+  top: 5px;
+  left: 0;
+  width: 12px;
+  height: 1px;
+  content: "";
+  background: currentColor;
+}
+
+.openmat-window-control.close > span::before {
+  transform: rotate(45deg);
+}
+
+.openmat-window-control.close > span::after {
+  transform: rotate(-45deg);
+}
+
+.openmat-window-content {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.openmat-window-resize-handle {
+  position: absolute;
+  z-index: 3;
+  touch-action: none;
+}
+
+.openmat-window-resize-handle.north,
+.openmat-window-resize-handle.south {
+  right: 7px;
+  left: 7px;
+  height: 7px;
+  cursor: ns-resize;
+}
+
+.openmat-window-resize-handle.north {
+  top: -3px;
+}
+
+.openmat-window-resize-handle.south {
+  bottom: -3px;
+}
+
+.openmat-window-resize-handle.east,
+.openmat-window-resize-handle.west {
+  top: 7px;
+  bottom: 7px;
+  width: 7px;
+  cursor: ew-resize;
+}
+
+.openmat-window-resize-handle.east {
+  right: -3px;
+}
+
+.openmat-window-resize-handle.west {
+  left: -3px;
+}
+
+.openmat-window-resize-handle.north-east,
+.openmat-window-resize-handle.north-west,
+.openmat-window-resize-handle.south-east,
+.openmat-window-resize-handle.south-west {
+  width: 12px;
+  height: 12px;
+}
+
+.openmat-window-resize-handle.north-east {
+  top: -4px;
+  right: -4px;
+  cursor: nesw-resize;
+}
+
+.openmat-window-resize-handle.north-west {
+  top: -4px;
+  left: -4px;
+  cursor: nwse-resize;
+}
+
+.openmat-window-resize-handle.south-east {
+  right: -4px;
+  bottom: -4px;
+  cursor: nwse-resize;
+}
+
+.openmat-window-resize-handle.south-west {
+  bottom: -4px;
+  left: -4px;
+  cursor: nesw-resize;
+}
+
+.openmat-window-shelf {
+  position: absolute;
+  z-index: 1000;
+  right: 10px;
+  bottom: 8px;
+  left: 10px;
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.openmat-window-shelf button {
+  max-width: 220px;
+  padding: 5px 12px;
+  overflow: hidden;
+  color: var(--text);
+  background: var(--bg-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  box-shadow: var(--shadow);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.openmat-window-app-error {
+  display: grid;
+  height: 100%;
+  min-height: 120px;
+  padding: 24px;
+  place-content: center;
+  gap: 8px;
+  color: var(--dialog-error);
+  text-align: center;
+}
+
+body.openmat-window-interacting,
+body.openmat-window-interacting * {
+  user-select: none !important;
+}
+
+body.openmat-window-interacting::after {
+  position: fixed;
+  z-index: 99999;
+  inset: 0;
+  content: "";
+  cursor: inherit;
+}
+
+@media (max-width: 680px) {
+  .openmat-dialog-layer {
+    padding: 8px;
+  }
+
+  .openmat-window-layer {
+    position: fixed;
+    inset: 52px 0 25px;
+  }
+
+  .openmat-window {
+    inset: 6px !important;
+    width: auto !important;
+    height: auto !important;
+  }
+
+  .openmat-window.maximized {
+    inset: 0 !important;
+  }
+
+  .openmat-window-resize-handle {
+    display: none;
+  }
+}

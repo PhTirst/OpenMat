@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "id": "try_catch_nested_routing",
+  "description": "A nested error selects the nearest handler while a new handler-body error propagates to the outer catch.",
+  "source": "programs/try_catch_nested_routing.m",
+  "tags": ["r2022b", "wire-v2", "single-try-r2022b", "try-catch", "control-flow", "nested", "error-routing"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "double", "size": [1, 1], "ndims": 2, "numel": 1,
+      "complex": false, "kind": "numeric", "real": ["11"], "imag": ["0"]
+    }
+  }
+}

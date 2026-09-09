@@ -1,0 +1,25 @@
+{
+  "schema_version": 2,
+  "id": "builtin_predicates_extended",
+  "description": "Numeric, type, shape, and equality predicates match MATLAB R2022b across complex special values, classes, empties, and nested values.",
+  "source": "programs/builtin_predicates_extended.m",
+  "tags": ["r2022b", "wire-v2", "core-numeric-builtins", "predicates-extended", "complex", "single", "integer", "empty"],
+  "expected": {
+    "outcome": "ok",
+    "value": {
+      "class": "logical",
+      "size": [1, 54],
+      "ndims": 2,
+      "numel": 54,
+      "complex": false,
+      "kind": "logical",
+      "logical": [
+        true, true, false, false, false, true, true, false, false, false, false, true,
+        false, true, true, true, true, false, false, true, true, false, false, true,
+        true, false, false, true, true, true, false, true, true, true, true, false,
+        true, true, false, true, true, true, false, true, true, false, false, true,
+        false, true, true, false, true, true
+      ]
+    }
+  }
+}
