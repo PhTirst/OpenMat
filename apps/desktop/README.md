@@ -219,6 +219,29 @@ It checks spaces, decoding, dimensions, background pixels and visible label
 pixels without mocking Canvas or Image.
 It does not replace testing the installed application's native save dialog.
 
+To check interactive 3D lighting, rebuild the Plot WASM module and use an
+isolated local Web session connected to a kernel. Open a test browser:
+
+```powershell
+npx --no-install @playwright/cli -s=figure-orbit open http://127.0.0.1:5178
+```
+
+In that browser, open `examples/numerics-and-plots/wave_planet.m`, click Run,
+then run the checks:
+
+```powershell
+npx --no-install @playwright/cli -s=figure-orbit run-code --filename apps/web/scripts/check-figure-orbit-lighting.js
+cargo test --locked -p openmat-plot-wgpu retained_headlight -- --ignored
+```
+
+The browser check performs two pointer drags, captures the GPU canvas while
+the button is held and after the authoritative camera revision arrives, and
+rejects a lighting jump at release. It also requires visible rotation and
+checks that the kernel revision stays unchanged while dragging. The native
+GPU check verifies that light uniforms change without replacing surface
+buffers or enabling lighting on unlit frames. Screenshots are written under
+`output/playwright/`; the native check requires a usable GPU adapter.
+
 The installed application creates its default workspace in the user's
 Documents directory as `OpenMat`. Set `OPENMAT_WORKSPACE_ROOT` before launch to
 override that location for controlled testing. OpenBLAS defaults to at most

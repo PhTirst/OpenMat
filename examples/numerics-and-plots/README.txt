@@ -4,7 +4,7 @@ OpenMat 计算与绘图示例 / Numerical and plotting examples
 第一次使用 / Getting started
 
 1. 首次打开 OpenMat，左侧 Current Folder 就是示例文件夹。
-   位置是系统“文档”中的 OpenMat\Examples\0.1.5。
+   位置是系统“文档”中的 OpenMat\Examples\0.1.6。
 2. 双击 START_HERE.m，在编辑器上方点击 Run，运行第一张函数曲线图。
 3. 其他 .m 文件也可以单独打开并点击 Run，无需额外数据或工具箱。
    每个示例都可以重复运行；修改采样点数、参数或颜色，观察图形变化。
@@ -13,7 +13,7 @@ OpenMat 计算与绘图示例 / Numerical and plotting examples
 On first launch, Current Folder already shows the examples. Open START_HERE.m
 and click Run. Every .m file is standalone and uses only the bundled kernel.
 If you previously opened another workspace, use Open Folder to select
-Documents\OpenMat\Examples\0.1.5 (the Windows Documents folder may be redirected).
+Documents\OpenMat\Examples\0.1.6 (the Windows Documents folder may be redirected).
 OPENMAT_WORKSPACE_ROOT overrides this default; no examples are copied into a
 custom workspace. The installation's resources/examples folder also has them.
 

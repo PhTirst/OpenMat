@@ -17,8 +17,8 @@ mod scene;
 #[cfg(target_arch = "wasm32")]
 use scene::{
     ProjectedOverlay, SceneCache, SourcePoint, SourcePoint3D, TextLayoutState,
-    prepare_scene_cached, projected_overlay_for_camera, resolved_view_projection_3d, source_points,
-    source_points_3d,
+    headlight_position_3d, prepare_scene_cached, projected_overlay_for_camera,
+    resolved_view_projection_3d, source_points, source_points_3d,
 };
 
 /// Stable lifecycle states exposed to the browser adapter.
@@ -361,8 +361,8 @@ mod wasm {
     use super::{
         CanvasSize, PlotWebError, PlotWebErrorKind, PlotWebLifecycle, PlotWebState,
         ProjectedOverlay, SceneCache, SourcePoint, SourcePoint3D, TextLayoutState,
-        plot_compile_error, plot_upload_error, prepare_scene_cached, projected_overlay_for_camera,
-        resolved_view_projection_3d, source_points, source_points_3d,
+        headlight_position_3d, plot_compile_error, plot_upload_error, prepare_scene_cached,
+        projected_overlay_for_camera, resolved_view_projection_3d, source_points, source_points_3d,
     };
 
     struct SharedRendererContext {
@@ -722,7 +722,7 @@ mod wasm {
         fn home(&mut self) -> Result<(), PlotWebError> {
             if let Some(camera) = self.active_camera_3d_mut() {
                 camera.current = camera.home;
-                self.update_camera_matrix()?;
+                self.update_camera_3d()?;
             } else if self.active_is_polar() {
                 return Ok(());
             } else {
@@ -753,7 +753,7 @@ mod wasm {
                 .current
                 .orbit(-delta_x * 0.01, delta_y * 0.01)
                 .map_err(|_| camera_interaction_error())?;
-            self.update_camera_matrix()?;
+            self.update_camera_3d()?;
             self.redraw()
         }
 
@@ -763,7 +763,7 @@ mod wasm {
                     .current
                     .zoom(factor)
                     .map_err(|_| camera_interaction_error())?;
-                self.update_camera_matrix()?;
+                self.update_camera_3d()?;
                 return self.redraw();
             }
             if self.active_is_polar() {
@@ -778,7 +778,7 @@ mod wasm {
             self.redraw()
         }
 
-        fn update_camera_matrix(&mut self) -> Result<(), PlotWebError> {
+        fn update_camera_3d(&mut self) -> Result<(), PlotWebError> {
             let camera = self.active_camera_3d().ok_or_else(frame_required)?;
             let matrix = resolved_view_projection_3d(
                 camera.current,
@@ -789,9 +789,14 @@ mod wasm {
             .map_err(|_| camera_interaction_error())?;
             let ruler_selection =
                 select_projected_rulers_3d(matrix).map_err(|_| camera_interaction_error())?;
+            let headlight_position =
+                headlight_position_3d(camera.current).map_err(|_| camera_interaction_error())?;
             let frame = self.active_frame_mut().ok_or_else(frame_required)?;
             frame.set_view_projection_3d(matrix);
             frame.set_ruler_selection_3d(ruler_selection);
+            // Full scene lowering derives the headlight from this same camera.
+            // Keep it in sync during drag/zoom/home, before the kernel commit.
+            frame.set_headlight_position_3d(headlight_position);
             Ok(())
         }
 

@@ -1,6 +1,6 @@
 use openmat_plot_mir::{
-    CssPoint, DeviceRect, Lighting3D, MarkerShape, Rgba, RulerSelection3D, ViewProjection3D,
-    Viewport,
+    AxesPoint3D, CssPoint, DeviceRect, Lighting3D, MarkerShape, Rgba, RulerSelection3D,
+    ViewProjection3D, Viewport,
 };
 use wgpu::util::DeviceExt;
 
@@ -360,6 +360,14 @@ impl GpuFrame {
     /// geometry buffers remain untouched during pointer-frequency orbit input.
     pub fn set_view_projection_3d(&mut self, matrix: ViewProjection3D) {
         self.view_projection_3d = Some(matrix);
+    }
+
+    /// Moves the existing headlight with an interactive camera preview, without
+    /// replacing GPU geometry or enabling lighting on an unlit frame.
+    pub fn set_headlight_position_3d(&mut self, position: AxesPoint3D) {
+        if let Some(lighting) = &mut self.lighting_3d {
+            lighting.position = position;
+        }
     }
 
     /// Replaces only renderer-local ruler edge selection. Candidate geometry
@@ -1110,7 +1118,7 @@ mod tests {
             .unwrap()
     }
 
-    fn gpu_surface_smoke_frame() -> CompiledFrame {
+    fn gpu_surface_smoke_frame(lighting: Option<Lighting3D>) -> CompiledFrame {
         let viewport = Viewport {
             css: CssRect::new(0.0, 0.0, 64.0, 64.0).unwrap(),
             device: DeviceRect {
@@ -1134,32 +1142,39 @@ mod tests {
             indices: vec![0, 1, 2],
             color_interpolation: openmat_plot_mir::SurfaceColorInterpolation::Flat,
         };
-        let frame = PlotFrame::new(
-            vec![
-                RenderOperation {
-                    order: DrawOrder(0),
-                    picking_id: None,
-                    command: MirCommand::BeginViewport(viewport),
-                },
+        let mut operations = vec![
+            RenderOperation {
+                order: DrawOrder(0),
+                picking_id: None,
+                command: MirCommand::BeginViewport(viewport),
+            },
+            RenderOperation {
+                order: DrawOrder(1),
+                picking_id: None,
+                command: MirCommand::SetViewProjection3D(ViewProjection3D::identity()),
+            },
+            RenderOperation {
+                order: DrawOrder(2),
+                picking_id: None,
+                command: MirCommand::SurfaceMesh3D(surface),
+            },
+            RenderOperation {
+                order: DrawOrder(3),
+                picking_id: None,
+                command: MirCommand::EndViewport,
+            },
+        ];
+        if let Some(lighting) = lighting {
+            operations.insert(
+                2,
                 RenderOperation {
                     order: DrawOrder(1),
                     picking_id: None,
-                    command: MirCommand::SetViewProjection3D(ViewProjection3D::identity()),
+                    command: MirCommand::SetLighting3D(lighting),
                 },
-                RenderOperation {
-                    order: DrawOrder(2),
-                    picking_id: None,
-                    command: MirCommand::SurfaceMesh3D(surface),
-                },
-                RenderOperation {
-                    order: DrawOrder(3),
-                    picking_id: None,
-                    command: MirCommand::EndViewport,
-                },
-            ],
-            OverlayPlan::default(),
-        )
-        .unwrap();
+            );
+        }
+        let frame = PlotFrame::new(operations, OverlayPlan::default()).unwrap();
         DrawListCompiler::new(FrameCompileOptions::default())
             .compile(&frame)
             .unwrap()
@@ -1278,7 +1293,7 @@ mod tests {
                 assert_eq!(renderer.state(), RendererState::Ready);
                 let gpu_frame = renderer.upload(&gpu_smoke_frame()).unwrap();
                 assert_eq!(gpu_frame.draw_count(), 1);
-                let mut surface_frame = renderer.upload(&gpu_surface_smoke_frame()).unwrap();
+                let mut surface_frame = renderer.upload(&gpu_surface_smoke_frame(None)).unwrap();
                 assert_eq!(surface_frame.draw_count(), 1);
                 assert_eq!(
                     surface_frame.view_projection_3d(),
@@ -1293,6 +1308,65 @@ mod tests {
                 eprintln!("OPENMAT_GPU_SMOKE=unavailable limits: {violations:?}");
             }
             Err(error) => panic!("real GPU pipeline creation failed: {error}"),
+        }
+    }
+
+    #[test]
+    #[ignore = "requires a real native wgpu adapter; run explicitly for the GPU acceptance gate"]
+    fn retained_headlight_updates_uniforms_without_reupload_or_enabling_unlit_frames() {
+        let renderer = block_on(RendererRequest::new().initialize(None))
+            .expect("headlight acceptance requires a native GPU adapter");
+        for lighting in [
+            None,
+            Some(Lighting3D {
+                position: AxesPoint3D::new(0.5, 0.5, 3.5).unwrap(),
+                enabled: false,
+            }),
+            Some(Lighting3D {
+                position: AxesPoint3D::new(0.5, 0.5, 3.5).unwrap(),
+                enabled: true,
+            }),
+        ] {
+            let mut frame = renderer.upload(&gpu_surface_smoke_frame(lighting)).unwrap();
+            let vertices = frame.surface_vertex_3d.clone();
+            let indices = frame.surface_index_3d.clone();
+            for position in [
+                AxesPoint3D::new(3.0, 1.0, 2.0).unwrap(),
+                AxesPoint3D::new(-2.0, -1.0, 0.75).unwrap(),
+            ] {
+                frame.set_headlight_position_3d(position);
+                assert_eq!(frame.surface_vertex_3d, vertices);
+                assert_eq!(frame.surface_index_3d, indices);
+                assert_eq!(frame.draw_count(), 1);
+                assert_eq!(
+                    frame.view_projection_3d(),
+                    Some(ViewProjection3D::identity())
+                );
+                assert_eq!(
+                    frame.lighting_3d,
+                    lighting.map(|light| Lighting3D { position, ..light })
+                );
+                let bytes = pack_view_uniform(
+                    64,
+                    64,
+                    frame.viewport,
+                    frame.view,
+                    frame.view_projection_3d,
+                    frame.lighting_3d,
+                    frame.ruler_selection_3d,
+                )
+                .unwrap();
+                let values: Vec<f32> = bytes
+                    .chunks_exact(4)
+                    .map(|chunk| f32::from_le_bytes(chunk.try_into().unwrap()))
+                    .collect();
+                let expected = if let Some(light) = lighting {
+                    [position.x, position.y, position.z, f32::from(light.enabled)]
+                } else {
+                    [0.0, 0.0, 1.0, 0.0]
+                };
+                assert_eq!(&values[32..36], &expected);
+            }
         }
     }
 }

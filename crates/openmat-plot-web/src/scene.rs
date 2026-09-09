@@ -923,6 +923,12 @@ fn camera_zoom_factor_3d(camera: OrbitCamera3D) -> Result<f64, PlotWebError> {
     }
 }
 
+pub(crate) fn headlight_position_3d(camera: OrbitCamera3D) -> Result<AxesPoint3D, PlotWebError> {
+    let eye = camera.eye();
+    AxesPoint3D::new(f64_to_f32(eye.x)?, f64_to_f32(eye.y)?, f64_to_f32(eye.z)?)
+        .map_err(|_| invalid_scene("Axes headlight position is invalid."))
+}
+
 pub(crate) fn resolved_view_projection_3d(
     camera: OrbitCamera3D,
     aspect_ratio: f64,
@@ -1261,14 +1267,8 @@ fn prepare_axes_scene(
             let mut builder = MirFrameBuilder::new(viewport, AxesRect::unit(), overlay);
             builder.set_view_projection_3d(view_projection);
             if lighting_enabled {
-                let eye = camera.eye();
                 builder.set_lighting_3d(Lighting3D {
-                    position: AxesPoint3D::new(
-                        f64_to_f32(eye.x)?,
-                        f64_to_f32(eye.y)?,
-                        f64_to_f32(eye.z)?,
-                    )
-                    .map_err(|_| invalid_scene("Axes headlight position is invalid."))?,
+                    position: headlight_position_3d(camera)?,
                     enabled: true,
                 });
             }
