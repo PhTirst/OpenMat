@@ -1,0 +1,17 @@
+{
+  "examples": [
+    { "file": "START_HERE.m", "title": "从这里开始：函数曲线与公式" },
+    { "file": "fft_spectrum.m", "title": "FFT：从信号中找出频率" },
+    { "file": "least_squares_fit.m", "title": "最小二乘：从数据拟合曲线" },
+    { "file": "golden_phyllotaxis.m", "title": "黄金角花序" },
+    { "file": "lissajous_light.m", "title": "李萨如光迹" },
+    { "file": "wave_interference.m", "title": "双波源干涉" },
+    { "file": "mathematical_mandala.m", "title": "数学曼陀罗" },
+    { "file": "chromatic_torus.m", "title": "彩色环面" },
+    { "file": "mobius_strip.m", "title": "莫比乌斯带" },
+    { "file": "harmonic_blossom.m", "title": "谐波花朵" },
+    { "file": "parametric_seashell.m", "title": "参数化海螺" },
+    { "file": "lorenz_attractor.m", "title": "洛伦兹吸引子" },
+    { "file": "wave_planet.m", "title": "波纹星球" }
+  ]
+}

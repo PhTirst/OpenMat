@@ -12,6 +12,7 @@ third-party/
 /apps/web/public/wasm/
 /apps/desktop/src-tauri/resources/openblas/
 /apps/desktop/src-tauri/resources/licenses/
+/apps/desktop/src-tauri/resources/examples/
 
 # Private workspaces, logs, and release staging.
 /tmp/

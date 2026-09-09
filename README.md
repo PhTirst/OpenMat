@@ -11,6 +11,11 @@ figures, and a drag-and-drop App Designer backed by M-language classes. Rust
 compiled to WebAssembly handles plot rendering; the language VM runs natively.
 The desktop application embeds this frontend using Tauri.
 
+The Windows installer includes calculation and plotting examples. A new desktop
+session opens `Documents/OpenMat/Examples/<version>`: open `START_HERE.m` and
+click **Run**. The [example catalog](examples/numerics-and-plots/README.txt)
+covers FFT, least-squares fitting, mathematical patterns and 3D surfaces.
+
 ## Start developing
 
 The first supported host is Windows x64. Install PowerShell 7, Visual Studio

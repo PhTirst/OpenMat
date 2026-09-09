@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "OpenMat",
   "mainBinaryName": "OpenMat",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "identifier": "org.openmat.desktop",
   "build": {
     "frontendDist": "../../web/dist",
@@ -24,7 +24,8 @@
     "useLocalToolsDir": true,
     "resources": [
       "resources/openblas/libopenblas.dll",
-      "resources/licenses/*"
+      "resources/licenses/*",
+      "resources/examples/*"
     ],
     "icon": [
       "icons/32x32.png",

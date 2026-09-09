@@ -7,6 +7,30 @@ therefore has one application executable; its in-process server listens only on
 a private loopback port and loads the bundled OpenBLAS LP64 DLL by an explicit
 absolute path.
 
+## Bundled calculation and plotting examples
+
+The installer includes the curated scripts in `examples/numerics-and-plots`.
+On launch, Desktop copies them into the Windows Documents folder under
+`OpenMat/Examples/<application-version>`. New sessions start in that folder;
+open `START_HERE.m` and click **Run**. Existing sessions can still restore the
+last folder selected by the user. The scripts cover FFT, least-squares fitting,
+formula labels, mathematical patterns and 3D surfaces; no App Designer examples
+are included.
+
+The copies are writable. Later launches fill missing files without replacing
+edited scripts, and version folders preserve examples from older releases.
+An explicit `OPENMAT_WORKSPACE_ROOT` continues to select that workspace without
+copying examples into it. Original scripts remain under the installation's
+`resources/examples` directory. `Build-OpenMatWindows.ps1 -PrepareOnly` stages
+the same catalog for development and CI.
+
+The installer build runs every bundled script through the actual desktop
+kernel. To repeat that check, use
+`Test-OpenMatDesktop.ps1 -Executable <path> -CheckBundledExamples`.
+It also checks the FFT peak amplitudes and fitting residuals, and requires each
+script to create a populated Figure. Add `-UseDefaultWorkspace` to verify the
+initial examples folder with an isolated WebView2 profile.
+
 ## Persistent kernel port
 
 Desktop and the normal Windows development launcher read the same user settings:

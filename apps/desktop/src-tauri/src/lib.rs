@@ -10,6 +10,7 @@ use std::time::Duration;
 use serde::Serialize;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
+mod bundled_examples;
 mod native_files;
 mod runtime_settings;
 
@@ -35,7 +36,23 @@ fn workspace_root(app: &tauri::App) -> Result<PathBuf, Box<dyn Error>> {
     }
     let root = app.path().document_dir()?.join("OpenMat");
     fs::create_dir_all(&root)?;
-    Ok(root.canonicalize()?)
+    let resources = app
+        .path()
+        .resolve("resources/examples", tauri::path::BaseDirectory::Resource)?;
+    // The initial workspace contains runnable scripts immediately. Subsequent
+    // frontend sessions may restore the folder the user selected themselves.
+    match bundled_examples::install(&resources, &root) {
+        Ok(examples) => Ok(examples.canonicalize()?),
+        Err(error) => {
+            if let Ok(log) = server_log(app) {
+                append_log(
+                    &log,
+                    format!("Could not prepare bundled examples: {error}").as_bytes(),
+                );
+            }
+            Ok(root.canonicalize()?)
+        }
+    }
 }
 
 fn openblas_dll(app: &tauri::App) -> Result<PathBuf, Box<dyn Error>> {

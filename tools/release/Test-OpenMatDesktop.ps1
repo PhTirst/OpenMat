@@ -9,7 +9,9 @@ param(
 
     [string] $RuntimeConfig,
 
-    [switch] $UseDefaultWorkspace
+    [switch] $UseDefaultWorkspace,
+
+    [switch] $CheckBundledExamples
 )
 
 Set-StrictMode -Version Latest
@@ -61,11 +63,12 @@ function Receive-WebSocketJson {
 function Receive-ResponseFor {
     param(
         [Parameter(Mandatory)] [System.Net.WebSockets.ClientWebSocket] $Socket,
-        [Parameter(Mandatory)] [string] $ReplyTo
+        [Parameter(Mandatory)] [string] $ReplyTo,
+        [int] $TimeoutSeconds = 10
     )
 
     for ($index = 0; $index -lt 32; $index++) {
-        $message = Receive-WebSocketJson -Socket $Socket
+        $message = Receive-WebSocketJson -Socket $Socket -TimeoutSeconds $TimeoutSeconds
         if ($message.kind -eq 'response' -and $message.replyTo -eq $ReplyTo) {
             return $message
         }
@@ -79,6 +82,8 @@ New-Item -ItemType Directory -Path $workspace | Out-Null
 $previousWorkspace = $env:OPENMAT_WORKSPACE_ROOT
 $previousRuntimeConfig = $env:OPENMAT_RUNTIME_CONFIG
 $previousTestPort = $env:OPENMAT_DESKTOP_TEST_PORT
+$previousWebviewData = $env:WEBVIEW2_USER_DATA_FOLDER
+$env:WEBVIEW2_USER_DATA_FOLDER = Join-Path $workspace 'webview'
 $env:OPENMAT_WORKSPACE_ROOT = if ($UseDefaultWorkspace) { $null } else { $workspace }
 $env:OPENMAT_RUNTIME_CONFIG = if ([string]::IsNullOrWhiteSpace($RuntimeConfig)) {
     Join-Path $workspace 'runtime.json'
@@ -95,6 +100,7 @@ finally {
     $env:OPENMAT_WORKSPACE_ROOT = $previousWorkspace
     $env:OPENMAT_RUNTIME_CONFIG = $previousRuntimeConfig
     $env:OPENMAT_DESKTOP_TEST_PORT = $previousTestPort
+    $env:WEBVIEW2_USER_DATA_FOLDER = $previousWebviewData
 }
 
 $socket = $null
@@ -194,6 +200,68 @@ try {
     }
 
     Write-Host "Desktop smoke passed: $url (single process, initialize/execute/workspace, linear solve and FFT)."
+
+    if ($CheckBundledExamples) {
+        $exampleRoot = Join-Path (Split-Path -Parent $resolvedExecutable) 'resources\examples'
+        $catalog = Get-Content -LiteralPath (Join-Path $exampleRoot 'catalog.json') -Raw | ConvertFrom-Json
+        if ($UseDefaultWorkspace) {
+            $workspaceSocket = [Net.WebSockets.ClientWebSocket]::new()
+            $workspaceSocket.Options.SetRequestHeader('Origin', 'http://tauri.localhost')
+            $workspaceCancel = [Threading.CancellationTokenSource]::new([TimeSpan]::FromSeconds(10))
+            try {
+                [void] $workspaceSocket.ConnectAsync(
+                    [Uri]::new("ws://127.0.0.1:$($listener.LocalPort)/workspace/v3"), $workspaceCancel.Token
+                ).GetAwaiter().GetResult()
+                Send-WebSocketJson -Socket $workspaceSocket -Message @{
+                    protocol = 'openmat-workspace-v3'; requestId = 'example-folder'
+                    request = @{ type = 'currentDirectory'; params = @{} }
+                }
+                $directory = Receive-WebSocketJson -Socket $workspaceSocket
+                if (-not $directory.ok) { throw 'Could not read the default Current Folder.' }
+                $currentPath = [string] $directory.result.data.path
+                $version = (Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\..\apps\desktop\src-tauri\tauri.conf.json') -Raw | ConvertFrom-Json).version
+                $expectedPath = Join-Path ([Environment]::GetFolderPath('MyDocuments')) "OpenMat\Examples\$version"
+                if (([IO.Path]::GetFullPath($currentPath)) -ne ([IO.Path]::GetFullPath($expectedPath))) {
+                    throw "Default Current Folder is '$currentPath', expected '$expectedPath'."
+                }
+                foreach ($file in @('README.txt') + @($catalog.examples.file)) {
+                    if (-not (Test-Path -LiteralPath (Join-Path $currentPath $file) -PathType Leaf)) {
+                        throw "The default example workspace is missing '$file'."
+                    }
+                }
+                Write-Host "Default Current Folder passed: $currentPath"
+            }
+            finally {
+                $workspaceSocket.Dispose()
+                $workspaceCancel.Dispose()
+            }
+        }
+        foreach ($example in $catalog.examples) {
+            $name = [string] $example.file
+            if ($name -notmatch '^[A-Za-z0-9_-]+\.m$') { throw "Invalid example filename '$name'." }
+            $code = Get-Content -LiteralPath (Join-Path $exampleRoot $name) -Raw
+            $validation = "assert(isgraphics(gcf())); assert(~isempty(get(gcf(), 'Children')));"
+            if ($name -eq 'fft_spectrum.m') {
+                $validation += ' assert(abs(amplitude(51) - 0.8) < 1e-10); assert(abs(amplitude(121) - 0.35) < 1e-10);'
+            }
+            if ($name -eq 'least_squares_fit.m') {
+                $validation += " assert(norm(design' * residual) < 1e-8); assert(rmse > 0 && rmse < 0.3);"
+            }
+            Send-WebSocketJson -Socket $socket -Message @{
+                protocol = 'openmat-kernel-v0'; sessionId = $session
+                messageId = "example-$name"; kind = 'request'
+                request = @{ type = 'execute'; params = @{
+                    code = "close all;`n$code`n$validation`nclose all;"
+                    sourceName = $name; mode = 'repl'
+                } }
+            }
+            $result = Receive-ResponseFor -Socket $socket -ReplyTo "example-$name" -TimeoutSeconds 60
+            if (-not $result.ok -or $result.result.type -ne 'execute' -or $result.result.data.interrupted) {
+                throw "Bundled example '$name' failed: $($result | ConvertTo-Json -Depth 20 -Compress)"
+            }
+            Write-Host "Bundled example passed: $name"
+        }
+    }
 }
 finally {
     if ($null -ne $socket) {
@@ -212,6 +280,21 @@ finally {
         if (-not $resolvedWorkspace.StartsWith($temporaryRoot, [StringComparison]::OrdinalIgnoreCase)) {
             throw 'Refusing to clean a smoke workspace outside the temporary directory.'
         }
-        [IO.Directory]::Delete($workspace, $true)
+        # WebView2 can retain Crashpad files briefly after the host exits.
+        # Cleanup must not terminate unrelated WebView2 processes or turn a
+        # successful kernel verification into a failure due to that file lock.
+        for ($cleanupAttempt = 0; $cleanupAttempt -lt 10; $cleanupAttempt++) {
+            try {
+                [IO.Directory]::Delete($workspace, $true)
+                break
+            }
+            catch [IO.IOException] {
+                if ($cleanupAttempt -eq 9) {
+                    Write-Warning "Temporary desktop smoke files remain locked at '$workspace'."
+                } else {
+                    Start-Sleep -Milliseconds 500
+                }
+            }
+        }
     }
 }

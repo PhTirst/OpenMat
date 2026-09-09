@@ -38,6 +38,10 @@ $nsisLicense = Join-Path $releaseScriptRoot 'licenses\NSIS-3.08-COPYING.txt'
 $resourceRoot = Join-Path $tauriRoot 'resources'
 $resourceOpenBlasRoot = Join-Path $resourceRoot 'openblas'
 $resourceLicenseRoot = Join-Path $resourceRoot 'licenses'
+$exampleSourceRoot = Join-Path $repositoryRoot 'examples\numerics-and-plots'
+$resourceExampleRoot = Join-Path $resourceRoot 'examples'
+$exampleCatalog = Get-Content -LiteralPath (Join-Path $exampleSourceRoot 'catalog.json') -Raw | ConvertFrom-Json
+$requiredExampleArtifacts = @('README.txt', 'catalog.json') + @($exampleCatalog.examples | ForEach-Object { [string] $_.file })
 $stagedOpenBlas = Join-Path $resourceOpenBlasRoot 'libopenblas.dll'
 $requiredLicenseArtifacts = @(
     'OPENMAT-AGPL-3.0.txt',
@@ -148,6 +152,18 @@ function Stage-ReleaseResources {
 
     New-Item -ItemType Directory -Force -Path $resourceOpenBlasRoot | Out-Null
     New-Item -ItemType Directory -Force -Path $resourceLicenseRoot | Out-Null
+    New-Item -ItemType Directory -Force -Path $resourceExampleRoot | Out-Null
+    foreach ($artifact in $requiredExampleArtifacts) {
+        if ($artifact -notmatch '^[A-Za-z0-9_-]+\.(m|txt|json)$') {
+            throw "Invalid bundled example filename '$artifact'."
+        }
+        Copy-Item -LiteralPath (Join-Path $exampleSourceRoot $artifact) -Destination (Join-Path $resourceExampleRoot $artifact) -Force
+    }
+    $unexpectedExamples = @(Get-ChildItem -LiteralPath $resourceExampleRoot -Force |
+        Where-Object { $_.PSIsContainer -or $_.Name -notin $requiredExampleArtifacts })
+    if ($unexpectedExamples.Count -ne 0) {
+        throw 'Example staging contains files outside the curated calculation/plot catalog.'
+    }
 
     foreach ($obsoleteProjectLicense in @(
         'OpenMat-LICENSE-MIT.txt',
@@ -294,6 +310,11 @@ try {
             throw "The NSIS bundle manifest does not include '$artifact'."
         }
     }
+    foreach ($artifact in $requiredExampleArtifacts) {
+        if ($nsisSource -notmatch [regex]::Escape("resources\examples\$artifact")) {
+            throw "The NSIS bundle manifest does not include example '$artifact'."
+        }
+    }
     $installerHooks = Join-Path $tauriRoot 'installer-hooks.nsh'
     $installerHookSource = Get-Content -LiteralPath $installerHooks -Raw
     if ($nsisSource -notmatch '(?im)^!include .*installer-hooks\.nsh"') {
@@ -321,7 +342,7 @@ try {
     $desktopExecutable = Join-Path $releaseTarget 'OpenMat.exe'
     & pwsh -NoProfile -ExecutionPolicy Bypass -File `
         (Join-Path $releaseScriptRoot 'Test-OpenMatDesktop.ps1') `
-        -Executable $desktopExecutable
+        -Executable $desktopExecutable -CheckBundledExamples -UseDefaultWorkspace
     if ($LASTEXITCODE -ne 0) { throw 'Single-process desktop protocol smoke failed.' }
 
     New-Item -ItemType Directory -Force -Path $releaseOutputRoot | Out-Null
