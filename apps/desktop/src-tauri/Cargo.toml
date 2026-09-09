@@ -1,7 +1,7 @@
 [package]
 license = "AGPL-3.0-only"
 name = "openmat-desktop"
-version = "0.1.7"
+version = "0.1.8"
 description = "OpenMat desktop application"
 authors = ["OpenMat contributors"]
 edition = "2024"

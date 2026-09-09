@@ -1,5 +1,6 @@
-%% 离散信号与量化 / Discrete samples and quantization
-% stem 是离散信号常用的茎状图；stairs 显示保持后的阶梯信号。
+%% 数字信号茎状图 / Discrete signal stem plot
+% 上图用 stem 显示离散样本：竖线对应采样位置，圆点表示样本幅值。
+% 下图用 stairs 显示量化后的阶梯信号，便于对比。
 % 改变 quantizationStep，可观察量化精度的变化。
 
 sampleIndex = 0:40;

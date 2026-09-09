@@ -250,9 +250,6 @@ try {
             if ($name -eq 'discrete_signal.m') {
                 $validation += ' assert(numel(samples) == 41); assert(max(abs(quantized - samples)) <= quantizationStep/2 + 1e-12);'
             }
-            if ($name -eq 'signal_energy_pie.m') {
-                $validation += ' assert(abs(sum(energyShare) - 1) < 1e-12); assert(norm(energyShare(:) - amplitudes(:).^2/sum(amplitudes.^2)) < 1e-12); assert(abs(sum(combinedSignal.^2) - sum(componentEnergy)) < 1e-8);'
-            }
             if ($name -eq 'rcs_polar.m') {
                 $validation += ' assert(all(isfinite(normalizedRcs(:)))); assert(min(normalizedRcs(:)) >= 0); assert(max(normalizedRcs(:)) <= 1 + 1e-12); assert(max(abs(normalizedRcs(:, 1) - normalizedRcs(:, end))) < 1e-12); assert(norm(normalizedRcs(1, :) - normalizedRcs(2, :)) > 0.1);'
             }

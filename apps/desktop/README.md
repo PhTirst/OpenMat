@@ -14,7 +14,7 @@ On launch, Desktop copies them into the Windows Documents folder under
 `OpenMat/Examples/<application-version>`. New sessions start in that folder;
 open `START_HERE.m` and click **Run**. Existing sessions can still restore the
 last folder selected by the user. The scripts cover FFT, least-squares fitting,
-discrete samples and quantization, a signal-energy pie chart built with `fill`,
+discrete signal stem plots and quantization with `stem` and `stairs`,
 normalized point-scatterer RCS in polar coordinates, formula labels,
 mathematical patterns, wire meshes and 3D surfaces. No App Designer examples
 are included.
@@ -30,7 +30,7 @@ The installer build runs every bundled script through the actual desktop
 kernel. To repeat that check, use
 `Test-OpenMatDesktop.ps1 -Executable <path> -CheckBundledExamples`.
 It also checks FFT peak amplitudes, fitting residuals, quantization error,
-signal-energy conservation and RCS normalization, and requires each script
+and RCS normalization, and requires each script
 to create a populated Figure. Add `-UseDefaultWorkspace` to verify the
 initial examples folder with an isolated WebView2 profile.
 
