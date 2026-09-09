@@ -14,6 +14,9 @@ use openmat_plot_wgpu::UploadError;
 #[cfg(any(target_arch = "wasm32", test))]
 mod scene;
 
+#[cfg(any(target_arch = "wasm32", test))]
+mod picking;
+
 #[cfg(target_arch = "wasm32")]
 use scene::{
     ProjectedOverlay, SceneCache, SourcePoint, SourcePoint3D, TextLayoutState,
@@ -344,9 +347,9 @@ mod wasm {
         OrbitCamera3D, PlotBoxFit3D, Projection3D, select_projected_rulers_3d,
     };
     use openmat_plot_layout::{TextMeasurement, TextMetrics};
-    use openmat_plot_mir::{CssPoint, MirCommand, PickingId, PlotFrame, Rgba};
+    use openmat_plot_mir::{CssPoint, PlotFrame, Rgba};
     use openmat_plot_protocol::{
-        FigureDelta, FigureSnapshot, GraphicsLimits, GraphicsObject, Marker, SceneState,
+        FigureDelta, FigureSnapshot, GraphicsLimits, GraphicsObject, SceneState,
     };
     use openmat_plot_wgpu::{
         DataPoint, DataRect, DrawListCompiler, FrameCompileOptions, GpuFrame, InteractionError,
@@ -357,6 +360,8 @@ mod wasm {
     use wasm_bindgen::JsCast;
     use wasm_bindgen::prelude::*;
     use web_sys::HtmlCanvasElement;
+
+    use crate::picking::assign_picking_ids;
 
     use super::{
         CanvasSize, PlotWebError, PlotWebErrorKind, PlotWebLifecycle, PlotWebState,
@@ -1828,85 +1833,6 @@ mod wasm {
                             == openmat_plot_protocol::AxesCoordinateSystem::Polar
             )
         })
-    }
-
-    fn assign_picking_ids(
-        snapshot: &FigureSnapshot,
-        axes_id: &str,
-        frame: &mut PlotFrame,
-        next_id: &mut u64,
-    ) -> Result<HashMap<u64, String>, PlotWebError> {
-        let object_by_id: HashMap<_, _> = snapshot
-            .objects
-            .iter()
-            .map(|object| (object.fields().id.as_str(), object))
-            .collect();
-        let mut targets = Vec::new();
-        if let Some(GraphicsObject::Axes2d { fields, .. }) = snapshot
-            .objects
-            .iter()
-            .find(|object| {
-                matches!(object, GraphicsObject::Axes2d { fields, .. } if fields.id == axes_id)
-            })
-        {
-            for child_id in &fields.children {
-                match object_by_id.get(child_id.as_str()).copied() {
-                    Some(GraphicsObject::LineSeries { fields, properties })
-                        if properties.visible && properties.z_data.as_ref().is_none() =>
-                    {
-                        targets.push((false, fields.id.clone()));
-                        if properties.marker != Marker::None {
-                            targets.push((true, fields.id.clone()));
-                        }
-                    }
-                    Some(GraphicsObject::ScatterSeries { fields, properties })
-                        if properties.visible && properties.z_data.as_ref().is_none() =>
-                    {
-                        targets.push((true, fields.id.clone()));
-                    }
-                    _ => {}
-                }
-            }
-        }
-        let mut target = targets.into_iter();
-        let mut mapping = HashMap::new();
-        for operation in &mut frame.operations {
-            let marker = matches!(operation.command, MirCommand::MarkerBatch(_));
-            let pickable = marker || matches!(operation.command, MirCommand::StrokeMesh(_));
-            if !pickable {
-                continue;
-            }
-            let Some((expected_marker, object_id)) = target.next() else {
-                break;
-            };
-            if marker != expected_marker {
-                return Err(PlotWebError::new(
-                    PlotWebErrorKind::InvalidScene,
-                    "Plot MIR picking order does not match graphics-v1 children.",
-                ));
-            }
-            let picking_id = PickingId::from_u64(*next_id).map_err(|_| {
-                PlotWebError::new(
-                    PlotWebErrorKind::InvalidScene,
-                    "Plot picking identifier space was exhausted.",
-                )
-            })?;
-            operation.picking_id = Some(picking_id);
-            mapping.insert(*next_id, object_id);
-            *next_id = next_id.checked_add(1).ok_or_else(|| {
-                PlotWebError::new(
-                    PlotWebErrorKind::InvalidScene,
-                    "Plot picking identifier space was exhausted.",
-                )
-            })?;
-        }
-        if target.next().is_some() {
-            return Err(PlotWebError::new(
-                PlotWebErrorKind::InvalidScene,
-                "Plot MIR omitted a pickable graphics-v1 child.",
-            ));
-        }
-        Ok(mapping)
     }
 
     fn frame_required() -> PlotWebError {

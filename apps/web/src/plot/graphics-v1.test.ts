@@ -308,6 +308,40 @@ describe("graphics-v1 discovery and binary framing", () => {
     ).toThrow(/linear theta/);
   });
 
+  it("accepts the server's horizontal southOutside legend without rejecting its Figure", () => {
+    const legend = {
+      id: "legend-1",
+      generation: 1,
+      objectRevision: 1,
+      kind: "legend",
+      parentId: "axes-1",
+      children: [],
+      properties: {
+        seriesIds: ["line-1"],
+        labelCodeUnits: [[82, 67, 83]],
+        location: "southOutside",
+        orientation: "horizontal",
+        visible: true,
+        backgroundRgba: [1, 1, 1, 1],
+        borderRgba: [0.1, 0.1, 0.1, 1],
+        fontFamilyCodeUnits: [],
+        fontSizeCssPx: 12,
+        fontWeight: 400,
+        interpreter: "tex",
+      },
+    };
+    expect(parseGraphicsObject(legend)).toMatchObject({
+      kind: "legend",
+      properties: { location: "southOutside", orientation: "horizontal" },
+    });
+    expect(() =>
+      parseGraphicsObject({
+        ...legend,
+        properties: { ...legend.properties, location: "unsupported" },
+      }),
+    ).toThrow(/legend.location/);
+  });
+
   it("preserves exact unordered duplicate uint64 marker indices", () => {
     const dataRef = {
       bufferId: "buffer-1",

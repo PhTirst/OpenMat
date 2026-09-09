@@ -1075,6 +1075,7 @@ function validateLegendProperties(properties: JsonRecord): void {
       "northWest",
       "southEast",
       "southWest",
+      "southOutside",
     ]),
     "legend.location",
   );

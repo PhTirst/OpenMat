@@ -1032,6 +1032,38 @@ pub(crate) fn prepare_scene_cached(
     })
 }
 
+pub(crate) fn ordered_axes_drawables<'a>(
+    children: &[String],
+    object_by_id: &HashMap<&str, &'a GraphicsObject>,
+) -> Result<Vec<&'a GraphicsObject>, PlotWebError> {
+    let mut drawables = Vec::new();
+    for child_id in children {
+        let object = object_by_id
+            .get(child_id.as_str())
+            .copied()
+            .ok_or_else(|| invalid_scene("Axes child does not resolve in the Figure snapshot."))?;
+        if let GraphicsObject::ChartGroup { fields, properties } = object {
+            if properties.visible {
+                for primitive_id in &fields.children {
+                    drawables.push(
+                        object_by_id
+                            .get(primitive_id.as_str())
+                            .copied()
+                            .ok_or_else(|| {
+                                invalid_scene(
+                                    "Chart primitive does not resolve in the Figure snapshot.",
+                                )
+                            })?,
+                    );
+                }
+            }
+        } else {
+            drawables.push(object);
+        }
+    }
+    Ok(drawables)
+}
+
 #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 fn prepare_axes_scene(
     snapshot: &FigureSnapshot,
@@ -1336,29 +1368,7 @@ fn prepare_axes_scene(
         );
     }
 
-    let mut drawable_objects = Vec::new();
-    for child_id in &axes_fields.children {
-        let Some(object) = object_by_id.get(child_id.as_str()).copied() else {
-            return Err(invalid_scene(
-                "Axes child does not resolve in the Figure snapshot.",
-            ));
-        };
-        if let GraphicsObject::ChartGroup { fields, properties } = object {
-            if !properties.visible {
-                continue;
-            }
-            for primitive_id in &fields.children {
-                let Some(primitive) = object_by_id.get(primitive_id.as_str()).copied() else {
-                    return Err(invalid_scene(
-                        "Chart primitive does not resolve in the Figure snapshot.",
-                    ));
-                };
-                drawable_objects.push(primitive);
-            }
-        } else {
-            drawable_objects.push(object);
-        }
-    }
+    let drawable_objects = ordered_axes_drawables(&axes_fields.children, &object_by_id)?;
 
     for (index, object) in drawable_objects.into_iter().enumerate() {
         let order = i64::try_from(index)
@@ -4440,6 +4450,99 @@ mod tests {
             .iter()
             .flat_map(|value| value.to_le_bytes())
             .collect()
+    }
+
+    #[test]
+    fn chart_primitives_and_composite_markers_keep_their_picking_objects() {
+        use openmat_plot_protocol::{ChartGroupProperties, ChartType};
+
+        for group_visible in [true, false] {
+            let mut scene = snapshot(true);
+            let GraphicsObject::Axes2d { fields: axes, .. } = &mut scene.objects[1] else {
+                panic!()
+            };
+            axes.children = vec!["chart".to_owned(), "series".to_owned()];
+            let mut primitive = scene.objects[2].clone();
+            let GraphicsObject::LineSeries {
+                fields: child,
+                properties,
+            } = &mut primitive
+            else {
+                panic!()
+            };
+            *child = fields("chart-line", Some("chart"), &[]);
+            properties.marker = Marker::Circle;
+            properties.x_data.buffer_id = "chart-x".to_owned();
+            properties.y_data.buffer_id = "chart-y".to_owned();
+            scene
+                .referenced_buffers
+                .extend([properties.x_data.clone(), properties.y_data.clone()]);
+            let GraphicsObject::LineSeries { properties, .. } = &mut scene.objects[2] else {
+                panic!()
+            };
+            properties.marker = Marker::Star;
+            scene.objects.push(primitive);
+            scene.objects.push(GraphicsObject::ChartGroup {
+                fields: fields("chart", Some("axes"), &["chart-line"]),
+                properties: ChartGroupProperties {
+                    chart_type: ChartType::Stair,
+                    visible: group_visible,
+                    color: Nullable(None),
+                    line_width_css_px: 1.0,
+                    line_style: LineStyle::Solid,
+                    marker: Nullable(None),
+                    marker_size_css_px: Nullable(None),
+                    marker_face_color: Nullable(None),
+                    marker_edge_color: Nullable(None),
+                    face_color: Nullable(None),
+                    edge_color: Nullable(None),
+                    face_alpha: Nullable(None),
+                    edge_alpha: Nullable(None),
+                    base_value: Nullable(None),
+                    bar_width: Nullable(None),
+                    cap_size_css_px: Nullable(None),
+                },
+            });
+            scene.validate(GraphicsLimits::default()).unwrap();
+            let buffers = HashMap::from([
+                (
+                    "chart-x".to_owned(),
+                    f64_bytes(&[1.0e12, 1.0e12 + 2.0, 1.0e12 + 4.0]),
+                ),
+                ("chart-y".to_owned(), f64_bytes(&[0.0, 4.0, 1.0])),
+                (
+                    "x".to_owned(),
+                    f64_bytes(&[1.0e12, 1.0e12 + 2.0, 1.0e12 + 4.0]),
+                ),
+                ("y".to_owned(), f64_bytes(&[0.0, 4.0, 1.0])),
+            ]);
+            let mut prepared = prepare_scene(
+                &scene,
+                &buffers,
+                CanvasSize::new(640.0, 480.0, 1.0).unwrap(),
+            )
+            .unwrap();
+            let mut next_id = 1;
+            let mapping = crate::picking::assign_picking_ids(
+                &scene,
+                "axes",
+                &mut prepared.frame,
+                &mut next_id,
+            )
+            .unwrap();
+            let picked: Vec<_> = prepared
+                .frame
+                .operations
+                .iter()
+                .filter_map(|operation| operation.picking_id.map(|id| mapping[&id.get()].as_str()))
+                .collect();
+            let expected = if group_visible {
+                vec!["chart-line", "chart-line", "series", "series", "series"]
+            } else {
+                vec!["series", "series", "series"]
+            };
+            assert_eq!(picked, expected);
+        }
     }
 
     #[test]

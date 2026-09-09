@@ -434,7 +434,11 @@ fn position_legend(
     let inset = 10.0_f32
         .min(viewport.size.width.get() / 4.0)
         .min(viewport.size.height.get() / 4.0);
-    let width = natural_width.min((viewport.size.width.get() - inset * 2.0).max(1.0));
+    let width = if placement == LegendPlacement::SouthOutside {
+        natural_width
+    } else {
+        natural_width.min((viewport.size.width.get() - inset * 2.0).max(1.0))
+    };
     let height = natural_height.min((viewport.size.height.get() - inset * 2.0).max(1.0));
     let left = viewport.origin.x + inset;
     let right = viewport.right() - inset - width;
@@ -451,7 +455,10 @@ fn position_legend(
         LegendPlacement::NorthWest => (left, top),
         LegendPlacement::SouthEast => (right, bottom),
         LegendPlacement::SouthWest => (left, bottom),
-        LegendPlacement::SouthOutside => (center_x, viewport.bottom() + inset),
+        LegendPlacement::SouthOutside => (
+            center_x,
+            axes_text_bottom(intents, metrics, viewport.bottom()) + inset,
+        ),
     };
     legend.bounds = CssRect::new(x, y, width, height)
         .map_err(|_| LayoutError::ArithmeticOverflow("legend bounds"))?;
@@ -479,6 +486,51 @@ fn position_legend(
         }
     }
     Ok(())
+}
+
+fn axes_text_bottom(
+    intents: &[TextIntent],
+    metrics: &HashMap<String, TextMetrics>,
+    bottom: f32,
+) -> f32 {
+    intents
+        .iter()
+        .filter(|intent| {
+            matches!(
+                intent.role,
+                OverlayTextRole::TickLabel
+                    | OverlayTextRole::XLabel
+                    | OverlayTextRole::YLabel
+                    | OverlayTextRole::ZLabel
+            )
+        })
+        .filter_map(|intent| {
+            metrics
+                .get(&intent.key)
+                .map(|metric| text_bottom(intent, metric))
+        })
+        .fold(bottom, f32::max)
+}
+
+fn text_bottom(intent: &TextIntent, metrics: &TextMetrics) -> f32 {
+    let width = metrics.width_css_px.get();
+    let height = metrics.height_css_px.get();
+    let left = match intent.horizontal_alignment {
+        HorizontalAlignment::Start => 0.0,
+        HorizontalAlignment::Center => -width / 2.0,
+        HorizontalAlignment::End => -width,
+    };
+    let top = match intent.vertical_alignment {
+        VerticalAlignment::Top => 0.0,
+        VerticalAlignment::Middle => -height / 2.0,
+        VerticalAlignment::Bottom => -height,
+        VerticalAlignment::Baseline => -metrics.ascent_css_px.get(),
+    };
+    let (sine, cosine) = intent.rotation_radians.sin_cos();
+    [left, left + width]
+        .into_iter()
+        .flat_map(|x| [top, top + height].map(|y| intent.anchor.y + x * sine + y * cosine))
+        .fold(f32::NEG_INFINITY, f32::max)
 }
 
 fn css_px(value: f32) -> Result<CssPx, LayoutError> {
@@ -555,6 +607,51 @@ mod tests {
             duplicate,
             Err(LayoutError::DuplicateTextMeasurement("title".to_owned()))
         );
+    }
+
+    #[test]
+    fn outside_legend_fits_its_labels_and_clears_the_bottom_tick() {
+        let viewport = CssRect::new(100.0, 20.0, 120.0, 120.0).unwrap();
+        let mut tick = intent();
+        tick.key = "bottom-tick".to_owned();
+        tick.role = OverlayTextRole::TickLabel;
+        tick.anchor = CssPoint::new(160.0, 156.0).unwrap();
+        tick.vertical_alignment = VerticalAlignment::Middle;
+        let pass = FirstLayoutPass::new(viewport, 1, vec![tick]).with_legend(LegendIntent {
+            key: "outside".to_owned(),
+            placement: LegendPlacement::SouthOutside,
+            entries: (0..2)
+                .map(|index| LegendEntryIntent {
+                    key: format!("entry-{index}"),
+                    label: Utf16Text::from_code_units("Wavelength".encode_utf16().collect()),
+                    color: Rgba::new(0.0, 0.45, 0.74, 1.0).unwrap(),
+                })
+                .collect(),
+            background: Rgba::new(1.0, 1.0, 1.0, 1.0).unwrap(),
+            border: Rgba::new(0.0, 0.0, 0.0, 1.0).unwrap(),
+            font: intent().font,
+            interpreter: TextInterpreter::Tex,
+            columns: 2,
+        });
+        let measurements = pass
+            .requests
+            .iter()
+            .map(|request| TextMeasurement {
+                key: request.key.clone(),
+                metrics: TextMetrics::new(80.0, 14.0, 10.0, 3.0, 80.0).unwrap(),
+            })
+            .collect();
+        let overlay = pass.complete(measurements).unwrap();
+        let legend = overlay.legend.unwrap();
+        assert!(legend.bounds.size.width.get() > viewport.size.width.get());
+        assert!(legend.bounds.origin.y > 163.0);
+        for label in overlay
+            .text
+            .iter()
+            .filter(|label| label.role == OverlayTextRole::LegendLabel)
+        {
+            assert!(label.anchor.x + label.measured_size.width.get() < legend.bounds.right());
+        }
     }
 
     #[test]
