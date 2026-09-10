@@ -5,6 +5,7 @@ import type {
   OpenDocument,
 } from "../documents/document-session";
 import type { IdeTheme } from "../theme";
+import { usePlatformServices } from "../platform/platform-services";
 import type { CodeEditorProps } from "./CodeEditor";
 
 const CodeEditor = lazy(() => import("./CodeEditor"));
@@ -79,6 +80,7 @@ export function EditorPane({
   onOpenDocument,
   reveal,
 }: EditorPaneProps) {
+  const desktop = usePlatformServices().kind === "desktop";
   const hasRecoveryNotice = recoveryStatus !== "none" && recoveryMessage !== null;
   return (
     <section className="pane editor-pane" aria-labelledby="editor-title">
@@ -94,7 +96,9 @@ export function EditorPane({
               {error}
             </span>
           )}
-          <span className="shortcut-hint">Ctrl/⌘ + S · Ctrl/⌘ + Enter</span>
+          <span className="shortcut-hint">
+            Save: Ctrl/⌘ + S · Run: {desktop ? "F5" : "Ctrl/⌘ + Enter"}
+          </span>
           <button
             className="button button-secondary"
             type="button"
@@ -119,6 +123,10 @@ export function EditorPane({
           <button
             className="button button-primary"
             type="button"
+            title={desktop
+              ? "Run current script (F5, or Ctrl/⌘ + Enter in the editor)"
+              : "Run current script (Ctrl/⌘ + Enter in the editor)"}
+            aria-keyshortcuts={desktop ? "F5 Control+Enter Meta+Enter" : "Control+Enter Meta+Enter"}
             onClick={onRun}
             disabled={!canRun}
           >

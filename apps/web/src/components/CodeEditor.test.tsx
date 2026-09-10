@@ -93,6 +93,22 @@ const baseProps = (): ComponentProps<typeof CodeEditor> => ({
 beforeEach(() => { mocks.workspace.mockClear(); });
 
 describe("CodeEditor workspace lifecycle", () => {
+  it("keeps Ctrl/Cmd+Enter connected to the latest run callback", async () => {
+    const props = baseProps();
+    const { editor, mount } = harness();
+    const view = render(<CodeEditor {...props} />);
+    await mount();
+    const run = editor.addCommand.mock.calls.find(([key]) => key === 3)?.[1];
+    expect(run).toBeTypeOf("function");
+    act(() => run());
+    expect(props.onRun).toHaveBeenCalledOnce();
+    const nextRun = vi.fn();
+    view.rerender(<CodeEditor {...props} onRun={nextRun} documentId="other" documentUri="file:///other.m" />);
+    act(() => run());
+    expect(nextRun).toHaveBeenCalledOnce();
+    expect(props.onRun).toHaveBeenCalledOnce();
+  });
+
   it("captures the latest cursor immediately on desktop exit and removes the listener on unmount", async () => {
     const props = baseProps();
     const { editor, mount } = harness();

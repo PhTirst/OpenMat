@@ -187,6 +187,7 @@ fn create_main_window(
         .inner_size(1440.0, 900.0)
         .min_inner_size(960.0, 640.0)
         .initialization_script(initialization_script)
+        .initialization_script(include_str!("prevent-reload.js"))
         .build()?;
     Ok(())
 }

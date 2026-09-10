@@ -2303,6 +2303,111 @@ function desktopServices(files: Partial<DesktopFiles> = {}): PlatformServices {
   };
 }
 
+describe("Run shortcuts", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    mockEditorState.props = null;
+  });
+
+  function setup(desktop = true, eventDelayMs = 0) {
+    const transport = new RecordingMockTransport({ eventDelayMs });
+    const client = new RecordingWorkspaceClient();
+    client.addExternalFile("other.m");
+    client.replaceFileContent("other.m", "other = 2;", "revision-other");
+    const view = render(<App transport={transport} workspaceClient={client}
+      {...(desktop ? { platform: desktopServices() } : {})}
+      documentSessionStore={new MemoryDocumentSessionStore()} />);
+    return { transport, view };
+  }
+
+  it("runs the current unsaved script with F5 from the editor and another pane", async () => {
+    const { transport } = setup();
+    const editor = await openTreeFile("seed.m");
+    const run = screen.getByRole("button", { name: /^run$/i });
+    await waitFor(() => expect(run).toBeEnabled());
+    expect(run).toHaveAttribute("aria-keyshortcuts", "F5 Control+Enter Meta+Enter");
+    expect(run).toHaveAttribute("title", expect.stringContaining("F5"));
+    fireEvent.change(editor, { target: { value: "first_draft = 7;" } });
+
+    // In Tauri the native reload guard has already called preventDefault.
+    const f5 = new KeyboardEvent("keydown", { key: "F5", bubbles: true, cancelable: true });
+    f5.preventDefault();
+    fireEvent(editor, f5);
+    await waitFor(() => expect(transport.executeRequests).toHaveLength(1));
+    expect(transport.executeRequests[0]?.request.params).toMatchObject({
+      code: "first_draft = 7;", sourceName: "seed.m", mode: "cell",
+    });
+    await waitFor(() => expect(run).toBeEnabled());
+
+    const other = await openTreeFile("other.m");
+    await waitFor(() => expect(other).toHaveAttribute("data-document-path", "other.m"));
+    fireEvent.change(other, { target: { value: "second_draft = 42;" } });
+    const prompt = screen.getByRole("textbox", { name: "Command Window input" });
+    fireEvent.change(prompt, { target: { value: "do_not_submit_this" } });
+    prompt.focus();
+    expect(fireEvent.keyDown(prompt, { key: "F5" })).toBe(false);
+    await waitFor(() => expect(transport.executeRequests).toHaveLength(2));
+    expect(transport.executeRequests[1]?.request.params).toMatchObject({
+      code: "second_draft = 42;", sourceName: "other.m", mode: "cell",
+    });
+    expect(prompt).toHaveValue("do_not_submit_this");
+  });
+
+  it("consumes F5 without running when no file is open and removes the listener on unmount", async () => {
+    const { transport, view } = setup();
+    await screen.findByRole("treeitem", { name: "seed.m" });
+    expect(screen.getByRole("button", { name: /^run$/i })).toBeDisabled();
+    expect(fireEvent.keyDown(window, { key: "F5" })).toBe(false);
+    expect(transport.executeRequests).toHaveLength(0);
+    view.unmount();
+    expect(fireEvent.keyDown(window, { key: "F5" })).toBe(true);
+  });
+
+  it("does not queue runs while busy or rerun on key repeat or composition", async () => {
+    const { transport } = setup(true, 200);
+    const editor = await openTreeFile("seed.m");
+    const run = screen.getByRole("button", { name: /^run$/i });
+    await waitFor(() => expect(run).toBeEnabled());
+    expect(fireEvent.keyDown(editor, { key: "F5", repeat: true })).toBe(false);
+    expect(fireEvent.keyDown(editor, { key: "F5", isComposing: true })).toBe(false);
+    expect(transport.executeRequests).toHaveLength(0);
+    fireEvent.keyDown(editor, { key: "F5" });
+    expect(run).toBeDisabled();
+    expect(fireEvent.keyDown(editor, { key: "F5" })).toBe(false);
+    expect(transport.executeRequests).toHaveLength(1);
+  });
+
+  it("does not execute behind a modal or App Designer, then resumes after dismissal", async () => {
+    const { transport } = setup();
+    const editor = await openTreeFile("seed.m");
+    await waitFor(() => expect(screen.getByRole("button", { name: /^run$/i })).toBeEnabled());
+    fireEvent.change(editor, { target: { value: "unsaved = 2;" } });
+    fireEvent.click(screen.getByRole("button", { name: "Close seed.m" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(fireEvent.keyDown(dialog, { key: "F5" })).toBe(false);
+    expect(transport.executeRequests).toHaveLength(0);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "App Designer" }));
+    expect(fireEvent.keyDown(window, { key: "F5" })).toBe(false);
+    expect(transport.executeRequests).toHaveLength(0);
+    fireEvent.click(await screen.findByRole("button", { name: "返回工作台" }));
+    fireEvent.keyDown(editor, { key: "F5" });
+    await waitFor(() => expect(transport.executeRequests).toHaveLength(1));
+  });
+
+  it("keeps browser refresh keys and the editor run shortcut in the web edition", async () => {
+    const { transport } = setup(false);
+    const editor = await openTreeFile("seed.m");
+    const run = screen.getByRole("button", { name: /^run$/i });
+    await waitFor(() => expect(run).toBeEnabled());
+    expect(run).toHaveAttribute("aria-keyshortcuts", "Control+Enter Meta+Enter");
+    expect(fireEvent.keyDown(editor, { key: "F5" })).toBe(true);
+    expect(fireEvent.keyDown(editor, { key: "r", ctrlKey: true })).toBe(true);
+    expect(transport.executeRequests).toHaveLength(0);
+  });
+});
+
 describe("Desktop file integration", () => {
   beforeEach(() => {
     localStorage.clear();

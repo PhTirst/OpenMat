@@ -13,6 +13,7 @@ import type { DesignerSession } from "./designer/designer-session";
 import { PendingOperations } from "./platform/pending-operations";
 import { useCommitBarrier } from "./platform/use-commit-barrier";
 import { DESKTOP_CLOSE_PREPARE_EVENT } from "./platform/desktop-lifecycle";
+import { useDesktopRunShortcut } from "./platform/use-desktop-run-shortcut";
 import { CommandHistoryPane } from "./components/CommandHistoryPane";
 import { CommandWindowPane } from "./components/CommandWindowPane";
 import { CurrentFolderAddressBar } from "./components/CurrentFolderAddressBar";
@@ -802,7 +803,8 @@ function AppWorkbench({
   );
 
   const runEditor = useCallback(() => {
-    if (activeDocument !== null) {
+    if (activeDocument !== null && !editorLoading &&
+      !desktopCloseInFlight.current && !nativeFileBusy.current) {
       const sourceName =
         activeDocument.rootPath === folder.rootPath &&
         activeDocument.rootGeneration === folder.rootGeneration
@@ -810,7 +812,7 @@ function AppWorkbench({
           : workspaceSourceName(activeDocument.rootPath, activeDocument.path);
       void executeSource(activeDocument.content, sourceName, "cell");
     }
-  }, [activeDocument, executeSource, folder.rootGeneration, folder.rootPath]);
+  }, [activeDocument, editorLoading, executeSource, folder.rootGeneration, folder.rootPath]);
 
   const submitCommand = useCallback(
     (value: string) => {
@@ -2960,6 +2962,7 @@ function AppWorkbench({
     state.capabilities?.executionModes.includes("cell") === true &&
     state.kernelStatus !== "busy" &&
     state.activeRequestId === null;
+  useDesktopRunShortcut(platform.kind === "desktop", canRun && !designerVisible, runEditor);
   const canSave =
     activeDocument !== null &&
     activeDocument.recoveryStatus === "none" &&
