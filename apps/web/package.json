@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build:plot-wasm": "node ./scripts/build-plot-wasm.mjs",
+    "build:plot-wasm:debug": "node ./scripts/build-plot-wasm.mjs --debug",
     "build:plot-wasm:release": "node ./scripts/build-plot-wasm.mjs --release",
     "dev": "pnpm build:plot-wasm && vite",
     "dev:ready": "vite",

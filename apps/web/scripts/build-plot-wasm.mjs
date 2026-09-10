@@ -5,7 +5,12 @@ import path from "node:path";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(scriptDirectory, "../../..");
-const release = process.argv.includes("--release");
+if (process.argv.includes("--release") && process.argv.includes("--debug")) {
+  console.error("Choose either --release or --debug for Plot Engine WASM.");
+  process.exit(1);
+}
+// Vite development still needs optimized rendering for interactive 3D plots.
+const release = !process.argv.includes("--debug");
 const profile = release ? "release" : "debug";
 const configuredTarget = process.env.CARGO_TARGET_DIR;
 const targetDirectory = configuredTarget
@@ -47,6 +52,7 @@ if (release) {
   cargoArguments.push("--release");
 }
 
+console.log(`Building Plot Engine WASM (${profile}).`);
 run("cargo", cargoArguments);
 mkdirSync(outputDirectory, { recursive: true });
 run("wasm-bindgen", [

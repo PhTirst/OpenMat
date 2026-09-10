@@ -55,6 +55,22 @@ The command prints the settings file, log directory, actual kernel URL, and the
 Vite local URL. It waits for both the server URL and Vite's ready line with
 bounded timeouts, then continues monitoring both processes.
 
+Both this launcher and `pnpm --dir apps/web dev` build the Plot Engine WASM in
+optimized Release mode, matching Desktop's renderer. The React frontend still
+uses Vite's development server and hot reload. Unoptimized WASM makes dense 3D
+plots noticeably slower to rotate, so Debug mode is reserved for debugging the
+renderer itself:
+
+```powershell
+pnpm --dir apps/web build:plot-wasm:debug
+# Start Vite with the existing WASM and a separately running native server.
+pnpm --dir apps/web dev:ready
+```
+
+Use `pnpm --dir apps/web build:plot-wasm` to restore the optimized renderer. The
+next normal launcher run also restores it automatically. `build:plot-wasm:release`
+remains an explicit alias for the optimized build.
+
 To reuse a server already built by CI or a previous local build:
 
 ```powershell
