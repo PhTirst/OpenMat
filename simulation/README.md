@@ -1,11 +1,12 @@
-# OpenMat simulation kernel v0
+# OpenMat simulation kernel
 
 This workspace implements the numerical foundation for OpenMat's
 [graphical model editor](../docs/guides/model-editor.md). It runs JSON models
 and a constrained R2022b SLX subset with a Rust reference interpreter or actual
-LLVM ORC machine code. The web/desktop editor uses the reference backend through
-the existing native server. The CLI retains optional LLVM execution; the
-m-language bytecode VM is unchanged.
+LLVM ORC machine code. The web/desktop editor and CLI support pure m function
+blocks and optional CVODE through the existing native server. The ordinary
+m-language bytecode VM is unchanged. See [m functions and CVODE](docs/m-functions-cvode.md)
+for the current subset, setup, file workflow and limitations.
 
 The contract is [RFC 0010](../docs/rfcs/0010-simulation-kernel-v0.md). Fixtures and
 tests are authored for OpenMat using elementary mathematical models; no MATLAB
@@ -18,8 +19,8 @@ Simulink compatibility.
 The editor and streaming service are described by
 [RFC 0012](../docs/rfcs/0012-simulation-editor-v0.md). The editor opens the raw
 `.omsim.json` models below and saves `.omsim` authoring documents containing the
-numeric model plus names, routing and viewport. The CLI currently accepts the raw
-numeric JSON, not the editor wrapper.
+numeric model plus names, routing and viewport. The CLI accepts raw numeric JSON
+and the editor wrapper; CLI flags select its execution options.
 
 ## Run the examples
 
@@ -165,30 +166,31 @@ multi-user resource scheduler.
 | --- | --- |
 | `openmat-opc` | Bounded ZIP/OPC parts, content types and relationships; independent of SLX |
 | `openmat-sim-slx` | Structural SLX inspection, retained source parts, compatibility diagnostics and lowering to the existing numerical model |
-| `openmat-sim` | Model validation, instantaneous dependency ordering, immutable numerical IR, reference execution, RK4 and sample scheduling |
+| `openmat-sim` | Model and m source validation, instantaneous dependency ordering, immutable numerical IR, reference execution, RK4 and sample scheduling |
 | `openmat-sim-llvm` | Textual LLVM IR, dynamic LLVM C API adapter, owned ORC code and C kernel ABI |
+| `openmat-sim-sundials` | Optional CVODE Adams/BDF through the C ABI, owned native state and cancellation-safe RHS callbacks |
 | `openmat-sim-cli` | Model loading, backend selection and bounded JSON result output |
 
 The numerical IR is scalarized, typed f64 SSA, with inputs `[time, x, q]` and
 outputs `[dx/dt, next_q, scopes]`. Its verified operations are input, constant,
-addition, multiplication and negation. Both backends share it; graph logic and
+addition, subtraction, multiplication, division, negation and six pure math
+intrinsics. Both backends share it; graph logic and
 time scheduling stay outside LLVM. Program identity includes constant bit
 patterns, including signed zero. A runner refuses a kernel for a different
 program.
 
 The React model editor now loads these models and runs connection-owned native
-jobs through `/simulation/v1` on the existing server listener. Accepted frames
+jobs through `/simulation/v2` on the existing server listener. Accepted frames
 stream to Scope, independently of browser rendering. The editor and CLI share
 model semantics; the interactive service has its own smaller result limits.
-Existing server protocols retain their meanings. The four reusable simulation
+Existing server protocols, including `/simulation/v1`, retain their meanings. The reusable simulation
 library manifests declare explicit package/dependency/lint settings so they can
 also be consumed by the root and desktop Cargo workspaces without changing
 their workspace membership.
-SUNDIALS can later replace the continuous solver behind this state/evaluation
-contract; algebraic loops, DAE initialization, events and multiple sample rates
-need additional semantics and tests before being enabled. Typed m-language
-functions can later lower into an expanded numerical IR; the language's current
-bytecode execution remains intact.
+CVODE now implements the continuous solver boundary. Algebraic loops, DAE
+initialization, events and multiple sample rates need additional semantics and
+tests before being enabled. Pure, fixed-size m functions lower into the shared
+numerical IR; the language's ordinary bytecode execution remains intact.
 
 ## Verify
 
@@ -199,15 +201,19 @@ cargo test --manifest-path simulation/Cargo.toml --locked --workspace
 $env:OPENMAT_SIM_LLVM_LIBRARY = & ./simulation/tools/Prepare-Llvm.ps1
 cargo test --manifest-path simulation/Cargo.toml --locked -p openmat-sim-llvm --test native -- --ignored --nocapture
 cargo test --manifest-path simulation/Cargo.toml --locked -p openmat-sim-slx --test import -- --ignored --nocapture
+$env:OPENMAT_SIM_SUNDIALS_DIRECTORY = & ./simulation/tools/Prepare-Sundials.ps1
+cargo test --manifest-path simulation/Cargo.toml --locked -p openmat-sim-sundials --test native -- --ignored --nocapture
 ```
 
-The ordinary workspace tests mark the four kernel native tests and one SLX native
-test as ignored because LLVM is optional. The last two commands explicitly run
-them, require a working LLVM runtime and fail if it is unavailable. Native
+The ordinary workspace tests mark native runtime tests as ignored because LLVM
+and SUNDIALS are optional. The commands above explicitly run them, require
+working native runtimes and fail if they are unavailable. Native
 acceptance covers continuous/discrete/mixed/vector trajectory parity, strict
 arithmetic including signed zero, C ABI guards, empty programs and concurrent
 independent create/run/drop cycles. Reference tests also compare with analytic
 solutions and RK4 convergence rather than relying on backend parity alone.
+CVODE acceptance covers a stiff analytic problem, exact discrete sample hits,
+nonlinear m functions with both backends and both methods, and callback failures.
 
 Two additional, explicitly ignored SLX differential tests require a separately
 licensed local MATLAB/Simulink R2022b installation. The [SLX guide](docs/slx-import.md)
@@ -215,7 +221,7 @@ explains how to generate the project-authored models and run those tests against
 both backends. Generated SLX packages and observations are not checked in.
 
 [The simulation workflow](../.github/workflows/simulation.yml) runs ordinary
-checks on Windows and Linux and explicitly requires native ORC execution on
+checks on Windows and Linux and explicitly requires native ORC and CVODE execution on
 Windows. Local Windows acceptance does not substitute for a remote CI run or
 verification on a fresh end-user machine. Before committing, also run the
 repository's staged public-source and whitespace checks.

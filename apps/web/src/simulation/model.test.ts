@@ -80,7 +80,7 @@ describe("simulation authoring document", () => {
         );
         expect(() =>
             parseDocument(
-                serializeDocument({ ...doc, schemaVersion: 2 } as never),
+                serializeDocument({ ...doc, schemaVersion: 99 } as never),
             ),
         ).toThrow(/版本/);
         doc.model.connections = [

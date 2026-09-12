@@ -54,9 +54,9 @@ describe("simulation websocket", () => {
     it("uses the existing kernel host and port including reverse-proxy prefix", () => {
         expect(
             simulationUrl("wss://example.org/openmat/kernel?ignored=1"),
-        ).toBe("wss://example.org/openmat/simulation/v1");
+        ).toBe("wss://example.org/openmat/simulation/v2");
         expect(simulationUrl("ws://localhost:42000/kernel")).toBe(
-            "ws://localhost:42000/simulation/v1",
+            "ws://localhost:42000/simulation/v2",
         );
     });
     it("correlates native replies and preserves block/port diagnostics", async () => {

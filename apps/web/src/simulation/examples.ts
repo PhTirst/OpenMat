@@ -1,6 +1,15 @@
-import { emptyDocument, type ModelDocument } from "./model";
-export type Example = "feedback" | "vector" | "counter" | "blank";
+import {
+    emptyDocument,
+    fromModel,
+    parseModel,
+    type ModelDocument,
+} from "./model";
+import pendulumModel from "../../../../simulation/examples/pendulum.omsim.json";
+import pendulumSource from "../../../../simulation/examples/pendulum.m?raw";
+export const PENDULUM_SOURCE = pendulumSource;
+export type Example = "feedback" | "vector" | "counter" | "blank" | "pendulum";
 export function example(name: Example): ModelDocument {
+    if (name === "pendulum") return fromModel(parseModel(pendulumModel));
     const doc = emptyDocument(
         name === "blank"
             ? "Untitled"

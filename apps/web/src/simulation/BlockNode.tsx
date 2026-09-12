@@ -26,6 +26,12 @@ export function BlockIcon({
     size?: number;
 }) {
     const shapes = {
+        mFunction: (
+            <>
+                <rect x="2" y="2" width="20" height="20" rx="3" />
+                <path d="M5 16V8l4 5 4-5v8m3-6 3 2-3 2" />
+            </>
+        ),
         constant: (
             <>
                 <rect x="3" y="3" width="18" height="18" rx="3" />

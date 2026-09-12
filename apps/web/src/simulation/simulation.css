@@ -531,7 +531,8 @@
     min-width: 0;
     padding-bottom: 8px;
 }
-.sim-inspector > label {
+.sim-inspector > label,
+.sim-function-inspector > label {
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -542,11 +543,13 @@
     font-size: 12px;
     margin: 16px 14px 6px;
 }
-.sim-inspector > p {
+.sim-inspector > p,
+.sim-function-inspector > p {
     margin: 8px 14px;
     overflow-wrap: anywhere;
 }
-.sim-inspector > button {
+.sim-inspector > button,
+.sim-function-inspector > button {
     margin: 10px 14px;
 }
 .sim-inspector-heading {
@@ -708,4 +711,45 @@
                 min(var(--sim-bottom), 28vh)
             );
     }
+}
+/* Function source shares the workbench Monaco session and theme. */
+.sim-function-code {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+.sim-function-code > section {
+    flex: 1;
+    min-height: 0;
+}
+.sim-source-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+}
+.sim-function-inspector {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+.sim-function-inspector textarea {
+    box-sizing: border-box;
+    width: 100%;
+    resize: vertical;
+    font:
+        12px Consolas,
+        monospace;
+    color: inherit;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px;
+}
+.sim-function-inspector textarea:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }

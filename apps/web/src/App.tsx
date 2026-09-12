@@ -3372,7 +3372,7 @@ function AppWorkbench({
             rootPath={folder.rootPath} rootGeneration={folder.rootGeneration} wsUrl={wsUrl ?? kernelWebSocketUrl()}
             theme={theme} visible={simulationVisible} openRequest={simulationOpenRequest}
             onClose={() => setSimulationVisible(false)} onSaved={() => void refreshCurrentFolder()}
-            onOpenNative={() => void openNativeFile()} sessionRef={simulationSession} pendingSaves={pendingSaves} />
+            onOpenNative={() => void openNativeFile()} sessionRef={simulationSession} pendingSaves={pendingSaves} sourceWorkspace={designerSourceWorkspace} />
         </Suspense>
       </div> : null}
 

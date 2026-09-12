@@ -1,7 +1,7 @@
-# Graphical model editor v0
+# Graphical model editor
 
 OpenMat now includes a block diagram editor in the existing React workbench.
-It uses the native Rust reference simulation engine. Browser and desktop share
+It uses the native Rust simulation engine with optional LLVM and CVODE. Browser and desktop share
 the editor and theme; native file dialogs stay behind the desktop platform
 adapter. No computation runs in React or in a browser m-language VM.
 
@@ -41,11 +41,15 @@ double-clicking Scope opens the result pane.
 | Integrator | Initial continuous state; input is its derivative |
 | Unit Delay | Initial discrete state; updates on the model's shared sample period |
 | Scope | Observes one scalar/vector signal |
+| M Function | Pure m function with declared inputs, parameters and output width |
 
 Every block has its own icon. Parameters accept numerical literals; they do not
 evaluate m-language expressions, workspace variables or callbacks. The inspector
 also edits start time, stop time, maximum step and the shared discrete sample
-period. The current solver is RK4; unsupported solver options are not selectable.
+period. RK4 is available without extra dependencies. Configured hosts also offer
+LLVM and CVODE Adams/BDF. The **非线性摆 · m 函数** example, source editor,
+solver setup and source-file workflow are covered in the
+[m functions and CVODE guide](../../simulation/docs/m-functions-cvode.md).
 
 Use Shift to select multiple nodes or draw a selection box. Right-click the graph,
 a node, a connection or the object tree for the available operations. Selected
@@ -107,7 +111,7 @@ separate limits.
 
 ## Runs and results
 
-`/simulation/v1` shares the native server's existing configured port. A separate
+`/simulation/v2` (with legacy `/simulation/v1`) shares the native server's existing configured port. A separate
 WebSocket carries catalog/check/run/cancel/import requests; no extra server
 listener is started. Each connection owns one job. Disconnect cancels its job;
 a different connection cannot cancel it. The native worker evaluates an immutable
@@ -126,12 +130,12 @@ does not add multi-user authentication or resource quotas.
 
 ## Current boundary
 
-This milestone provides an editor-to-native-engine workflow. SUNDIALS, zero
-crossings, DAE/algebraic solving, multiple sample rates, general signal buses,
-executable subsystems, optimized m-language function blocks and C generation are
-future work. The standalone CLI can already use its optional numerical LLVM
-backend; the editor selects the reference backend and does not claim m-language
-JIT acceleration.
+The editor and CLI support pure, fixed-size m function blocks, optional LLVM
+numerical execution, and optional CVODE Adams/BDF integration. This does not
+add JIT to ordinary m-language execution. Zero crossings, DAE/algebraic solving,
+multiple sample rates, general signal buses, executable subsystems, full
+S-function lifecycle callbacks and C generation remain future work.
 
 Implementation details and verification requirements are in
-[RFC 0012](../rfcs/0012-simulation-editor-v0.md).
+[RFC 0012](../rfcs/0012-simulation-editor-v0.md) and the new
+[m function/CVODE contract](../rfcs/0013-m-function-cvode-v1.md).

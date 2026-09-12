@@ -40,12 +40,30 @@ import { BlockIcon, type FlowBlock, type SignalEdge } from "./BlockNode";
 import { SimulationCanvas } from "./SimulationCanvas";
 import { ScopePanel } from "./ScopePanel";
 import type { SlxImport } from "./client";
+import { SimulationError, type SimulationDiagnostic } from "./client";
+import type { DesignerSourceWorkspace } from "../documents/designer-source-workspace";
+import { FunctionInspector } from "./FunctionInspector";
+import { FunctionCodePanel } from "./FunctionCodePanel";
+import { SolverInspector } from "./SolverInspector";
+import {
+    functionTemplate,
+    readFunctionSources,
+    saveFunctionSources,
+    sourceBundle,
+    sourcePath,
+} from "./function-sources";
 import { csv } from "./scope-data";
 import { importLayout } from "./import-layout";
-import { example, stressExample, type Example } from "./examples";
+import {
+    example,
+    stressExample,
+    PENDULUM_SOURCE,
+    type Example,
+} from "./examples";
 import { useSimulationRun, numericalSource } from "./use-simulation-run";
 import {
     DEFINITIONS,
+    DEFAULT_EXECUTION,
     commit,
     copySelection,
     definition,
@@ -101,6 +119,7 @@ interface Props {
     openRequest?: { path: string; serial: number } | null;
     sessionRef: RefObject<ModelEditorSession | null>;
     pendingSaves: PendingOperations;
+    sourceWorkspace?: DesignerSourceWorkspace;
 }
 interface Draft {
     content: string;
@@ -270,7 +289,6 @@ function Editor(props: Props) {
         docRef = useRef(doc);
     docRef.current = doc;
     const source = useMemo(() => serializeDocument(doc), [doc]);
-    const numerical = useMemo(() => numericalSource(doc.model), [doc.model]);
     const [saved, setSaved] = useState(() => {
         try {
             return serializeDocument(parseDocument(initial.saved));
@@ -308,7 +326,13 @@ function Editor(props: Props) {
     const afterSave = useRef<(() => void) | null>(null);
     const cancelSwitch = useRef<(() => void) | null>(null);
     const [preview, setPreview] = useState<SlxImport | null>(null);
-    const [pane, setPane] = useState<"scope" | "diagnostics">("scope");
+    const [pane, setPane] = useState<"scope" | "diagnostics" | "code">("scope");
+    const [codePath, setCodePath] = useState<string | null>(null);
+    const [codeReveal, setCodeReveal] = useState<{
+        lineNumber: number;
+        column: number;
+        requestId: number;
+    }>();
     const [left, setLeft] = useState(245),
         [right, setRight] = useState(270),
         [bottom, setBottom] = useState(240);
@@ -323,7 +347,52 @@ function Editor(props: Props) {
     const run = useSimulationRun(props.wsUrl);
     const runRef = useRef(run);
     runRef.current = run;
-    const dirty = source !== saved;
+    useEffect(() => {
+        if (run.status === "failed") setPane("diagnostics");
+    }, [run.status]);
+    const sourceWorkspaceRef = useRef(props.sourceWorkspace);
+    sourceWorkspaceRef.current = props.sourceWorkspace;
+    const sourceIsDirty = () =>
+        docRef.current.model.blocks.some((block) => {
+            if (block.kind.type !== "mFunction") return false;
+            const source = sourceWorkspaceRef.current?.getSource(
+                sourcePath(
+                    draftRef.current.file?.path ?? null,
+                    block.kind.source,
+                ),
+            );
+            return (
+                source &&
+                (!source.revision || source.content !== source.savedContent)
+            );
+        });
+    const sourceIsDirtyRef = useRef(sourceIsDirty);
+    sourceIsDirtyRef.current = sourceIsDirty;
+    const dirty = source !== saved || sourceIsDirty();
+    const numerical = useMemo(
+        () =>
+            numericalSource(doc.model, {
+                sources: Object.fromEntries(
+                    doc.model.blocks.flatMap((block) =>
+                        block.kind.type === "mFunction"
+                            ? [
+                                  [
+                                      block.kind.source,
+                                      props.sourceWorkspace?.getSource(
+                                          sourcePath(
+                                              file?.path ?? null,
+                                              block.kind.source,
+                                          ),
+                                      )?.content ?? "",
+                                  ],
+                              ]
+                            : [],
+                    ),
+                ),
+                execution: doc.execution ?? DEFAULT_EXECUTION,
+            }),
+        [doc.model, doc.execution, file, props.sourceWorkspace],
+    );
     const editable = !preview && !fileBusy;
     const report = useCallback(
         (error: unknown) =>
@@ -331,6 +400,10 @@ function Editor(props: Props) {
         [],
     );
     const edit = useCallback((next: ModelDocument) => {
+        if (next.model.blocks.some((block) => block.kind.type === "mFunction"))
+            next.model.schemaVersion = 2;
+        if (next.model.schemaVersion === 2 || next.execution)
+            next.schemaVersion = 2;
         invalidParameter.current = false;
         docRef.current = next;
         setHistory((previous) => commit(previous, next));
@@ -417,6 +490,9 @@ function Editor(props: Props) {
             setError(null);
             setNotice(null);
             setMenu(null);
+            setCodePath(null);
+            setCodeReveal(undefined);
+            setPane("scope");
             draftRef.current = {
                 content: serializeDocument(next),
                 saved: savedContent ?? serializeDocument(next),
@@ -439,11 +515,14 @@ function Editor(props: Props) {
         [flow],
     );
     const confirmReplace = useCallback((title: string, action: () => void) => {
-        if (runRef.current.busy) {
+        if (runRef.current.busy || busyRef.current) {
             setError("请先停止当前仿真，再打开或新建模型。");
             return;
         }
-        if (draftRef.current.content !== draftRef.current.saved)
+        if (
+            draftRef.current.content !== draftRef.current.saved ||
+            sourceIsDirtyRef.current()
+        )
             setPendingAction({ title, action });
         else action();
     }, []);
@@ -461,7 +540,12 @@ function Editor(props: Props) {
             props.onSaved();
             const next = afterSave.current;
             afterSave.current = null;
-            if (next && draftRef.current.content === snapshot) next();
+            if (
+                next &&
+                draftRef.current.content === snapshot &&
+                !sourceIsDirtyRef.current()
+            )
+                next();
             else if (next) {
                 cancelSwitch.current?.();
                 setNotice("已保存，但保存期间又有新修改，已保留当前模型。");
@@ -474,6 +558,7 @@ function Editor(props: Props) {
             props.pendingSaves.run(async () => {
                 if (busyRef.current || preview) return false;
                 const snapshot = serializeDocument(docRef.current);
+                const modelSnapshot = structuredClone(docRef.current.model);
                 busyRef.current = true;
                 setFileBusy(true);
                 setError(null);
@@ -481,6 +566,19 @@ function Editor(props: Props) {
                     const target = path.trim();
                     if (!target.toLowerCase().endsWith(".omsim"))
                         throw new Error("模型文件名应以 .omsim 结尾。");
+                    const sources = await readFunctionSources(
+                        modelSnapshot,
+                        file?.path ?? null,
+                        workspace,
+                        sourceWorkspaceRef.current,
+                    );
+                    await saveFunctionSources(
+                        sources,
+                        target,
+                        workspace,
+                        rootGeneration,
+                        sourceWorkspaceRef.current,
+                    );
                     let revision = file?.path === target ? file.revision : null;
                     if (revision === null) {
                         await workspace.create(target, "file");
@@ -527,7 +625,12 @@ function Editor(props: Props) {
         async (saveAs = false): Promise<boolean> => {
             if (preview || busyRef.current) return false;
             if (!saveAs && file) return saveToWorkspace(file.path);
-            if (!platform.files) {
+            if (
+                !platform.files ||
+                docRef.current.model.blocks.some(
+                    (block) => block.kind.type === "mFunction",
+                )
+            ) {
                 setPathInput(
                     `${docRef.current.model.name.replace(/[<>:"/\\|?*]/g, "_")}.omsim`,
                 );
@@ -609,7 +712,10 @@ function Editor(props: Props) {
                     setError("请等待文件操作结束或停止仿真，再切换当前目录。");
                     return Promise.resolve(false);
                 }
-                if (draftRef.current.content === draftRef.current.saved)
+                if (
+                    draftRef.current.content === draftRef.current.saved &&
+                    !sourceIsDirtyRef.current()
+                )
                     return Promise.resolve(true);
                 return new Promise<boolean>((resolve) => {
                     cancelSwitch.current?.();
@@ -797,10 +903,26 @@ function Editor(props: Props) {
                     y: (bounds?.top ?? 100) + (bounds?.height ?? 400) / 2 - 45,
                 });
             const id = uid();
+            const blockKind = kind(type);
+            if (blockKind.type === "mFunction") {
+                const name = `fn_${id.slice(6)}`;
+                blockKind.source = `${name}.m`;
+                blockKind.entry = name;
+                const path = sourcePath(
+                    draftRef.current.file?.path ?? null,
+                    blockKind.source,
+                );
+                sourceWorkspaceRef.current?.ensureSource({
+                    path,
+                    content: functionTemplate(blockKind),
+                    savedContent: "",
+                    file: null,
+                });
+            }
             change((next) => {
                 next.model.blocks.push({
                     id,
-                    kind: kind(type),
+                    kind: blockKind,
                     position: {
                         x: Math.round(at.x / 10) * 10,
                         y: Math.round(at.y / 10) * 10,
@@ -928,12 +1050,81 @@ function Editor(props: Props) {
         },
         [flow],
     );
+    const executeModel = useCallback(
+        async (check = false) => {
+            if (
+                invalidParameter.current ||
+                busyRef.current ||
+                runRef.current.busy
+            )
+                return;
+            const snapshot = structuredClone(docRef.current);
+            busyRef.current = true;
+            setFileBusy(true);
+            setPane(check ? "diagnostics" : "scope");
+            setError(null);
+            try {
+                const files = await readFunctionSources(
+                    snapshot.model,
+                    draftRef.current.file?.path ?? null,
+                    workspace,
+                    sourceWorkspaceRef.current,
+                );
+                const bundle = {
+                    sources: sourceBundle(files),
+                    execution: snapshot.execution ?? DEFAULT_EXECUTION,
+                };
+                if (!alive.current) return;
+                if (check) await runRef.current.check(snapshot.model, bundle);
+                else await runRef.current.run(snapshot.model, bundle);
+            } catch (error) {
+                if (alive.current) {
+                    runRef.current.setDiagnostics([
+                        error instanceof SimulationError
+                            ? error.diagnostic
+                            : { code: "source", message: String(error) },
+                    ]);
+                    setPane("diagnostics");
+                }
+            } finally {
+                busyRef.current = false;
+                if (alive.current) setFileBusy(false);
+            }
+        },
+        [workspace],
+    );
     const runModel = useCallback(() => {
-        if (invalidParameter.current) return;
-        setPane("scope");
-        setError(null);
-        void runRef.current.run(docRef.current.model);
-    }, []);
+        void executeModel();
+    }, [executeModel]);
+    const openFunction = useCallback(
+        async (block: Block, issue?: SimulationDiagnostic) => {
+            if (block.kind.type !== "mFunction") return;
+            const path = sourcePath(
+                draftRef.current.file?.path ?? null,
+                block.kind.source,
+            );
+            try {
+                await readFunctionSources(
+                    { ...docRef.current.model, blocks: [block] },
+                    draftRef.current.file?.path ?? null,
+                    workspace,
+                    sourceWorkspaceRef.current,
+                );
+                if (!alive.current) return;
+                setCodePath(path);
+                setPane("code");
+                setCodeReveal({
+                    lineNumber: issue?.line ?? 1,
+                    column: issue?.column ?? 1,
+                    requestId: Date.now(),
+                });
+                setBottom((current) => Math.max(current, 330));
+            } catch (error) {
+                report(error);
+            }
+        },
+        [workspace, report],
+    );
     useEffect(() => {
         if (!visible) return;
         const keyboard = (event: KeyboardEvent) => {
@@ -1103,6 +1294,8 @@ function Editor(props: Props) {
         (_event: unknown, node: FlowBlock) => {
             setSelected([node.id]);
             if (node.data.block.kind.type === "scope") setPane("scope");
+            else if (node.data.block.kind.type === "mFunction")
+                void openFunction(node.data.block);
             else
                 requestAnimationFrame(() =>
                     shell.current
@@ -1112,7 +1305,7 @@ function Editor(props: Props) {
                         ?.focus(),
                 );
         },
-        [],
+        [openFunction],
     );
     const onNodeContextMenu = useCallback(
         (event: React.MouseEvent, node: FlowBlock) =>
@@ -1236,6 +1429,7 @@ function Editor(props: Props) {
               )
             : undefined;
     const applyParameter = (block: Block, value: string) => {
+        if (block.kind.type === "mFunction") return;
         try {
             const values =
                 block.kind.type === "sum"
@@ -1259,6 +1453,7 @@ function Editor(props: Props) {
                     (item) => item.id === block.id,
                 )!;
                 const type = node.kind.type;
+                if (type === "mFunction") return;
                 node.kind =
                     type === "constant"
                         ? { type, value: values }
@@ -1407,7 +1602,7 @@ function Editor(props: Props) {
                     disabled={!editable || run.busy || !run.connected}
                     onClick={() => {
                         setPane("diagnostics");
-                        void run.check(doc.model);
+                        void executeModel(true);
                     }}
                 >
                     检查模型
@@ -1434,13 +1629,33 @@ function Editor(props: Props) {
                     disabled={run.busy || fileBusy}
                     onChange={(event) => {
                         const value = event.target.value;
-                        confirmReplace("打开示例", () =>
-                            replace(
+                        confirmReplace("打开示例", () => {
+                            const next =
                                 value === "stress"
                                     ? stressExample()
-                                    : example(value as Example),
-                            ),
-                        );
+                                    : example(value as Example);
+                            if (value === "pendulum") {
+                                // A distinct draft filename preserves existing user source files.
+                                const name = `pendulum_${crypto.randomUUID().replaceAll("-", "").slice(0, 8)}`;
+                                const block = next.model.blocks.find(
+                                    (block) => block.kind.type === "mFunction",
+                                )!;
+                                if (block.kind.type === "mFunction") {
+                                    block.kind.entry = name;
+                                    block.kind.source = `${name}.m`;
+                                    sourceWorkspaceRef.current?.ensureSource({
+                                        path: block.kind.source,
+                                        content: PENDULUM_SOURCE.replace(
+                                            "pendulum(",
+                                            `${name}(`,
+                                        ),
+                                        savedContent: "",
+                                        file: null,
+                                    });
+                                }
+                            }
+                            replace(next);
+                        });
                     }}
                 >
                     <option value="" disabled>
@@ -1449,6 +1664,7 @@ function Editor(props: Props) {
                     <option value="feedback">一阶反馈系统</option>
                     <option value="vector">两个时间常数</option>
                     <option value="counter">离散计数器</option>
+                    <option value="pendulum">非线性摆 · m 函数</option>
                     <option value="stress">300 方块交互测试</option>
                 </select>
             </div>
@@ -1493,7 +1709,7 @@ function Editor(props: Props) {
                     palette={
                         <section className="sim-palette">
                             <div className="sim-pane-title">
-                                方块库 <span>6</span>
+                                方块库 <span>{DEFINITIONS.length}</span>
                             </div>
                             <input
                                 aria-label="搜索方块"
@@ -1769,7 +1985,21 @@ function Editor(props: Props) {
                                     ? `(${run.diagnostics.length})`
                                     : ""}
                             </button>
+                            <button
+                                className={pane === "code" ? "active" : ""}
+                                onClick={() => setPane("code")}
+                            >
+                                m 函数
+                            </button>
                             <span className="sim-toolbar-spacer" />
+                            {run.solverStats && (
+                                <span
+                                    title={`误差检验失败 ${run.solverStats.errorTestFailures}；非线性迭代 ${run.solverStats.nonlinearIterations}；采样重启 ${run.solverStats.reinitializations}`}
+                                >
+                                    CVODE · {run.solverStats.acceptedSteps} 步 ·{" "}
+                                    {run.solverStats.rhsEvaluations} 次 RHS
+                                </span>
+                            )}
                             {run.info && numerical !== run.source.current && (
                                 <span className="sim-stale">
                                     模型已修改 · 曲线来自上次运行
@@ -1782,7 +2012,16 @@ function Editor(props: Props) {
                                 导出 CSV
                             </button>
                         </div>
-                        {pane === "scope" ? (
+                        {pane === "code" ? (
+                            <FunctionCodePanel
+                                path={codePath}
+                                shared={props.sourceWorkspace}
+                                theme={theme}
+                                reveal={codeReveal}
+                                onRun={runModel}
+                                onSave={() => void save()}
+                            />
+                        ) : pane === "scope" ? (
                             <ScopePanel
                                 frames={run.frames.current}
                                 scopes={run.info?.scopes ?? []}
@@ -1805,10 +2044,16 @@ function Editor(props: Props) {
                                                 ? "valid"
                                                 : ""
                                         }
-                                        onClick={() =>
-                                            issue.block &&
-                                            focusBlock(issue.block)
-                                        }
+                                        onClick={() => {
+                                            if (!issue.block) return;
+                                            focusBlock(issue.block);
+                                            const block = doc.model.blocks.find(
+                                                (block) =>
+                                                    block.id === issue.block,
+                                            );
+                                            if (block && issue.sourcePath)
+                                                void openFunction(block, issue);
+                                        }}
                                     >
                                         <strong>
                                             {issue.code === "valid" ? "✓" : "!"}{" "}
@@ -1816,7 +2061,12 @@ function Editor(props: Props) {
                                                 ? `${issue.block}${issue.port ? `.${issue.port}` : ""}`
                                                 : issue.code}
                                         </strong>
-                                        <span>{issue.message}</span>
+                                        <span>
+                                            {issue.sourcePath
+                                                ? `${issue.sourcePath}:${issue.line ?? 1}:${issue.column ?? 1} · `
+                                                : ""}
+                                            {issue.message}
+                                        </span>
                                     </button>
                                 ))}
                             </div>
@@ -1894,25 +2144,64 @@ function Editor(props: Props) {
                                     }}
                                 />
                             </label>
-                            {chosen.kind.type !== "scope" && (
-                                <label>
-                                    {chosen.kind.type === "sum"
-                                        ? "输入符号"
-                                        : chosen.kind.type === "gain"
-                                          ? "增益"
-                                          : chosen.kind.type === "constant"
-                                            ? "常量值"
-                                            : "初始状态"}
-                                    <CommitField
-                                        key={chosen.id}
-                                        name="方块参数"
-                                        value={parameterText(chosen)}
-                                        onCommit={(value) =>
-                                            applyParameter(chosen, value)
-                                        }
-                                    />
-                                </label>
+                            {chosen.kind.type === "mFunction" && (
+                                <FunctionInspector
+                                    value={chosen.kind}
+                                    onOpen={() => void openFunction(chosen)}
+                                    onError={setError}
+                                    onChange={(value) =>
+                                        change((next) => {
+                                            next.model.blocks.find(
+                                                (block) =>
+                                                    block.id === chosen.id,
+                                            )!.kind = value;
+                                            next.model.connections =
+                                                next.model.connections.filter(
+                                                    (edge) =>
+                                                        edge.to.block !==
+                                                            chosen.id ||
+                                                        value.inputs.some(
+                                                            (input) =>
+                                                                input.name ===
+                                                                edge.to.port,
+                                                        ),
+                                                );
+                                            const kept = new Set(
+                                                next.model.connections.map(
+                                                    edgeId,
+                                                ),
+                                            );
+                                            for (const id of Object.keys(
+                                                next.editor.bends,
+                                            ))
+                                                if (!kept.has(id))
+                                                    delete next.editor.bends[
+                                                        id
+                                                    ];
+                                        })
+                                    }
+                                />
                             )}
+                            {chosen.kind.type !== "scope" &&
+                                chosen.kind.type !== "mFunction" && (
+                                    <label>
+                                        {chosen.kind.type === "sum"
+                                            ? "输入符号"
+                                            : chosen.kind.type === "gain"
+                                              ? "增益"
+                                              : chosen.kind.type === "constant"
+                                                ? "常量值"
+                                                : "初始状态"}
+                                        <CommitField
+                                            key={chosen.id}
+                                            name="方块参数"
+                                            value={parameterText(chosen)}
+                                            onCommit={(value) =>
+                                                applyParameter(chosen, value)
+                                            }
+                                        />
+                                    </label>
+                                )}
                             <p className="sim-help">
                                 {chosen.kind.type === "sum"
                                     ? "每个 + 或 - 对应一个输入端口。"
@@ -2008,18 +2297,16 @@ function Editor(props: Props) {
                                     }}
                                 />
                             </label>
-                            <label>
-                                求解器
-                                <select
-                                    aria-label="求解器"
-                                    value="rk4"
-                                    disabled
-                                >
-                                    <option value="rk4">
-                                        RK4 · 固定最大步长
-                                    </option>
-                                </select>
-                            </label>
+                            <SolverInspector
+                                value={doc.execution}
+                                capabilities={run.capabilities}
+                                onError={setError}
+                                onChange={(value) =>
+                                    change((next) => {
+                                        next.execution = value;
+                                    })
+                                }
+                            />
                             {(
                                 [
                                     ["startTime", "起始时间"],
@@ -2062,7 +2349,7 @@ function Editor(props: Props) {
                         </>
                     )}
                     <div className="sim-inspector-footer">
-                        OpenMat Simulation · v0
+                        OpenMat Simulation · v1
                         <br />
                         {preview ? "SLX 结构检查" : "选择方块查看参数"}
                     </div>
@@ -2077,7 +2364,7 @@ function Editor(props: Props) {
                 </span>
                 <span>
                     {run.info
-                        ? `Rust reference · ${run.frames.current.length} samples`
+                        ? `${run.info.backend} · ${run.info.solver?.type ?? "rk4"} · ${run.frames.current.length} samples`
                         : "原生仿真 · 固定步长 RK4"}
                 </span>
                 <span className="sim-toolbar-spacer" />

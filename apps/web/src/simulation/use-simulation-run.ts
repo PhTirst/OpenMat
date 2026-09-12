@@ -5,6 +5,9 @@ import {
     type RunInfo,
     type SimulationDiagnostic,
     type SimulationFrame,
+    type SimulationSnapshot,
+    type SimulationCatalog,
+    type SolverStats,
 } from "./client";
 import { DEFINITIONS, type Model } from "./model";
 export type RunStatus =
@@ -16,10 +19,14 @@ export type RunStatus =
     | "finished"
     | "cancelled"
     | "failed";
-export function numericalSource(model: Model): string {
+export function numericalSource(
+    model: Model,
+    snapshot?: SimulationSnapshot,
+): string {
     return JSON.stringify({
         ...model,
         blocks: model.blocks.map(({ position: _position, ...block }) => block),
+        ...snapshot,
     });
 }
 export function useSimulationRun(url: string | undefined) {
@@ -31,6 +38,9 @@ export function useSimulationRun(url: string | undefined) {
     const [diagnostics, setDiagnostics] = useState<SimulationDiagnostic[]>([]);
     const [version, setVersion] = useState(0);
     const [elapsed, setElapsed] = useState(0);
+    const [capabilities, setCapabilities] =
+        useState<SimulationCatalog["execution"]>();
+    const [solverStats, setSolverStats] = useState<SolverStats | null>(null);
     const frames = useRef<SimulationFrame[]>([]);
     const active = useRef<RunInfo | null>(null);
     const source = useRef("");
@@ -67,6 +77,7 @@ export function useSimulationRun(url: string | undefined) {
             )
                 throw new Error("仿真服务版本不兼容。");
             setConnected(true);
+            setCapabilities(catalog.execution);
             setConnectionError(null);
         } catch (error) {
             if (client.current === connection) {
@@ -134,6 +145,7 @@ export function useSimulationRun(url: string | undefined) {
             } else {
                 setStatus(event.event);
                 setElapsed(event.data.elapsedSeconds ?? 0);
+                setSolverStats(event.data.solverStats ?? null);
                 if (event.data.error && event.event === "failed")
                     setDiagnostics([event.data.error]);
                 active.current = null;
@@ -167,7 +179,7 @@ export function useSimulationRun(url: string | undefined) {
         ]);
     }, []);
     const run = useCallback(
-        async (model: Model) => {
+        async (model: Model, snapshot?: SimulationSnapshot) => {
             const connection = client.current;
             if (
                 !connection ||
@@ -181,18 +193,20 @@ export function useSimulationRun(url: string | undefined) {
             setDiagnostics([]);
             setInfo(null);
             setElapsed(0);
+            setSolverStats(null);
             frames.current = [];
             setVersion((value) => value + 1);
-            source.current = numericalSource(model);
+            source.current = numericalSource(model, snapshot);
             try {
                 const result = await connection.run(
                     structuredClone(model),
                     crypto.randomUUID(),
+                    snapshot,
                 );
                 if (client.current !== connection) return;
                 if (
                     !Array.isArray(result.scopes) ||
-                    result.backend !== "reference" ||
+                    !["reference", "llvm-orc"].includes(result.backend) ||
                     typeof result.runId !== "string" ||
                     typeof result.revision !== "string" ||
                     result.scopes.some(
@@ -219,7 +233,7 @@ export function useSimulationRun(url: string | undefined) {
         [fail],
     );
     const check = useCallback(
-        async (model: Model) => {
+        async (model: Model, snapshot?: SimulationSnapshot) => {
             const connection = client.current;
             if (
                 !connection ||
@@ -235,6 +249,7 @@ export function useSimulationRun(url: string | undefined) {
                 await connection.check(
                     structuredClone(model),
                     crypto.randomUUID(),
+                    snapshot,
                 );
                 if (client.current !== connection) return;
                 statusRef.current = "idle";
@@ -274,6 +289,7 @@ export function useSimulationRun(url: string | undefined) {
         frames.current = [];
         source.current = "";
         setInfo(null);
+        setSolverStats(null);
         setDiagnostics([]);
         setElapsed(0);
         setStatus("idle");
@@ -292,6 +308,8 @@ export function useSimulationRun(url: string | undefined) {
         frames,
         version,
         elapsed,
+        capabilities,
+        solverStats,
         source,
         run,
         check,

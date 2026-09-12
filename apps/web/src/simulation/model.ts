@@ -5,13 +5,129 @@ export type BlockType =
     | "gain"
     | "integrator"
     | "unitDelay"
-    | "scope";
+    | "scope"
+    | "mFunction";
+export interface FunctionKind {
+    type: "mFunction";
+    source: string;
+    entry: string;
+    inputs: { name: string; width: number }[];
+    parameters: { name: string; value: number[] }[];
+    outputWidth: number;
+}
+export interface ExecutionOptions {
+    backend: "reference" | "llvm";
+    solver:
+        | { type: "rk4" }
+        | {
+              type: "cvode";
+              method: "adams" | "bdf";
+              relativeTolerance: number;
+              absoluteTolerance: number;
+          };
+}
+export const DEFAULT_EXECUTION: ExecutionOptions = {
+    backend: "reference",
+    solver: { type: "rk4" },
+};
+export function validSourcePath(path: string): boolean {
+    return (
+        path.length <= 512 &&
+        path.endsWith(".m") &&
+        !/[\\:\0]/.test(path) &&
+        path.split("/").every((part) => !!part && part !== "." && part !== "..")
+    );
+}
+export function validateFunctionKind(raw: unknown): FunctionKind {
+    const k = object(raw, "函数定义");
+    keys(
+        k,
+        ["type", "source", "entry", "inputs", "parameters", "outputWidth"],
+        "函数定义",
+    );
+    const identifier = (n: unknown): n is string =>
+        typeof n === "string" && /^[A-Za-z][A-Za-z0-9_]{0,62}$/.test(n);
+    const width = (n: unknown): boolean =>
+        typeof n === "number" && Number.isSafeInteger(n) && n >= 1 && n <= 4096;
+    if (
+        k.type !== "mFunction" ||
+        typeof k.source !== "string" ||
+        !validSourcePath(k.source) ||
+        !identifier(k.entry) ||
+        !width(k.outputWidth) ||
+        !Array.isArray(k.inputs) ||
+        !Array.isArray(k.parameters) ||
+        k.inputs.length + k.parameters.length > 64
+    )
+        throw new Error(
+            "函数需要相对 .m 路径、合法函数名和 1–4096 的端口宽度，参数总数最多 64。",
+        );
+    const names = new Set<string>();
+    for (const [items, parameter] of [
+        [k.inputs, false],
+        [k.parameters, true],
+    ] as const) {
+        for (const raw of items) {
+            const p = object(raw, "函数参数");
+            keys(
+                p,
+                parameter ? ["name", "value"] : ["name", "width"],
+                "函数参数",
+            );
+            if (!identifier(p.name) || names.has(p.name))
+                throw new Error("输入和参数名称必须合法且不能重复。");
+            names.add(p.name);
+            if (
+                parameter
+                    ? !Array.isArray(p.value) ||
+                      p.value.length < 1 ||
+                      p.value.length > 4096 ||
+                      p.value.some(
+                          (v) => typeof v !== "number" || !Number.isFinite(v),
+                      )
+                    : !width(p.width)
+            )
+                throw new Error(
+                    "输入宽度应为 1–4096，参数应为有限实数列向量。",
+                );
+        }
+    }
+    return structuredClone(k) as unknown as FunctionKind;
+}
+export function parseExecution(raw: unknown): ExecutionOptions {
+    const e = object(raw, "执行设置");
+    keys(e, ["backend", "solver"], "执行设置");
+    if (e.backend !== "reference" && e.backend !== "llvm")
+        throw new Error("不支持的计算后端。");
+    const s = object(e.solver, "求解器");
+    if (s.type === "rk4") keys(s, ["type"], "RK4");
+    else if (s.type === "cvode") {
+        keys(
+            s,
+            ["type", "method", "relativeTolerance", "absoluteTolerance"],
+            "CVODE",
+        );
+        const r = number(s.relativeTolerance, "相对误差"),
+            a = number(s.absoluteTolerance, "绝对误差");
+        if (
+            (s.method !== "adams" && s.method !== "bdf") ||
+            r < 1e-14 ||
+            r > 0.1 ||
+            a <= 0
+        )
+            throw new Error(
+                "CVODE 需要合法方法、1e-14–0.1 的相对误差和正的绝对误差。",
+            );
+    } else throw new Error("不支持的求解器。");
+    return structuredClone(e) as unknown as ExecutionOptions;
+}
 export type BlockKind =
     | { type: "constant"; value: number[] }
     | { type: "sum"; signs: number[] }
     | { type: "gain"; gain: number[] }
     | { type: "integrator" | "unitDelay"; initial: number[] }
-    | { type: "scope" };
+    | { type: "scope" }
+    | FunctionKind;
 export interface Point {
     x: number;
     y: number;
@@ -30,7 +146,7 @@ export interface Connection {
     to: Port;
 }
 export interface Model {
-    schemaVersion: 1;
+    schemaVersion: 1 | 2;
     name: string;
     settings: {
         startTime: number;
@@ -43,7 +159,8 @@ export interface Model {
 }
 export interface ModelDocument {
     format: "openmat-simulation";
-    schemaVersion: 1;
+    schemaVersion: 1 | 2;
+    execution?: ExecutionOptions;
     model: Model;
     editor: {
         labels: Record<string, string>;
@@ -61,8 +178,16 @@ export interface BlockDefinition {
     parameter?: string;
     default?: number[];
 }
-// Offline authoring baseline; the native catalog is verified against these six renderers.
+// Offline authoring baseline; the native catalog is verified against these renderers.
 export const DEFINITIONS: readonly BlockDefinition[] = [
+    {
+        type: "mFunction",
+        label: "M Function",
+        category: "自定义函数",
+        icon: "mFunction",
+        inputs: ["u"],
+        outputs: ["out"],
+    },
     {
         type: "constant",
         label: "Constant",
@@ -127,6 +252,11 @@ export const definition = (type: BlockType): BlockDefinition =>
 export const isBlockType = (value: string): value is BlockType =>
     DEFINITIONS.some((item) => item.type === value);
 export function ports(block: Block): { inputs: string[]; outputs: string[] } {
+    if (block.kind.type === "mFunction")
+        return {
+            inputs: block.kind.inputs.map((input) => input.name),
+            outputs: ["out"],
+        };
     return block.kind.type === "sum"
         ? {
               inputs: block.kind.signs.map((_, index) => `in${index}`),
@@ -136,6 +266,15 @@ export function ports(block: Block): { inputs: string[]; outputs: string[] } {
 }
 export function kind(type: BlockType): BlockKind {
     switch (type) {
+        case "mFunction":
+            return {
+                type,
+                source: "my_function.m",
+                entry: "my_function",
+                inputs: [{ name: "u", width: 1 }],
+                parameters: [],
+                outputWidth: 1,
+            };
         case "constant":
             return { type, value: [1] };
         case "sum":
@@ -159,6 +298,8 @@ export const label = (doc: ModelDocument, block: Block): string =>
         : definition(block.kind.type).label;
 export function parameterText(block: Block): string {
     const data = block.kind;
+    if (data.type === "mFunction")
+        return `${data.entry}(${data.inputs.map((input) => input.name).join(", ")})`;
     if (data.type === "scope") return "signal → time";
     if (data.type === "sum")
         return data.signs.map((sign) => (sign === 1 ? "+" : "−")).join(" ");
@@ -207,6 +348,7 @@ export function emptyDocument(name = "Untitled"): ModelDocument {
 }
 export function fromModel(model: Model): ModelDocument {
     const doc = emptyDocument(model.name);
+    doc.schemaVersion = model.schemaVersion;
     doc.model = structuredClone(model);
     doc.model.blocks.forEach((block, index) => {
         block.position ??= {
@@ -254,7 +396,8 @@ export function parseModel(value: unknown): Model {
         ["schemaVersion", "name", "settings", "blocks", "connections"],
         "模型",
     );
-    if (data.schemaVersion !== 1) throw new Error("不支持的模型版本。");
+    if (data.schemaVersion !== 1 && data.schemaVersion !== 2)
+        throw new Error("不支持的模型版本。");
     const settings = object(data.settings, "仿真设置");
     keys(
         settings,
@@ -279,7 +422,16 @@ export function parseModel(value: unknown): Model {
         if (typeof k.type !== "string" || !isBlockType(k.type))
             throw new Error(`不支持的方块类型：${String(k.type)}`);
         const def = definition(k.type);
-        keys(k, def.parameter ? ["type", def.parameter] : ["type"], "方块参数");
+        if (k.type === "mFunction") {
+            if (data.schemaVersion !== 2)
+                throw new Error("M Function 需要模型版本 2。");
+            validateFunctionKind(k);
+        } else
+            keys(
+                k,
+                def.parameter ? ["type", def.parameter] : ["type"],
+                "方块参数",
+            );
         if (def.parameter) {
             const values = k[def.parameter];
             if (
@@ -336,7 +488,7 @@ export function parseModel(value: unknown): Model {
         return edge;
     });
     return {
-        schemaVersion: 1,
+        schemaVersion: data.schemaVersion,
         name: text(data.name, "模型名称"),
         blocks,
         connections,
@@ -355,10 +507,25 @@ export function parseDocument(source: string): ModelDocument {
         throw new Error("模型文件超过 8 MiB。");
     const raw = object(JSON.parse(source), "模型文件");
     if (!Object.hasOwn(raw, "format")) return fromModel(parseModel(raw));
-    keys(raw, ["format", "schemaVersion", "model", "editor"], "模型文件");
-    if (raw.format !== "openmat-simulation" || raw.schemaVersion !== 1)
+    keys(
+        raw,
+        ["format", "schemaVersion", "model", "editor", "execution"],
+        "模型文件",
+    );
+    if (
+        raw.format !== "openmat-simulation" ||
+        (raw.schemaVersion !== 1 && raw.schemaVersion !== 2)
+    )
         throw new Error("不支持的编辑器文件格式或版本。");
     const doc = fromModel(parseModel(raw.model));
+    doc.schemaVersion = raw.schemaVersion;
+    if (
+        raw.schemaVersion === 1 &&
+        (doc.model.schemaVersion !== 1 || raw.execution !== undefined)
+    )
+        throw new Error("此模型功能需要文件版本 2。");
+    if (raw.execution !== undefined)
+        doc.execution = parseExecution(raw.execution);
     const editor = object(raw.editor, "编辑器数据");
     keys(editor, ["labels", "bends", "viewport"], "编辑器数据");
     const ids = new Set(doc.model.blocks.map((block) => block.id));

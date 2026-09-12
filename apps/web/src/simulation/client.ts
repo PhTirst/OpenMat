@@ -1,5 +1,16 @@
-import type { BlockDefinition, Model } from "./model";
-export const SIMULATION_PROTOCOL = "openmat-simulation-v1";
+import type { BlockDefinition, Model, ExecutionOptions } from "./model";
+export const SIMULATION_PROTOCOL = "openmat-simulation-v2";
+export interface SimulationSnapshot {
+    sources: Record<string, string>;
+    execution: ExecutionOptions;
+}
+export interface SolverStats {
+    acceptedSteps: number;
+    rhsEvaluations: number;
+    errorTestFailures: number;
+    nonlinearIterations: number;
+    reinitializations: number;
+}
 export interface SimulationDiagnostic {
     code: string;
     message: string;
@@ -7,6 +18,9 @@ export interface SimulationDiagnostic {
     port?: string;
     parameter?: string;
     part?: string;
+    sourcePath?: string;
+    line?: number;
+    column?: number;
 }
 export class SimulationError extends Error {
     constructor(readonly diagnostic: SimulationDiagnostic) {
@@ -27,7 +41,8 @@ export interface SimulationFrame {
 export interface RunInfo {
     runId: string;
     revision: string;
-    backend: "reference";
+    backend: "reference" | "llvm-orc";
+    solver?: { type: "rk4" | "cvode" };
     scopes: ScopeInfo[];
     settings: Model["settings"];
     compileSeconds: number;
@@ -42,6 +57,7 @@ export interface RunEvent {
         time?: number;
         samples?: number;
         elapsedSeconds?: number;
+        solverStats?: SolverStats | null;
         error?: SimulationDiagnostic | null;
     };
 }
@@ -71,6 +87,12 @@ export interface SlxImport {
     };
 }
 export interface SimulationCatalog {
+    execution?: {
+        reference: boolean;
+        rk4: boolean;
+        llvmConfigured: boolean;
+        cvodeConfigured: boolean;
+    };
     blocks: BlockDefinition[];
     backend: "reference";
     maxSamples: number;
@@ -86,9 +108,9 @@ export function simulationUrl(kernelUrl: string): string {
     const url = new URL(kernelUrl);
     if (url.protocol !== "ws:" && url.protocol !== "wss:")
         throw new Error("仿真服务需要 WebSocket 地址。");
-    url.pathname = url.pathname.replace(/\/kernel\/?$/, "/simulation/v1");
-    if (!url.pathname.endsWith("/simulation/v1"))
-        url.pathname = "/simulation/v1";
+    url.pathname = url.pathname.replace(/\/kernel\/?$/, "/simulation/v2");
+    if (!url.pathname.endsWith("/simulation/v2"))
+        url.pathname = "/simulation/v2";
     url.search = "";
     url.hash = "";
     return url.toString();
@@ -297,15 +319,20 @@ export class SimulationClient {
     check(
         model: Model,
         revision: string,
+        snapshot?: SimulationSnapshot,
     ): Promise<{
         valid: boolean;
         revision: string;
         plan: Omit<RunInfo, "runId" | "revision">;
     }> {
-        return this.request("check", { model, revision });
+        return this.request("check", { model, revision, ...snapshot });
     }
-    run(model: Model, revision: string): Promise<RunInfo> {
-        return this.request("run", { model, revision });
+    run(
+        model: Model,
+        revision: string,
+        snapshot?: SimulationSnapshot,
+    ): Promise<RunInfo> {
+        return this.request("run", { model, revision, ...snapshot });
     }
     cancel(runId: string): Promise<unknown> {
         return this.request("cancel", { runId });
