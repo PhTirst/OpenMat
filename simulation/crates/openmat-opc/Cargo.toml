@@ -1,0 +1,14 @@
+[package]
+name = "openmat-opc"
+license = "AGPL-3.0-only"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+zip.workspace = true
+roxmltree.workspace = true
+serde.workspace = true
+
+[lints]
+workspace = true

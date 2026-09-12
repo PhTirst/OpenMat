@@ -1,21 +1,19 @@
 [package]
-name = "openmat-sim-cli"
+name = "openmat-sim-slx"
 license = "AGPL-3.0-only"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 
-[[bin]]
-name = "openmat-sim"
-path = "src/main.rs"
-
 [dependencies]
+openmat-opc = { path = "../openmat-opc" }
 openmat-sim = { path = "../openmat-sim" }
-openmat-sim-llvm = { path = "../openmat-sim-llvm" }
-openmat-sim-slx = { path = "../openmat-sim-slx" }
-serde_json.workspace = true
+roxmltree.workspace = true
+serde.workspace = true
 
 [dev-dependencies]
+openmat-sim-llvm = { path = "../openmat-sim-llvm" }
+serde_json.workspace = true
 zip.workspace = true
 
 [lints]

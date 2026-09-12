@@ -2,9 +2,9 @@ name: OpenMat simulation kernel
 
 on:
   push:
-    paths: ['simulation/**', 'docs/rfcs/0010-simulation-kernel-v0.md', '.github/workflows/simulation.yml']
+    paths: ['simulation/**', 'docs/rfcs/0010-simulation-kernel-v0.md', 'docs/rfcs/0011-slx-import-v0.md', '.github/workflows/simulation.yml']
   pull_request:
-    paths: ['simulation/**', 'docs/rfcs/0010-simulation-kernel-v0.md', '.github/workflows/simulation.yml']
+    paths: ['simulation/**', 'docs/rfcs/0010-simulation-kernel-v0.md', 'docs/rfcs/0011-slx-import-v0.md', '.github/workflows/simulation.yml']
   workflow_dispatch:
 
 permissions:
@@ -39,3 +39,6 @@ jobs:
       - name: Require real Windows x64 ORC execution
         if: runner.os == 'Windows'
         run: cargo test --manifest-path simulation/Cargo.toml --locked -p openmat-sim-llvm --test native -- --ignored --nocapture
+      - name: Require SLX import through real Windows ORC execution
+        if: runner.os == 'Windows'
+        run: cargo test --manifest-path simulation/Cargo.toml --locked -p openmat-sim-slx --test import -- --ignored --nocapture

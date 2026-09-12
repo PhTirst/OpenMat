@@ -9,9 +9,10 @@ use openmat_sim::model::Model;
 use openmat_sim::numeric::{Kernel, ReferenceKernel};
 use openmat_sim::{CollectionLimits, Runner, compile};
 use openmat_sim_llvm::{LlvmKernel, emit_llvm};
+use openmat_sim_slx::ImportedSlx;
 use serde_json::{Value, json};
 
-const USAGE: &str = "OpenMat simulation kernel v0\n\n  openmat-sim check MODEL\n  openmat-sim run MODEL [--backend reference|llvm] [--llvm-library PATH]\n                         [--output RESULT.json] [--max-samples COUNT]\n  openmat-sim emit-llvm MODEL [--output KERNEL.ll]\n\nLLVM requires an explicit LLVM 22 library path or OPENMAT_SIM_LLVM_LIBRARY.\nOutput files are created without overwriting existing files.\n";
+const USAGE: &str = "OpenMat simulation\n\n  openmat-sim check MODEL.json|MODEL.slx\n  openmat-sim run MODEL.json|MODEL.slx [--backend reference|llvm] [--llvm-library PATH]\n                                    [--output RESULT.json] [--max-samples COUNT]\n  openmat-sim emit-llvm MODEL [--output KERNEL.ll]\n  openmat-sim inspect-slx MODEL.slx [--output DOCUMENT.json]\n  openmat-sim import-slx MODEL.slx [--output MODEL.json]\n\nSLX execution requires a supported R2022b model configuration.\nLLVM requires an explicit LLVM 22 library path or OPENMAT_SIM_LLVM_LIBRARY.\nOutput files are created without overwriting existing files.\n";
 
 struct Options {
     command: String,
@@ -41,7 +42,7 @@ fn failure(code: &str, message: impl Into<String>) -> Value {
 fn parse_options(args: &[OsString]) -> Result<Options, Value> {
     let command = args[0]
         .to_str()
-        .filter(|c| ["check", "run", "emit-llvm"].contains(c))
+        .filter(|c| ["check", "run", "emit-llvm", "inspect-slx", "import-slx"].contains(c))
         .ok_or_else(|| failure("arguments", USAGE))?;
     let model = args
         .get(1)
@@ -105,20 +106,60 @@ fn parse_options(args: &[OsString]) -> Result<Options, Value> {
 }
 
 fn read_model(path: &Path) -> Result<Model, Value> {
-    const MAX_BYTES: u64 = 16 * 1024 * 1024;
-    let mut bytes = Vec::new();
-    File::open(path)
-        .map_err(|e| failure("model_file", e.to_string()))?
-        .take(MAX_BYTES + 1)
-        .read_to_end(&mut bytes)
-        .map_err(|e| failure("model_file", e.to_string()))?;
-    if u64::try_from(bytes.len()).unwrap_or(u64::MAX) > MAX_BYTES {
-        return Err(failure("model_limit", "model JSON exceeds 16 MiB"));
+    if is_slx(path) {
+        return read_slx(path)?
+            .lower()
+            .map_err(|issues| json!({"code": "slx_compatibility", "issues": issues}));
     }
+    let bytes = read_bytes(path, 16 * 1024 * 1024)?;
     serde_json::from_slice(&bytes).map_err(|e| failure("model_json", e.to_string()))
 }
 
+fn is_slx(path: &Path) -> bool {
+    path.extension()
+        .and_then(|s| s.to_str())
+        .is_some_and(|s| s.eq_ignore_ascii_case("slx"))
+}
+fn read_slx(path: &Path) -> Result<ImportedSlx, Value> {
+    if !is_slx(path) {
+        return Err(failure("arguments", "expected a .slx model file"));
+    }
+    let bytes = read_bytes(path, 64 * 1024 * 1024)?;
+    let name = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("imported-model");
+    ImportedSlx::read(&bytes, name).map_err(|e| json!(e))
+}
+fn read_bytes(path: &Path, limit: u64) -> Result<Vec<u8>, Value> {
+    let mut bytes = Vec::new();
+    File::open(path)
+        .map_err(|e| failure("model_file", e.to_string()))?
+        .take(limit + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|e| failure("model_file", e.to_string()))?;
+    if u64::try_from(bytes.len()).unwrap_or(u64::MAX) > limit {
+        return Err(failure("model_limit", "model exceeds input byte limit"));
+    }
+    Ok(bytes)
+}
+
 fn execute(options: Options) -> Result<(), Value> {
+    if ["inspect-slx", "import-slx"].contains(&options.command.as_str()) {
+        let imported = read_slx(&options.model)?;
+        let lowered = imported.lower();
+        let value = if options.command == "inspect-slx" {
+            json!({"ok": true, "format": "slx", "document": imported.document(),
+                "runnable": lowered.is_ok(), "issues": lowered.err().unwrap_or_default()})
+        } else {
+            json!(lowered.map_err(|issues| json!({"code": "slx_compatibility", "issues": issues}))?)
+        };
+        return write_output(
+            options.output.as_deref(),
+            &serde_json::to_string_pretty(&value)
+                .map_err(|e| failure("result_json", e.to_string()))?,
+        );
+    }
     let model = read_model(&options.model)?;
     let plan = compile(&model).map_err(|error| json!(error.0))?;
     if options.command == "check" {

@@ -1,15 +1,17 @@
 # OpenMat simulation kernel v0
 
 This opt-in workspace implements the numerical foundation for a future block
-diagram editor. It runs JSON models with a Rust reference interpreter or actual
-LLVM ORC machine code. It is independent of the existing web client, server,
+diagram editor. It runs JSON models and a constrained R2022b SLX subset with a
+Rust reference interpreter or actual LLVM ORC machine code. It is independent of the existing web client, server,
 bytecode VM and desktop package. There is no graphical editor in this milestone.
 
 The contract is [RFC 0010](../docs/rfcs/0010-simulation-kernel-v0.md). Fixtures and
 tests are authored for OpenMat using elementary mathematical models; no MATLAB
 or Simulink source, test data, messages or proprietary model files are included.
-This is an OpenMat model format, not an SLX reader or a Simulink compatibility
-claim.
+The SLX extension is described by [RFC 0011](../docs/rfcs/0011-slx-import-v0.md)
+and the [SLX import guide](docs/slx-import.md). Loading an SLX document and
+supporting its simulation semantics are separate checks; this is not full
+Simulink compatibility.
 
 ## Run the examples
 
@@ -153,6 +155,8 @@ multi-user resource scheduler.
 
 | Crate | Responsibility |
 | --- | --- |
+| `openmat-opc` | Bounded ZIP/OPC parts, content types and relationships; independent of SLX |
+| `openmat-sim-slx` | Structural SLX inspection, retained source parts, compatibility diagnostics and lowering to the existing numerical model |
 | `openmat-sim` | Model validation, instantaneous dependency ordering, immutable numerical IR, reference execution, RK4 and sample scheduling |
 | `openmat-sim-llvm` | Textual LLVM IR, dynamic LLVM C API adapter, owned ORC code and C kernel ABI |
 | `openmat-sim-cli` | Model loading, backend selection and bounded JSON result output |
@@ -182,15 +186,21 @@ cargo clippy --manifest-path simulation/Cargo.toml --locked --workspace --all-ta
 cargo test --manifest-path simulation/Cargo.toml --locked --workspace
 $env:OPENMAT_SIM_LLVM_LIBRARY = & ./simulation/tools/Prepare-Llvm.ps1
 cargo test --manifest-path simulation/Cargo.toml --locked -p openmat-sim-llvm --test native -- --ignored --nocapture
+cargo test --manifest-path simulation/Cargo.toml --locked -p openmat-sim-slx --test import -- --ignored --nocapture
 ```
 
-The ordinary workspace tests intentionally mark the four native acceptance
-tests as ignored because LLVM is optional. The last command explicitly runs
-them, requires a working LLVM runtime and fails if it is unavailable. Native
+The ordinary workspace tests mark the four kernel native tests and one SLX native
+test as ignored because LLVM is optional. The last two commands explicitly run
+them, require a working LLVM runtime and fail if it is unavailable. Native
 acceptance covers continuous/discrete/mixed/vector trajectory parity, strict
 arithmetic including signed zero, C ABI guards, empty programs and concurrent
 independent create/run/drop cycles. Reference tests also compare with analytic
 solutions and RK4 convergence rather than relying on backend parity alone.
+
+Two additional, explicitly ignored SLX differential tests require a separately
+licensed local MATLAB/Simulink R2022b installation. The [SLX guide](docs/slx-import.md)
+explains how to generate the project-authored models and run those tests against
+both backends. Generated SLX packages and observations are not checked in.
 
 [The simulation workflow](../.github/workflows/simulation.yml) runs ordinary
 checks on Windows and Linux and explicitly requires native ORC execution on
