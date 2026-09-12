@@ -4,7 +4,8 @@ use serde::Serialize;
 
 use crate::ModelError;
 use crate::model::{
-    Block, BlockKind, FUNCTION_SCHEMA_VERSION, Model, Port, SCHEMA_VERSION, Settings,
+    Block, BlockKind, COMPONENT_SCHEMA_VERSION, FUNCTION_SCHEMA_VERSION, Model, Port,
+    SCHEMA_VERSION, Settings,
 };
 use crate::numeric::{Instruction, MAX_VALUES, Program};
 use crate::{SourceBundle, m_function};
@@ -27,11 +28,13 @@ pub struct CompiledModel {
     pub(crate) name: String,
     pub(crate) settings: Settings,
     pub(crate) program: Program,
+    pub(crate) update_program: Option<Program>,
+    pub(crate) update_origins: Vec<Port>,
     pub(crate) continuous_initial: Vec<f64>,
     pub(crate) discrete_initial: Vec<f64>,
     pub(crate) scopes: Vec<ScopeInfo>,
     pub(crate) origins: Vec<Port>,
-    execution_order: Vec<String>,
+    pub(crate) execution_order: Vec<String>,
 }
 
 impl CompiledModel {
@@ -42,6 +45,10 @@ impl CompiledModel {
     #[must_use]
     pub fn program(&self) -> &Program {
         &self.program
+    }
+    #[must_use]
+    pub fn update_program(&self) -> Option<&Program> {
+        self.update_program.as_ref()
     }
     #[must_use]
     pub fn settings(&self) -> &Settings {
@@ -88,6 +95,9 @@ pub fn compile_with_sources(
 ) -> Result<CompiledModel, ModelError> {
     validate_model(model)?;
     m_function::validate_bundle(sources)?;
+    if model.schema_version == COMPONENT_SCHEMA_VERSION {
+        return crate::component_compiler::compile(model, sources);
+    }
     let graph = build_graph(model)?;
     let mut continuous_initial = Vec::new();
     let mut discrete_initial = Vec::new();
@@ -166,6 +176,8 @@ pub fn compile_with_sources(
         name: model.name.clone(),
         settings: model.settings.clone(),
         program,
+        update_program: None,
+        update_origins: Vec::new(),
         continuous_initial,
         discrete_initial,
         scopes,
@@ -297,6 +309,7 @@ fn lower_signals(
                 m_function::lower(block, &input_signals, sources, &mut instructions)?
             }
             BlockKind::Scope => Vec::new(),
+            BlockKind::Component { .. } => unreachable!("schema 3 uses the component compiler"),
         };
         signals[index] = signal;
     }
@@ -322,6 +335,7 @@ fn check_signal_budget(
         ),
         BlockKind::Scope => (0, 0),
         BlockKind::MFunction { output_width, .. } => (*output_width, 0),
+        BlockKind::Component { .. } => unreachable!("schema 3 uses the component compiler"),
     };
     if instructions.saturating_add(width.saturating_mul(operations_per_element)) > MAX_VALUES
         || stored.saturating_add(width) > MAX_VALUES
@@ -362,10 +376,22 @@ fn width_error(block: &Block, port: &str, expected: usize, actual: usize) -> Mod
 
 #[allow(clippy::too_many_lines)] // Keep the schema-wide resource and block checks together.
 fn validate_model(model: &Model) -> Result<(), ModelError> {
-    if model.schema_version != SCHEMA_VERSION && model.schema_version != FUNCTION_SCHEMA_VERSION {
+    if ![
+        SCHEMA_VERSION,
+        FUNCTION_SCHEMA_VERSION,
+        COMPONENT_SCHEMA_VERSION,
+    ]
+    .contains(&model.schema_version)
+    {
         return Err(ModelError::new(
             "schema_version",
             "unsupported model schema version",
+        ));
+    }
+    if model.schema_version < COMPONENT_SCHEMA_VERSION && !model.components.is_empty() {
+        return Err(ModelError::new(
+            "schema_version",
+            "component definitions require model schema version 3",
         ));
     }
     if model.blocks.is_empty()
@@ -437,7 +463,7 @@ fn validate_model(model: &Model) -> Result<(), ModelError> {
                 None
             }
             BlockKind::MFunction { parameters, .. } => {
-                if model.schema_version != FUNCTION_SCHEMA_VERSION {
+                if model.schema_version < FUNCTION_SCHEMA_VERSION {
                     return Err(ModelError::new(
                         "schema_version",
                         "M Function requires model schema version 2",
@@ -455,6 +481,16 @@ fn validate_model(model: &Model) -> Result<(), ModelError> {
                 None
             }
             BlockKind::Scope => None,
+            BlockKind::Component { .. } => {
+                if model.schema_version != COMPONENT_SCHEMA_VERSION {
+                    return Err(ModelError::new(
+                        "schema_version",
+                        "components require model schema version 3",
+                    )
+                    .at(&block.id, None));
+                }
+                None
+            }
         };
         if let Some(values) = values {
             if values.is_empty() || values.iter().any(|v| !v.is_finite()) {

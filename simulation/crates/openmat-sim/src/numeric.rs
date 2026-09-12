@@ -14,6 +14,79 @@ pub enum Instruction {
     Subtract(usize, usize),
     Divide(usize, usize),
     Math(MathFunction, usize),
+    Compare(Comparison, usize, usize),
+    Select(usize, usize, usize),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Comparison {
+    Equal,
+    NotEqual,
+    Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
+}
+
+impl Comparison {
+    #[must_use]
+    #[allow(clippy::float_cmp)] // Language comparisons use IEEE equality, not tolerances.
+    pub fn evaluate(self, a: f64, b: f64) -> f64 {
+        f64::from(match self {
+            Self::Equal => a == b,
+            Self::NotEqual => a != b,
+            Self::Less => a < b,
+            Self::LessEqual => a <= b,
+            Self::Greater => a > b,
+            Self::GreaterEqual => a >= b,
+        })
+    }
+}
+
+impl Instruction {
+    #[must_use]
+    pub fn operands(&self) -> Vec<usize> {
+        match *self {
+            Self::Input(_) | Self::Constant(_) => vec![],
+            Self::Negate(a) | Self::Math(_, a) => vec![a],
+            Self::Add(a, b)
+            | Self::Subtract(a, b)
+            | Self::Multiply(a, b)
+            | Self::Divide(a, b)
+            | Self::Compare(_, a, b) => vec![a, b],
+            Self::Select(c, a, b) => vec![c, a, b],
+        }
+    }
+
+    pub(crate) fn remap(&self, mut map: impl FnMut(usize) -> usize) -> Self {
+        match *self {
+            Self::Input(i) => Self::Input(i),
+            Self::Constant(v) => Self::Constant(v),
+            Self::Negate(a) => Self::Negate(map(a)),
+            Self::Math(f, a) => Self::Math(f, map(a)),
+            Self::Add(a, b) => Self::Add(map(a), map(b)),
+            Self::Subtract(a, b) => Self::Subtract(map(a), map(b)),
+            Self::Multiply(a, b) => Self::Multiply(map(a), map(b)),
+            Self::Divide(a, b) => Self::Divide(map(a), map(b)),
+            Self::Compare(c, a, b) => Self::Compare(c, map(a), map(b)),
+            Self::Select(c, a, b) => Self::Select(map(c), map(a), map(b)),
+        }
+    }
+
+    pub(crate) fn constant(&self, values: &[Option<f64>]) -> Option<f64> {
+        Some(match *self {
+            Self::Input(_) => return None,
+            Self::Constant(v) => v,
+            Self::Add(a, b) => values[a]? + values[b]?,
+            Self::Subtract(a, b) => values[a]? - values[b]?,
+            Self::Multiply(a, b) => values[a]? * values[b]?,
+            Self::Divide(a, b) => values[a]? / values[b]?,
+            Self::Negate(a) => -values[a]?,
+            Self::Math(f, a) => f.evaluate(values[a]?),
+            Self::Compare(c, a, b) => c.evaluate(values[a]?, values[b]?),
+            Self::Select(c, a, b) => values[if values[c]? == 0.0 { b } else { a }]?,
+        })
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -64,6 +137,10 @@ impl PartialEq for Instruction {
             (Self::Subtract(a, b), Self::Subtract(c, d))
             | (Self::Divide(a, b), Self::Divide(c, d)) => a == c && b == d,
             (Self::Math(f, a), Self::Math(g, b)) => f == g && a == b,
+            (Self::Compare(lhs, a, b), Self::Compare(rhs, c, d)) => lhs == rhs && a == c && b == d,
+            (Self::Select(cond, a, b), Self::Select(other_cond, c, d)) => {
+                cond == other_cond && a == c && b == d
+            }
             _ => false,
         }
     }
@@ -109,8 +186,10 @@ impl Program {
                 Instruction::Add(a, b)
                 | Instruction::Multiply(a, b)
                 | Instruction::Subtract(a, b)
-                | Instruction::Divide(a, b) => a < index && b < index,
+                | Instruction::Divide(a, b)
+                | Instruction::Compare(_, a, b) => a < index && b < index,
                 Instruction::Negate(a) | Instruction::Math(_, a) => a < index,
+                Instruction::Select(c, a, b) => c < index && a < index && b < index,
             };
             if !valid {
                 return Err(EvalError(format!("invalid numerical instruction {index}")));
@@ -141,6 +220,35 @@ impl Program {
     #[must_use]
     pub fn outputs(&self) -> &[usize] {
         &self.outputs
+    }
+
+    /// Remove instructions that cannot contribute to the selected outputs.
+    #[must_use]
+    pub fn pruned(&self) -> Self {
+        let mut used = vec![false; self.instructions.len()];
+        for &id in &self.outputs {
+            used[id] = true;
+        }
+        for i in (0..used.len()).rev() {
+            if used[i] {
+                for id in self.instructions[i].operands() {
+                    used[id] = true;
+                }
+            }
+        }
+        let mut mapping = vec![0; used.len()];
+        let mut instructions = Vec::new();
+        for (i, op) in self.instructions.iter().enumerate() {
+            if used[i] {
+                mapping[i] = instructions.len();
+                instructions.push(op.remap(|id| mapping[id]));
+            }
+        }
+        Self {
+            input_count: self.input_count,
+            instructions,
+            outputs: self.outputs.iter().map(|&id| mapping[id]).collect(),
+        }
     }
 }
 
@@ -185,6 +293,10 @@ impl Kernel for ReferenceKernel {
                 Instruction::Subtract(a, b) => self.registers[a] - self.registers[b],
                 Instruction::Divide(a, b) => self.registers[a] / self.registers[b],
                 Instruction::Math(function, a) => function.evaluate(self.registers[a]),
+                Instruction::Compare(c, a, b) => c.evaluate(self.registers[a], self.registers[b]),
+                Instruction::Select(c, a, b) => {
+                    self.registers[if self.registers[c] == 0.0 { b } else { a }]
+                }
             };
         }
         for (output, &id) in outputs.iter_mut().zip(&self.program.outputs) {

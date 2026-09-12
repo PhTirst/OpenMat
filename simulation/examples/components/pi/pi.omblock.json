@@ -1,0 +1,72 @@
+{
+  "format": "openmat-component",
+  "schemaVersion": 1,
+  "definition": {
+    "id": "om_pi",
+    "name": "Discrete PI",
+    "category": "Controllers",
+    "icon": "controller",
+    "inputs": [
+      {
+        "name": "error",
+        "width": 1
+      }
+    ],
+    "outputs": [
+      {
+        "name": "command",
+        "width": 1
+      }
+    ],
+    "parameters": [
+      {
+        "name": "kp",
+        "label": "Proportional gain",
+        "value": [
+          1.2
+        ],
+        "minimum": 0
+      },
+      {
+        "name": "ki",
+        "label": "Integral gain",
+        "value": [
+          0.8
+        ],
+        "minimum": 0
+      },
+      {
+        "name": "period",
+        "label": "Update period (match sample time)",
+        "unit": "s",
+        "value": [
+          0.1
+        ],
+        "minimum": 0.000001
+      },
+      {
+        "name": "limit",
+        "label": "Output limit",
+        "value": [
+          6
+        ],
+        "minimum": 0.000001
+      }
+    ],
+    "continuousStates": 0,
+    "discreteStates": 2,
+    "sampleTime": 0.1,
+    "initialize": {
+      "source": "om_pi_initialize.m",
+      "entry": "om_pi_initialize"
+    },
+    "outputsFunction": {
+      "source": "om_pi_outputs.m",
+      "entry": "om_pi_outputs"
+    },
+    "update": {
+      "source": "om_pi_update.m",
+      "entry": "om_pi_update"
+    }
+  }
+}

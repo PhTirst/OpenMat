@@ -5,7 +5,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
-use openmat_sim::model::{BlockKind, Model};
+use openmat_sim::model::Model;
 use openmat_sim::numeric::{Kernel, ReferenceKernel};
 use openmat_sim::{CollectionLimits, MAX_SOURCE_BYTES, Runner, SourceBundle, compile_with_sources};
 use openmat_sim_llvm::{LlvmKernel, emit_llvm};
@@ -33,7 +33,7 @@ fn main() {
         print!("{USAGE}");
         return;
     }
-    if let Err(error) = parse_options(&args).and_then(execute) {
+    if let Err(error) = parse_options(&args).and_then(|options| execute(&options)) {
         eprintln!("{}", json!({"ok": false, "error": error}));
         std::process::exit(1);
     }
@@ -157,7 +157,7 @@ fn read_model(path: &Path) -> Result<Model, Value> {
         serde_json::from_slice(&bytes).map_err(|e| failure("model_json", e.to_string()))?;
     let model = if raw.get("format").is_some() {
         if raw["format"] != "openmat-simulation"
-            || !matches!(raw["schemaVersion"].as_u64(), Some(1 | 2))
+            || !matches!(raw["schemaVersion"].as_u64(), Some(1..=3))
         {
             return Err(failure("model_json", "unsupported authoring document"));
         }
@@ -165,6 +165,12 @@ fn read_model(path: &Path) -> Result<Model, Value> {
             return Err(failure(
                 "model_json",
                 "schema-1 authoring documents require a schema-1 numerical model",
+            ));
+        }
+        if raw["schemaVersion"].as_u64() < raw["model"]["schemaVersion"].as_u64() {
+            return Err(failure(
+                "model_json",
+                "authoring version cannot be older than its numerical model",
             ));
         }
         raw["model"].clone()
@@ -183,10 +189,7 @@ fn read_sources(model: &Model, path: &Path) -> Result<SourceBundle, Value> {
         .canonicalize()
         .map_err(|e| failure("source_file", e.to_string()))?;
     let mut sources = SourceBundle::new();
-    for block in &model.blocks {
-        let BlockKind::MFunction { source, .. } = &block.kind else {
-            continue;
-        };
+    for source in openmat_sim::component::source_references(model) {
         if sources.contains_key(source) {
             continue;
         }
@@ -214,7 +217,7 @@ fn read_sources(model: &Model, path: &Path) -> Result<SourceBundle, Value> {
         }
         let content = String::from_utf8(read_bytes(&file, MAX_SOURCE_BYTES as u64)?)
             .map_err(|e| failure("source_file", e.to_string()))?;
-        sources.insert(source.clone(), content);
+        sources.insert(source.to_owned(), content);
     }
     Ok(sources)
 }
@@ -248,7 +251,7 @@ fn read_bytes(path: &Path, limit: u64) -> Result<Vec<u8>, Value> {
     Ok(bytes)
 }
 
-fn execute(options: Options) -> Result<(), Value> {
+fn execute(options: &Options) -> Result<(), Value> {
     if ["inspect-slx", "import-slx"].contains(&options.command.as_str()) {
         let imported = read_slx(&options.model)?;
         let lowered = imported.lower();
@@ -279,13 +282,13 @@ fn execute(options: Options) -> Result<(), Value> {
     }
     let mut execution = json!({"backend": "reference"});
     let kernel: Box<dyn Kernel> = if options.backend == "llvm" {
-        let library = options.llvm_library.ok_or_else(|| {
+        let library = options.llvm_library.as_ref().ok_or_else(|| {
             failure(
                 "llvm_library",
                 "set --llvm-library or OPENMAT_SIM_LLVM_LIBRARY to the LLVM 22 shared library",
             )
         })?;
-        let kernel = LlvmKernel::compile(plan.program().clone(), &library)
+        let kernel = LlvmKernel::compile(plan.program().clone(), library)
             .map_err(|e| failure("llvm_compile", e.to_string()))?;
         kernel
             .verify_abi_guards()
@@ -295,8 +298,23 @@ fn execute(options: Options) -> Result<(), Value> {
     } else {
         Box::new(ReferenceKernel::new(plan.program().clone()))
     };
+    let update: Option<Box<dyn Kernel>> = plan
+        .update_program()
+        .map(|p| {
+            if options.backend == "llvm" {
+                LlvmKernel::compile(
+                    p.clone(),
+                    options.llvm_library.as_ref().expect("validated LLVM path"),
+                )
+                .map(|k| Box::new(k) as Box<dyn Kernel>)
+                .map_err(|e| failure("llvm_compile", e.to_string()))
+            } else {
+                Ok(Box::new(ReferenceKernel::new(p.clone())) as Box<dyn Kernel>)
+            }
+        })
+        .transpose()?;
     let count = plan.continuous_state_count();
-    let result = Runner::new(plan, kernel)
+    let result = Runner::new_with_update(plan, kernel, update)
         .and_then(|mut runner| {
             execution["solver"] = json!(options.solver);
             if options.solver != "rk4" {

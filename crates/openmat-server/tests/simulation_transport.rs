@@ -79,6 +79,85 @@ fn request_v2(socket: &mut Socket, id: &str, operation: &str, data: Value) {
     socket.send(Message::text(message.to_string())).unwrap();
 }
 
+fn request_v3(socket: &mut Socket, id: &str, operation: &str, data: Value) {
+    let mut message =
+        json!({"protocol":"openmat-simulation-v3","requestId":id,"operation":operation});
+    let Value::Object(data) = data else {
+        panic!("request data must be an object")
+    };
+    message.as_object_mut().unwrap().extend(data);
+    socket.send(Message::text(message.to_string())).unwrap();
+}
+
+#[test]
+fn v3_runs_stateful_source_snapshots_and_rejects_them_on_v2() {
+    let mut server = Server::start();
+    server.url = server.url.replace("/simulation/v1", "/simulation/v2");
+    let mut legacy = server.connect();
+    server.url = server.url.replace("/simulation/v2", "/simulation/v3");
+    let mut socket = server.connect();
+    request_v3(&mut socket, "catalog", "catalog", json!({}));
+    let catalog = read(&mut socket);
+    assert_eq!(catalog["protocol"], "openmat-simulation-v3");
+    assert_eq!(catalog["result"]["blocks"].as_array().unwrap().len(), 8);
+    let model: Value = serde_json::from_str(include_str!(
+        "../../../simulation/examples/custom-delay.omsim.json"
+    ))
+    .unwrap();
+    let sources = json!({
+        "components/delay/om_delay_initialize.m":include_str!("../../../simulation/examples/components/delay/om_delay_initialize.m"),
+        "components/delay/om_delay_outputs.m":include_str!("../../../simulation/examples/components/delay/om_delay_outputs.m"),
+        "components/delay/om_delay_update.m":include_str!("../../../simulation/examples/components/delay/om_delay_update.m")
+    });
+    request_v2(
+        &mut legacy,
+        "reject",
+        "check",
+        json!({"model":model,"sources":sources,"revision":"older"}),
+    );
+    assert_eq!(read(&mut legacy)["error"]["code"], "protocol");
+    let mut broken = sources.clone();
+    broken["components/delay/om_delay_update.m"] =
+        json!("function z = om_delay_update(t,x,q,u,p)\nz=eval('u');\nend");
+    request_v3(
+        &mut socket,
+        "bad-callback",
+        "check",
+        json!({"model":model,"sources":broken,"revision":"bad"}),
+    );
+    let error = read(&mut socket);
+    assert_eq!(
+        error["error"]["sourcePath"],
+        "components/delay/om_delay_update.m"
+    );
+    assert_eq!(error["error"]["line"], 2);
+    request_v3(
+        &mut socket,
+        "stateful",
+        "run",
+        json!({"model":model,"sources":sources,"revision":"frozen-stateful"}),
+    );
+    let ack = read(&mut socket);
+    assert_eq!(ack["ok"], true, "{ack}");
+    assert_eq!(ack["result"]["backend"], "reference");
+    let mut samples = false;
+    loop {
+        let event = read(&mut socket);
+        assert_eq!(event["protocol"], "openmat-simulation-v3");
+        assert_eq!(event["revision"], "frozen-stateful");
+        if event["event"] == "finished" {
+            assert_eq!(
+                event["data"]["time"].as_f64(),
+                model["settings"]["stopTime"].as_f64()
+            );
+            break;
+        }
+        assert_eq!(event["event"], "samples", "{event}");
+        samples = true;
+    }
+    assert!(samples);
+}
+
 #[test]
 fn v2_compiles_source_snapshots_and_preserves_the_legacy_endpoint() {
     let mut server = Server::start();

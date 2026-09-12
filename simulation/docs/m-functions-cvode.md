@@ -5,6 +5,11 @@ CVODE selectable through the existing native server. The ordinary m-language
 bytecode VM is unchanged. This is a pure numerical function block, not MATLAB's
 complete S-function lifecycle or MATLAB Function block compatibility.
 
+Schema-3 [stateful components](stateful-components.md) now add OpenMat's own
+initialize/outputs/derivatives/update callbacks, private states, fixed matrices,
+bounded loops and a project component library. This guide retains the earlier
+schema-2 M Function subset and describes the shared native runtime setup.
+
 ## Try it in the editor
 
 1. Start the source checkout normally and open **模型编辑器**.
@@ -134,7 +139,7 @@ listener. `/simulation/v1` remains available for legacy schema-1 models.
 New function support does not widen SLX compatibility: arbitrary imported
 MATLAB Function/S-function blocks are still unsupported.
 
-Stateful S-functions, multiple rates, zero-crossing/reset events, general
+Full MATLAB S-function compatibility, multiple rates, zero-crossing/reset events, general
 algebraic-loop solving, DAE/IDA, ordinary m JIT and C code generation are future
 work. This phase establishes the shared pure numerical IR and ODE integration
 boundary needed for that work.

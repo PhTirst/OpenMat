@@ -28,7 +28,7 @@ pub(crate) fn validate_bundle(sources: &SourceBundle) -> Result<(), ModelError> 
 }
 
 #[allow(clippy::case_sensitive_file_extension_comparisons)] // Source bundle paths are portable and case-sensitive by contract.
-fn valid_path(path: &str) -> bool {
+pub(crate) fn valid_path(path: &str) -> bool {
     path.len() <= 512
         && path.ends_with(".m")
         && !path.contains(['\\', ':', '\0'])

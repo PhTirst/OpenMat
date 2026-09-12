@@ -21,6 +21,7 @@ use crate::ServerError;
 
 const PROTOCOL: &str = "openmat-simulation-v1";
 const PROTOCOL_V2: &str = "openmat-simulation-v2";
+const PROTOCOL_V3: &str = "openmat-simulation-v3";
 const MAX_MESSAGE: usize = 8 * 1024 * 1024;
 const MAX_SLX: usize = 2 * 1024 * 1024;
 const MAX_SAMPLES: usize = 100_000;
@@ -363,7 +364,8 @@ fn import_slx(name: &str, bytes: &[u8]) -> Result<Value, Value> {
 #[allow(clippy::too_many_lines)] // Keep both protocol versions and connection-owned job dispatch together.
 fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
     let id = &request.id;
-    let v2 = request.protocol == PROTOCOL_V2;
+    let v3 = request.protocol == PROTOCOL_V3;
+    let v2 = request.protocol == PROTOCOL_V2 || v3;
     if (request.protocol != PROTOCOL && !v2) || id.is_empty() || id.len() > 128 {
         return Some(failure(
             if id.len() <= 128 { id } else { "" },
@@ -381,6 +383,10 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
                 result["execution"] = simulation_execution::capabilities();
                 result["blocks"].as_array_mut().expect("catalog array").push(json!({"type":"mFunction","label":"M Function","category":"Functions","icon":"mFunction","inputs":["u"],"outputs":["out"]}));
             }
+            if v3 {
+                result["schemaVersion"] = json!(3);
+                result["blocks"].as_array_mut().expect("catalog array").push(json!({"type":"component","label":"Component","category":"Components","icon":"component","inputs":[],"outputs":[]}));
+            }
             response(id, result)
         }
         Operation::Check {
@@ -389,6 +395,12 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
             sources,
             execution,
         } => {
+            if !v3 && model.schema_version >= 3 {
+                return Some(failure(
+                    id,
+                    error("protocol", "stateful components require /simulation/v3"),
+                ));
+            }
             if !v2 && (sources.is_some() || execution.is_some() || model.schema_version != 1) {
                 return Some(failure(
                     id,
@@ -425,6 +437,12 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
             sources,
             execution,
         } => {
+            if !v3 && model.schema_version >= 3 {
+                return Some(failure(
+                    id,
+                    error("protocol", "stateful components require /simulation/v3"),
+                ));
+            }
             if !v2 && (sources.is_some() || execution.is_some() || model.schema_version != 1) {
                 return Some(failure(
                     id,
@@ -492,8 +510,12 @@ fn send(
     Ok(())
 }
 
-pub(crate) fn serve(socket: &mut WebSocket<TcpStream>, v2: bool) -> Result<(), ServerError> {
-    let protocol = if v2 { PROTOCOL_V2 } else { PROTOCOL };
+pub(crate) fn serve(socket: &mut WebSocket<TcpStream>, version: u32) -> Result<(), ServerError> {
+    let protocol = match version {
+        3 => PROTOCOL_V3,
+        2 => PROTOCOL_V2,
+        _ => PROTOCOL,
+    };
     let mut job: Option<Job> = None;
     loop {
         if let Some(active) = &mut job {
@@ -582,6 +604,48 @@ pub(crate) fn serve(socket: &mut WebSocket<TcpStream>, v2: bool) -> Result<(), S
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn component_protocol_keeps_older_routes_strict() {
+        let model: Model = serde_json::from_str(include_str!(
+            "../../../simulation/examples/custom-delay.omsim.json"
+        ))
+        .unwrap();
+        for protocol in [PROTOCOL, PROTOCOL_V2] {
+            let response = handle(
+                Request {
+                    protocol: protocol.into(),
+                    id: "component".into(),
+                    operation: Operation::Check {
+                        model: model.clone(),
+                        revision: "1".into(),
+                        sources: None,
+                        execution: None,
+                    },
+                },
+                &mut None,
+            )
+            .unwrap();
+            assert_eq!(response["error"]["code"], "protocol");
+        }
+        let response = handle(
+            Request {
+                protocol: PROTOCOL_V3.into(),
+                id: "catalog".into(),
+                operation: Operation::Catalog,
+            },
+            &mut None,
+        )
+        .unwrap();
+        assert_eq!(response["result"]["schemaVersion"], 3);
+        assert!(
+            response["result"]["blocks"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|b| b["type"] == "component")
+        );
+    }
 
     fn model() -> Model {
         serde_json::from_str(include_str!(

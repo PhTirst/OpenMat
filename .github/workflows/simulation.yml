@@ -2,9 +2,9 @@ name: OpenMat simulation kernel
 
 on:
   push:
-    paths: ['simulation/**', 'crates/openmat-parser/**', 'crates/openmat-hir/**', 'crates/openmat-source/**', 'crates/openmat-syntax/**', 'crates/openmat-server/**', 'Cargo.toml', 'Cargo.lock', 'docs/rfcs/0010-simulation-kernel-v0.md', 'docs/rfcs/0011-slx-import-v0.md', 'docs/rfcs/0013-m-function-cvode-v1.md', '.github/workflows/simulation.yml']
+    paths: ['simulation/**', 'crates/openmat-parser/**', 'crates/openmat-hir/**', 'crates/openmat-source/**', 'crates/openmat-syntax/**', 'crates/openmat-server/**', 'Cargo.toml', 'Cargo.lock', 'docs/rfcs/0010-simulation-kernel-v0.md', 'docs/rfcs/0011-slx-import-v0.md', 'docs/rfcs/0013-m-function-cvode-v1.md', 'docs/rfcs/0014-stateful-simulation-components-v1.md', '.github/workflows/simulation.yml']
   pull_request:
-    paths: ['simulation/**', 'crates/openmat-parser/**', 'crates/openmat-hir/**', 'crates/openmat-source/**', 'crates/openmat-syntax/**', 'crates/openmat-server/**', 'Cargo.toml', 'Cargo.lock', 'docs/rfcs/0010-simulation-kernel-v0.md', 'docs/rfcs/0011-slx-import-v0.md', 'docs/rfcs/0013-m-function-cvode-v1.md', '.github/workflows/simulation.yml']
+    paths: ['simulation/**', 'crates/openmat-parser/**', 'crates/openmat-hir/**', 'crates/openmat-source/**', 'crates/openmat-syntax/**', 'crates/openmat-server/**', 'Cargo.toml', 'Cargo.lock', 'docs/rfcs/0010-simulation-kernel-v0.md', 'docs/rfcs/0011-slx-import-v0.md', 'docs/rfcs/0013-m-function-cvode-v1.md', 'docs/rfcs/0014-stateful-simulation-components-v1.md', '.github/workflows/simulation.yml']
   workflow_dispatch:
 
 permissions:
@@ -51,6 +51,10 @@ jobs:
       - name: Require real CVODE and compiled m function execution
         if: runner.os == 'Windows'
         run: cargo test --manifest-path simulation/Cargo.toml --locked -p openmat-sim-sundials --test native -- --ignored --nocapture
-      - name: Require v1 and v2 server transport with native execution
+      - name: Require v1, v2 and v3 server transport with native execution
         if: runner.os == 'Windows'
         run: cargo test --locked -p openmat-server --test simulation_transport -- --include-ignored
+
+      - name: Require stateful component execution with LLVM and CVODE
+        if: runner.os == 'Windows'
+        run: cargo test --locked -p openmat-server component -- --include-ignored

@@ -1,0 +1,169 @@
+{
+  "schemaVersion": 3,
+  "name": "Mass Spring Damper",
+  "settings": {
+    "startTime": 0,
+    "stopTime": 10,
+    "maxStep": 0.02,
+    "sampleTime": 0.1
+  },
+  "components": [
+    {
+      "id": "om_mass_spring",
+      "name": "Mass Spring Damper",
+      "category": "Continuous",
+      "icon": "plant",
+      "inputs": [
+        {
+          "name": "force",
+          "width": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "position",
+          "width": 1
+        },
+        {
+          "name": "velocity",
+          "width": 1
+        }
+      ],
+      "parameters": [
+        {
+          "name": "mass",
+          "label": "Mass",
+          "unit": "kg",
+          "value": [
+            1
+          ],
+          "minimum": 0.000001
+        },
+        {
+          "name": "damping",
+          "label": "Damping",
+          "value": [
+            0.8
+          ],
+          "minimum": 0
+        },
+        {
+          "name": "stiffness",
+          "label": "Stiffness",
+          "value": [
+            4
+          ],
+          "minimum": 0
+        },
+        {
+          "name": "position0",
+          "label": "Initial position",
+          "unit": "m",
+          "value": [
+            0
+          ]
+        },
+        {
+          "name": "velocity0",
+          "label": "Initial velocity",
+          "value": [
+            0
+          ]
+        }
+      ],
+      "continuousStates": 2,
+      "discreteStates": 0,
+      "initialize": {
+        "source": "components/mass_spring/om_mass_spring_initialize.m",
+        "entry": "om_mass_spring_initialize"
+      },
+      "outputsFunction": {
+        "source": "components/mass_spring/om_mass_spring_outputs.m",
+        "entry": "om_mass_spring_outputs"
+      },
+      "derivatives": {
+        "source": "components/mass_spring/om_mass_spring_derivatives.m",
+        "entry": "om_mass_spring_derivatives"
+      }
+    }
+  ],
+  "blocks": [
+    {
+      "id": "force",
+      "kind": {
+        "type": "constant",
+        "value": [
+          1
+        ]
+      },
+      "position": {
+        "x": 60,
+        "y": 140
+      }
+    },
+    {
+      "id": "plant",
+      "kind": {
+        "type": "component",
+        "component": "om_mass_spring",
+        "parameters": {}
+      },
+      "position": {
+        "x": 320,
+        "y": 140
+      }
+    },
+    {
+      "id": "position",
+      "kind": {
+        "type": "scope"
+      },
+      "position": {
+        "x": 610,
+        "y": 80
+      }
+    },
+    {
+      "id": "velocity",
+      "kind": {
+        "type": "scope"
+      },
+      "position": {
+        "x": 610,
+        "y": 270
+      }
+    }
+  ],
+  "connections": [
+    {
+      "from": {
+        "block": "force",
+        "port": "out"
+      },
+      "to": {
+        "block": "plant",
+        "port": "force"
+      }
+    },
+    {
+      "from": {
+        "block": "plant",
+        "port": "position"
+      },
+      "to": {
+        "block": "position",
+        "port": "in"
+      }
+    },
+    {
+      "from": {
+        "block": "plant",
+        "port": "velocity"
+      },
+      "to": {
+        "block": "velocity",
+        "port": "in"
+      }
+    }
+  ]
+}

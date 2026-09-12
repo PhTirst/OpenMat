@@ -244,18 +244,12 @@ where
         ))?;
         return run_workspace_connection(&mut socket, &service, protocol);
     }
-    if matches!(
-        endpoint.get(),
-        Some(Endpoint::Simulation | Endpoint::SimulationV2)
-    ) {
+    if let Some(version) = endpoint.get().and_then(Endpoint::simulation_version) {
         socket
             .get_mut()
             .set_read_timeout(Some(Duration::from_millis(10)))
             .map_err(ServerError::WebSocketIo)?;
-        return crate::simulation_websocket::serve(
-            &mut socket,
-            endpoint.get() == Some(Endpoint::SimulationV2),
-        );
+        return crate::simulation_websocket::serve(&mut socket, version);
     }
     if endpoint.get() == Some(Endpoint::Lsp) {
         socket
@@ -661,8 +655,20 @@ enum Endpoint {
     Lsp,
     Simulation,
     SimulationV2,
+    SimulationV3,
     Graphics(openmat_plot_protocol::GraphicsProtocol),
     Workspace(WorkspaceProtocol),
+}
+
+impl Endpoint {
+    fn simulation_version(self) -> Option<u32> {
+        match self {
+            Self::Simulation => Some(1),
+            Self::SimulationV2 => Some(2),
+            Self::SimulationV3 => Some(3),
+            _ => None,
+        }
+    }
 }
 
 struct WorkspaceChangeMonitor {
@@ -1212,6 +1218,7 @@ fn validate_handshake(
         ("/lsp", None) => Endpoint::Lsp,
         ("/simulation/v1", None) => Endpoint::Simulation,
         ("/simulation/v2", None) => Endpoint::SimulationV2,
+        ("/simulation/v3", None) => Endpoint::SimulationV3,
         ("/graphics/v1", None) => Endpoint::Graphics(openmat_plot_protocol::GraphicsProtocol::V1),
         ("/graphics/v2", None) => Endpoint::Graphics(openmat_plot_protocol::GraphicsProtocol::V2),
         ("/graphics/v3", None) => Endpoint::Graphics(openmat_plot_protocol::GraphicsProtocol::V3),
@@ -1228,7 +1235,7 @@ fn validate_handshake(
         _ => {
             return Err(handshake_rejection(
                 StatusCode::NOT_FOUND,
-                "WebSocket endpoints are /kernel, /lsp, /simulation/v1, /simulation/v2, /graphics/v1, /graphics/v2, /graphics/v3, /graphics/v4, and configured /workspace/v1, /workspace/v2, or /workspace/v3",
+                "WebSocket endpoints are /kernel, /lsp, /simulation/v1, /simulation/v2, /simulation/v3, /graphics/v1, /graphics/v2, /graphics/v3, /graphics/v4, and configured /workspace/v1, /workspace/v2, or /workspace/v3",
             ));
         }
     };

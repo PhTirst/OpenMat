@@ -81,6 +81,7 @@ pub(crate) fn lower(document: &Document, package: &Package) -> Result<Model, Vec
         return Err(vec![error]);
     }
     let model = Model {
+        components: Vec::new(),
         schema_version: 1,
         name: document.name.clone(),
         settings,

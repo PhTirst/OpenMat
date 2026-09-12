@@ -5,8 +5,10 @@ This workspace implements the numerical foundation for OpenMat's
 and a constrained R2022b SLX subset with a Rust reference interpreter or actual
 LLVM ORC machine code. The web/desktop editor and CLI support pure m function
 blocks and optional CVODE through the existing native server. The ordinary
-m-language bytecode VM is unchanged. See [m functions and CVODE](docs/m-functions-cvode.md)
-for the current subset, setup, file workflow and limitations.
+m-language bytecode VM is unchanged. Schema-3 [stateful m components](docs/stateful-components.md)
+add private instance states, lifecycle callbacks, fixed matrices, bounded loops
+and a reusable project component library. See [m functions and CVODE](docs/m-functions-cvode.md)
+for native runtime setup and the earlier pure function subset.
 
 The contract is [RFC 0010](../docs/rfcs/0010-simulation-kernel-v0.md). Fixtures and
 tests are authored for OpenMat using elementary mathematical models; no MATLAB
@@ -42,6 +44,9 @@ serialized buffer layout does not change m-language one-based indexing.
 | [first-order](examples/first-order.omsim.json) | Continuous feedback, `x' = 1 - x`, `x(0) = 0` | `x(t) = 1 - exp(-t)`; about 0.63212054 at t = 1 with the supplied step |
 | [delay-counter](examples/delay-counter.omsim.json) | UnitDelay feedback, `y[k+1] = 1 + y[k]` | 0, 1, 2, 3 at t = 0, 0.1, 0.2, 0.3; constant between hits |
 | [sampled-feedback](examples/sampled-feedback.omsim.json) | `x' = 1 - q`; q is the preceding sample of x | At the five hits, x = [0, .1, .2, .29, .37], q = [0, 0, .1, .2, .29] |
+| [custom-delay](examples/custom-delay.omsim.json) | Stateful m UnitDelay | Initial output at zero; sampled input appears one period later |
+| [mass-spring-damper](examples/mass-spring-damper.omsim.json) | Two continuous states with matrix RHS | Separate position and velocity traces |
+| [pi-control](examples/pi-control.omsim.json) | Sampled PI driving a continuous plant | Held command, saturation and continuous response |
 
 The first model can be read as:
 
@@ -118,7 +123,8 @@ instances may be created and run on independent threads.
 
 ## Model and execution rules
 
-Models use UTF-8 JSON, suffix `.omsim.json`, and `schemaVersion: 1`. Blocks have
+The original built-in models use UTF-8 JSON, suffix `.omsim.json`, and `schemaVersion: 1`.
+Pure m functions require schema 2 and stateful components require schema 3. Blocks have
 stable ASCII IDs, a `kind` record, and optional editor `position`. Connections
 reference a block ID and port name at each end. Reordering or moving blocks does
 not change the compiled numerical program. Unknown fields are rejected.

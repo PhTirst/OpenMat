@@ -1,0 +1,82 @@
+{
+  "format": "openmat-component",
+  "schemaVersion": 1,
+  "definition": {
+    "id": "om_mass_spring",
+    "name": "Mass Spring Damper",
+    "category": "Continuous",
+    "icon": "plant",
+    "inputs": [
+      {
+        "name": "force",
+        "width": 1
+      }
+    ],
+    "outputs": [
+      {
+        "name": "position",
+        "width": 1
+      },
+      {
+        "name": "velocity",
+        "width": 1
+      }
+    ],
+    "parameters": [
+      {
+        "name": "mass",
+        "label": "Mass",
+        "unit": "kg",
+        "value": [
+          1
+        ],
+        "minimum": 0.000001
+      },
+      {
+        "name": "damping",
+        "label": "Damping",
+        "value": [
+          0.8
+        ],
+        "minimum": 0
+      },
+      {
+        "name": "stiffness",
+        "label": "Stiffness",
+        "value": [
+          4
+        ],
+        "minimum": 0
+      },
+      {
+        "name": "position0",
+        "label": "Initial position",
+        "unit": "m",
+        "value": [
+          0
+        ]
+      },
+      {
+        "name": "velocity0",
+        "label": "Initial velocity",
+        "value": [
+          0
+        ]
+      }
+    ],
+    "continuousStates": 2,
+    "discreteStates": 0,
+    "initialize": {
+      "source": "om_mass_spring_initialize.m",
+      "entry": "om_mass_spring_initialize"
+    },
+    "outputsFunction": {
+      "source": "om_mass_spring_outputs.m",
+      "entry": "om_mass_spring_outputs"
+    },
+    "derivatives": {
+      "source": "om_mass_spring_derivatives.m",
+      "entry": "om_mass_spring_derivatives"
+    }
+  }
+}

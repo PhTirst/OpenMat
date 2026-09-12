@@ -1,6 +1,6 @@
 use std::fmt::Write;
 
-use openmat_sim::numeric::{Instruction, KERNEL_ABI_VERSION, Program};
+use openmat_sim::numeric::{Comparison, Instruction, KERNEL_ABI_VERSION, Program};
 
 /// Emit standalone LLVM IR for a verified program and C kernel ABI v1.
 #[must_use]
@@ -26,6 +26,20 @@ pub fn emit_llvm(program: &Program) -> String {
         .collect();
     for (index, instruction) in program.instructions().iter().enumerate() {
         match *instruction {
+            Instruction::Compare(compare, a, b) => {
+                let predicate = match compare {
+                    Comparison::Equal => "oeq",
+                    Comparison::NotEqual => "une",
+                    Comparison::Less => "olt",
+                    Comparison::LessEqual => "ole",
+                    Comparison::Greater => "ogt",
+                    Comparison::GreaterEqual => "oge",
+                };
+                writeln!(ir, "  %cmp{index} = fcmp {predicate} double {}, {}\n  %v{index} = uitofp i1 %cmp{index} to double", operands[a],operands[b]).unwrap();
+            }
+            Instruction::Select(c, a, b) => {
+                writeln!(ir, "  %cond{index} = fcmp une double {}, 0.000000e+00\n  %v{index} = select i1 %cond{index}, double {}, double {}", operands[c],operands[a],operands[b]).unwrap();
+            }
             Instruction::Input(input) => {
                 writeln!(ir, "  %p{index} = getelementptr double, ptr %inputs, i64 {input}\n  %v{index} = load double, ptr %p{index}, align 8").unwrap();
             }

@@ -3,6 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde::Serialize;
 
+use crate::model::Port;
 use crate::numeric::Kernel;
 use crate::solver::{ContinuousSolver, OdeStep, SolverStats};
 use crate::{CompiledModel, ScopeInfo};
@@ -83,7 +84,7 @@ impl Scratch {
     fn evaluate<K: Kernel>(
         &mut self,
         kernel: &mut K,
-        plan: &CompiledModel,
+        origins: &[Port],
         time: f64,
         continuous: &[f64],
         discrete: &[f64],
@@ -105,7 +106,7 @@ impl Scratch {
             .evaluate(&self.inputs, &mut self.outputs)
             .map_err(|e| RunError::new("kernel", e.to_string()))?;
         if let Some(index) = self.outputs.iter().position(|v| !v.is_finite()) {
-            let origin = &plan.origins[index];
+            let origin = &origins[index];
             return Err(RunError {
                 code: "non_finite_output",
                 message: format!("non-finite numerical output at time {time}"),
@@ -124,6 +125,8 @@ impl Scratch {
 pub struct Runner<K> {
     plan: CompiledModel,
     kernel: K,
+    update_kernel: Option<K>,
+    update_scratch: Scratch,
     time: f64,
     continuous: Vec<f64>,
     held: Vec<f64>,
@@ -144,10 +147,27 @@ impl<K: Kernel> Runner<K> {
     /// # Errors
     /// Rejects incompatible kernels and failures during initial evaluation.
     pub fn new(plan: CompiledModel, kernel: K) -> Result<Self, RunError> {
+        Self::new_with_update(plan, kernel, None)
+    }
+
+    /// Initialize a model with a separate discrete update kernel.
+    /// # Errors
+    /// Rejects mismatched or missing kernels and invalid initial evaluations.
+    pub fn new_with_update(
+        plan: CompiledModel,
+        kernel: K,
+        update_kernel: Option<K>,
+    ) -> Result<Self, RunError> {
         if kernel.program() != &plan.program {
             return Err(RunError::new(
                 "kernel_mismatch",
                 "kernel was compiled for a different numerical program",
+            ));
+        }
+        if update_kernel.as_ref().map(Kernel::program) != plan.update_program.as_ref() {
+            return Err(RunError::new(
+                "kernel_mismatch",
+                "discrete update kernel is missing or was compiled for a different program",
             ));
         }
         let count = plan.continuous_initial.len();
@@ -165,6 +185,15 @@ impl<K: Kernel> Runner<K> {
                 inputs: vec![0.0; plan.program.input_count()],
                 outputs: vec![0.0; plan.program.output_count()],
             },
+            update_scratch: Scratch {
+                inputs: vec![0.0; plan.program.input_count()],
+                outputs: vec![
+                    0.0;
+                    plan.update_program
+                        .as_ref()
+                        .map_or(0, crate::numeric::Program::output_count)
+                ],
+            },
             trial: vec![0.0; count],
             slopes: std::array::from_fn(|_| vec![0.0; count]),
             next_tick: 1,
@@ -172,8 +201,19 @@ impl<K: Kernel> Runner<K> {
             solver: None,
             plan,
             kernel,
+            update_kernel,
         };
         runner.evaluate_current(&AtomicBool::new(false))?;
+        if let Some(kernel) = &mut runner.update_kernel {
+            runner.update_scratch.evaluate(
+                kernel,
+                &runner.plan.update_origins,
+                runner.time,
+                &runner.continuous,
+                &runner.held,
+                &AtomicBool::new(false),
+            )?;
+        }
         runner.capture_next();
         runner.capture_observations();
         Ok(runner)
@@ -255,6 +295,7 @@ impl<K: Kernel> Runner<K> {
         result
     }
 
+    #[allow(clippy::too_many_lines)] // Validate every candidate before the single state commit.
     fn advance_inner(&mut self, cancel: &AtomicBool) -> Result<Option<Frame>, RunError> {
         if cancel.load(Ordering::Relaxed) {
             return Err(RunError::new("cancelled", "simulation was cancelled"));
@@ -277,7 +318,7 @@ impl<K: Kernel> Runner<K> {
             let plan = &self.plan;
             let held = &self.held;
             let mut rhs = |time: f64, state: &[f64], derivatives: &mut [f64]| {
-                scratch.evaluate(kernel, plan, time, state, held, cancel)?;
+                scratch.evaluate(kernel, &plan.origins, time, state, held, cancel)?;
                 derivatives.copy_from_slice(&scratch.outputs[..state.len()]);
                 Ok(())
             };
@@ -328,7 +369,7 @@ impl<K: Kernel> Runner<K> {
         }
         self.scratch.evaluate(
             &mut self.kernel,
-            &self.plan,
+            &self.plan.origins,
             next,
             &self.trial,
             if sample_hit {
@@ -338,6 +379,16 @@ impl<K: Kernel> Runner<K> {
             },
             cancel,
         )?;
+        if sample_hit && let Some(kernel) = &mut self.update_kernel {
+            self.update_scratch.evaluate(
+                kernel,
+                &self.plan.update_origins,
+                next,
+                &self.trial,
+                &self.pending,
+                cancel,
+            )?;
+        }
         // Commit only after all candidate outputs are valid. Trial failures must
         // not expose partial state or observation changes to streaming callers.
         self.continuous.copy_from_slice(&self.trial);
@@ -355,7 +406,7 @@ impl<K: Kernel> Runner<K> {
     fn evaluate_current(&mut self, cancel: &AtomicBool) -> Result<(), RunError> {
         self.scratch.evaluate(
             &mut self.kernel,
-            &self.plan,
+            &self.plan.origins,
             self.time,
             &self.continuous,
             &self.held,
@@ -364,6 +415,10 @@ impl<K: Kernel> Runner<K> {
     }
 
     fn capture_next(&mut self) {
+        if self.update_kernel.is_some() {
+            self.pending.copy_from_slice(&self.update_scratch.outputs);
+            return;
+        }
         let count = self.continuous.len();
         self.pending
             .copy_from_slice(&self.scratch.outputs[count..count + self.held.len()]);
@@ -385,7 +440,7 @@ impl<K: Kernel> Runner<K> {
             }
             self.scratch.evaluate(
                 &mut self.kernel,
-                &self.plan,
+                &self.plan.origins,
                 self.time + fraction * step,
                 &self.trial,
                 &self.held,

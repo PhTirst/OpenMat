@@ -1,8 +1,11 @@
 //! Serializable authoring model, independent of editor and execution backend.
+use crate::component::ComponentDefinition;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 pub const SCHEMA_VERSION: u32 = 1;
 pub const FUNCTION_SCHEMA_VERSION: u32 = 2;
+pub const COMPONENT_SCHEMA_VERSION: u32 = 3;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -12,6 +15,8 @@ pub struct Model {
     pub settings: Settings,
     pub blocks: Vec<Block>,
     pub connections: Vec<Connection>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub components: Vec<ComponentDefinition>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -43,6 +48,11 @@ pub struct Position {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
 pub enum BlockKind {
+    Component {
+        component: String,
+        #[serde(default)]
+        parameters: BTreeMap<String, Vec<f64>>,
+    },
     Constant {
         value: Vec<f64>,
     },

@@ -1,0 +1,300 @@
+{
+  "schemaVersion": 3,
+  "name": "Discrete PI with Continuous Plant",
+  "settings": {
+    "startTime": 0,
+    "stopTime": 20,
+    "maxStep": 0.02,
+    "sampleTime": 0.1
+  },
+  "components": [
+    {
+      "id": "om_pi",
+      "name": "Discrete PI",
+      "category": "Controllers",
+      "icon": "controller",
+      "inputs": [
+        {
+          "name": "error",
+          "width": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "command",
+          "width": 1
+        }
+      ],
+      "parameters": [
+        {
+          "name": "kp",
+          "label": "Proportional gain",
+          "value": [
+            1.2
+          ],
+          "minimum": 0
+        },
+        {
+          "name": "ki",
+          "label": "Integral gain",
+          "value": [
+            0.8
+          ],
+          "minimum": 0
+        },
+        {
+          "name": "period",
+          "label": "Update period (match sample time)",
+          "unit": "s",
+          "value": [
+            0.1
+          ],
+          "minimum": 0.000001
+        },
+        {
+          "name": "limit",
+          "label": "Output limit",
+          "value": [
+            6
+          ],
+          "minimum": 0.000001
+        }
+      ],
+      "continuousStates": 0,
+      "discreteStates": 2,
+      "sampleTime": 0.1,
+      "initialize": {
+        "source": "components/pi/om_pi_initialize.m",
+        "entry": "om_pi_initialize"
+      },
+      "outputsFunction": {
+        "source": "components/pi/om_pi_outputs.m",
+        "entry": "om_pi_outputs"
+      },
+      "update": {
+        "source": "components/pi/om_pi_update.m",
+        "entry": "om_pi_update"
+      }
+    },
+    {
+      "id": "om_mass_spring",
+      "name": "Mass Spring Damper",
+      "category": "Continuous",
+      "icon": "plant",
+      "inputs": [
+        {
+          "name": "force",
+          "width": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "position",
+          "width": 1
+        },
+        {
+          "name": "velocity",
+          "width": 1
+        }
+      ],
+      "parameters": [
+        {
+          "name": "mass",
+          "label": "Mass",
+          "unit": "kg",
+          "value": [
+            1
+          ],
+          "minimum": 0.000001
+        },
+        {
+          "name": "damping",
+          "label": "Damping",
+          "value": [
+            0.8
+          ],
+          "minimum": 0
+        },
+        {
+          "name": "stiffness",
+          "label": "Stiffness",
+          "value": [
+            4
+          ],
+          "minimum": 0
+        },
+        {
+          "name": "position0",
+          "label": "Initial position",
+          "unit": "m",
+          "value": [
+            0
+          ]
+        },
+        {
+          "name": "velocity0",
+          "label": "Initial velocity",
+          "value": [
+            0
+          ]
+        }
+      ],
+      "continuousStates": 2,
+      "discreteStates": 0,
+      "initialize": {
+        "source": "components/mass_spring/om_mass_spring_initialize.m",
+        "entry": "om_mass_spring_initialize"
+      },
+      "outputsFunction": {
+        "source": "components/mass_spring/om_mass_spring_outputs.m",
+        "entry": "om_mass_spring_outputs"
+      },
+      "derivatives": {
+        "source": "components/mass_spring/om_mass_spring_derivatives.m",
+        "entry": "om_mass_spring_derivatives"
+      }
+    }
+  ],
+  "blocks": [
+    {
+      "id": "reference",
+      "kind": {
+        "type": "constant",
+        "value": [
+          1
+        ]
+      },
+      "position": {
+        "x": 40,
+        "y": 100
+      }
+    },
+    {
+      "id": "error",
+      "kind": {
+        "type": "sum",
+        "signs": [
+          1,
+          -1
+        ]
+      },
+      "position": {
+        "x": 260,
+        "y": 100
+      }
+    },
+    {
+      "id": "controller",
+      "kind": {
+        "type": "component",
+        "component": "om_pi",
+        "parameters": {}
+      },
+      "position": {
+        "x": 480,
+        "y": 100
+      }
+    },
+    {
+      "id": "plant",
+      "kind": {
+        "type": "component",
+        "component": "om_mass_spring",
+        "parameters": {
+          "stiffness": [
+            1
+          ],
+          "damping": [
+            2
+          ]
+        }
+      },
+      "position": {
+        "x": 720,
+        "y": 100
+      }
+    },
+    {
+      "id": "position",
+      "kind": {
+        "type": "scope"
+      },
+      "position": {
+        "x": 990,
+        "y": 80
+      }
+    },
+    {
+      "id": "command",
+      "kind": {
+        "type": "scope"
+      },
+      "position": {
+        "x": 720,
+        "y": 340
+      }
+    }
+  ],
+  "connections": [
+    {
+      "from": {
+        "block": "reference",
+        "port": "out"
+      },
+      "to": {
+        "block": "error",
+        "port": "in0"
+      }
+    },
+    {
+      "from": {
+        "block": "plant",
+        "port": "position"
+      },
+      "to": {
+        "block": "error",
+        "port": "in1"
+      }
+    },
+    {
+      "from": {
+        "block": "error",
+        "port": "out"
+      },
+      "to": {
+        "block": "controller",
+        "port": "error"
+      }
+    },
+    {
+      "from": {
+        "block": "controller",
+        "port": "command"
+      },
+      "to": {
+        "block": "plant",
+        "port": "force"
+      }
+    },
+    {
+      "from": {
+        "block": "plant",
+        "port": "position"
+      },
+      "to": {
+        "block": "position",
+        "port": "in"
+      }
+    },
+    {
+      "from": {
+        "block": "controller",
+        "port": "command"
+      },
+      "to": {
+        "block": "command",
+        "port": "in"
+      }
+    }
+  ]
+}
