@@ -9,6 +9,7 @@ export function FunctionCodePanel({
     reveal,
     onRun,
     onSave,
+    embedded,
 }: {
     path: string | null;
     shared?: DesignerSourceWorkspace | undefined;
@@ -18,7 +19,26 @@ export function FunctionCodePanel({
         | undefined;
     onRun(): void;
     onSave(): void;
+    embedded?: string | undefined;
 }) {
+    if (embedded !== undefined)
+        return (
+            <div className="sim-function-code">
+                <div className="sim-source-title">
+                    <span>{path} · 随模型保存</span>
+                    <span>
+                        导入生成的回调；请回到原始 SLX 模型修改参数后重新生成。
+                    </span>
+                </div>
+                <textarea
+                    className="sim-embedded-code"
+                    aria-label="内嵌 m 回调"
+                    readOnly
+                    value={embedded}
+                    spellCheck={false}
+                />
+            </div>
+        );
     const doc = path ? shared?.getSource(path) : undefined;
     if (!doc || !shared)
         return (

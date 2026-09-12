@@ -1,5 +1,5 @@
 import type { BlockDefinition, Model, ExecutionOptions } from "./model";
-export const SIMULATION_PROTOCOL = "openmat-simulation-v3";
+export const SIMULATION_PROTOCOL = "openmat-simulation-v4";
 export interface SimulationSnapshot {
     sources: Record<string, string>;
     execution: ExecutionOptions;
@@ -73,6 +73,8 @@ export interface SlxLine {
     branches: SlxLine[];
 }
 export interface SlxImport {
+    sources?: Record<string, string>;
+    blockPaths?: Record<string, string>;
     runnable: boolean;
     model?: Model;
     issues: SimulationDiagnostic[];
@@ -108,9 +110,9 @@ export function simulationUrl(kernelUrl: string): string {
     const url = new URL(kernelUrl);
     if (url.protocol !== "ws:" && url.protocol !== "wss:")
         throw new Error("仿真服务需要 WebSocket 地址。");
-    url.pathname = url.pathname.replace(/\/kernel\/?$/, "/simulation/v3");
-    if (!url.pathname.endsWith("/simulation/v3"))
-        url.pathname = "/simulation/v3";
+    url.pathname = url.pathname.replace(/\/kernel\/?$/, "/simulation/v4");
+    if (!url.pathname.endsWith("/simulation/v4"))
+        url.pathname = "/simulation/v4";
     url.search = "";
     url.hash = "";
     return url.toString();
@@ -337,13 +339,18 @@ export class SimulationClient {
     cancel(runId: string): Promise<unknown> {
         return this.request("cancel", { runId });
     }
-    async importSlx(file: Blob, name: string): Promise<SlxImport> {
+    async importSlx(
+        file: Blob,
+        name: string,
+        parameters = "",
+    ): Promise<SlxImport> {
         if (file.size > 2 * 1024 * 1024)
             throw new Error(
                 "交互式 SLX 导入上限为 2 MiB；更大的模型可用命令行检查。",
             );
-        return this.request("importSlx", {
+        return this.request("importSlxControl", {
             name,
+            parameters,
             bytes: Array.from(new Uint8Array(await file.arrayBuffer())),
         });
     }

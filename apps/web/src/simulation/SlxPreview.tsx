@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { SlxBlock, SlxImport, SlxLine } from "./client";
 import { importLayout } from "./import-layout";
+import { slxSystemPaths } from "./slx-authoring";
 
 function rectangle(block: SlxBlock, index: number) {
     const values = (block.properties.Position ?? "")
@@ -50,12 +51,50 @@ function endpoints(
 export default function SlxPreview({
     result,
     onBack,
+    activeSystem,
+    selectedSid,
+    onSystem,
+    onSelect,
 }: {
     result: SlxImport;
     onBack(): void;
+    activeSystem?: number;
+    selectedSid?: string | null;
+    onSystem?(index: number): void;
+    onSelect?(sid: string): void;
 }) {
-    const [systemIndex, setSystemIndex] = useState(0),
-        [selected, setSelected] = useState<string | null>(null);
+    const [localSystem, setLocalSystem] = useState(0),
+        [localSelected, setLocalSelected] = useState<string | null>(null);
+    const systemIndex = activeSystem ?? localSystem,
+        selected = selectedSid === undefined ? localSelected : selectedSid;
+    const setSelected = onSelect ?? setLocalSelected;
+    const setSystemIndex = (index: number) => {
+        (onSystem ?? setLocalSystem)(index);
+        setLocalSelected(null);
+    };
+    const paths = useMemo(
+        () => slxSystemPaths(result.document),
+        [result.document],
+    );
+    const childSystems = useMemo(
+        () =>
+            new Map(
+                result.document.systems.map((system, index) => [
+                    system.parentBlock,
+                    index,
+                ]),
+            ),
+        [result.document],
+    );
+    const ownerSystems = useMemo(
+        () =>
+            new Map(
+                result.document.systems.flatMap((system, index) =>
+                    system.blocks.map((b) => [b.sid, index] as const),
+                ),
+            ),
+        [result.document],
+    );
     const system =
         result.document.systems[systemIndex] ?? result.document.systems[0];
     const boxes = useMemo(() => {
@@ -91,13 +130,13 @@ export default function SlxPreview({
         <div className="sim-slx-preview">
             <div className="sim-slx-toolbar">
                 <strong>{result.document.name}</strong>
-                <span>{result.document.matlabRelease ?? "SLX"} · 只读结构</span>
+                <span>{result.document.matlabRelease ?? "SLX"} · 原始结构</span>
                 <select
                     aria-label="SLX 系统"
                     value={systemIndex}
                     onChange={(event) => {
                         setSystemIndex(Number(event.target.value));
-                        setSelected(null);
+                        setLocalSelected(null);
                     }}
                 >
                     {result.document.systems.map((item, index) => (
@@ -109,8 +148,24 @@ export default function SlxPreview({
                         </option>
                     ))}
                 </select>
-                <button onClick={onBack}>返回当前模型</button>
+                {system?.parentBlock && (
+                    <button
+                        onClick={() =>
+                            setSystemIndex(
+                                ownerSystems.get(system.parentBlock!) ?? 0,
+                            )
+                        }
+                    >
+                        返回上层
+                    </button>
+                )}
+                <button onClick={onBack}>
+                    {result.runnable ? "查看数值模型" : "返回当前模型"}
+                </button>
             </div>
+            <nav className="sim-slx-breadcrumb" aria-label="SLX 当前位置">
+                {paths[systemIndex]}
+            </nav>
             <div className="sim-slx-body">
                 <svg
                     className="sim-slx-graph"
@@ -144,6 +199,10 @@ export default function SlxPreview({
                             tabIndex={0}
                             aria-label={`${box.block.name} (${box.block.blockType})`}
                             onClick={() => setSelected(box.block.sid)}
+                            onDoubleClick={() => {
+                                const index = childSystems.get(box.block.sid);
+                                if (index !== undefined) setSystemIndex(index);
+                            }}
                             onKeyDown={(event) => {
                                 if (
                                     event.key === "Enter" ||
@@ -179,6 +238,17 @@ export default function SlxPreview({
                             >
                                 {box.block.name.slice(0, 20)}
                             </text>
+                            {childSystems.has(box.block.sid) && (
+                                <text
+                                    x={box.x + box.w - 12}
+                                    y={box.y + 15}
+                                    textAnchor="end"
+                                    fill="var(--accent)"
+                                    fontSize={12}
+                                >
+                                    ↳
+                                </text>
+                            )}
                             <text
                                 x={box.x + box.w / 2}
                                 y={box.y + box.h / 2 + 14}
@@ -191,32 +261,34 @@ export default function SlxPreview({
                         </g>
                     ))}
                 </svg>
-                <aside className="sim-slx-properties">
-                    {block ? (
-                        <>
-                            <strong>{block.name}</strong>
+                {!onSelect && (
+                    <aside className="sim-slx-properties">
+                        {block ? (
+                            <>
+                                <strong>{block.name}</strong>
+                                <p>
+                                    SID {block.sid} · {block.blockType}
+                                </p>
+                                <small>{block.source.part}</small>
+                                <dl>
+                                    {Object.entries(block.properties).map(
+                                        ([name, value]) => (
+                                            <div key={name}>
+                                                <dt>{name}</dt>
+                                                <dd>{value}</dd>
+                                            </div>
+                                        ),
+                                    )}
+                                </dl>
+                            </>
+                        ) : (
                             <p>
-                                SID {block.sid} · {block.blockType}
+                                选择方块查看 SLX
+                                原始参数。底部诊断列出不能运行的原因。
                             </p>
-                            <small>{block.source.part}</small>
-                            <dl>
-                                {Object.entries(block.properties).map(
-                                    ([name, value]) => (
-                                        <div key={name}>
-                                            <dt>{name}</dt>
-                                            <dd>{value}</dd>
-                                        </div>
-                                    ),
-                                )}
-                            </dl>
-                        </>
-                    ) : (
-                        <p>
-                            选择方块查看 SLX
-                            原始参数。底部诊断列出不能运行的原因。
-                        </p>
-                    )}
-                </aside>
+                        )}
+                    </aside>
+                )}
             </div>
         </div>
     );

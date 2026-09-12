@@ -286,6 +286,6 @@ export function attachComponent(
             throw new Error("模型最多 64 个组件定义。");
         (doc.model.components ??= []).push(structuredClone(definition));
     }
-    doc.schemaVersion = 3;
-    doc.model.schemaVersion = 3;
+    if (doc.schemaVersion < 3) doc.schemaVersion = 3;
+    if (doc.model.schemaVersion < 3) doc.model.schemaVersion = 3;
 }

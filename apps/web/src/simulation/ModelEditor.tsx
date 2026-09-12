@@ -40,6 +40,9 @@ import { BlockIcon, type FlowBlock, type SignalEdge } from "./BlockNode";
 import { SimulationCanvas } from "./SimulationCanvas";
 import { ScopePanel } from "./ScopePanel";
 import type { SlxImport } from "./client";
+import { decodeSlx, encodeSlx, type SlxAsset } from "./slx-authoring";
+import SlxParameters from "./SlxParameters";
+import SlxTree from "./SlxTree";
 import { SimulationError, type SimulationDiagnostic } from "./client";
 import type { DesignerSourceWorkspace } from "../documents/designer-source-workspace";
 import { FunctionInspector } from "./FunctionInspector";
@@ -347,6 +350,27 @@ function Editor(props: Props) {
     const afterSave = useRef<(() => void) | null>(null);
     const cancelSwitch = useRef<(() => void) | null>(null);
     const [preview, setPreview] = useState<SlxImport | null>(null);
+    const [slxView, setSlxView] = useState(Boolean(doc.slx));
+    const [slxSystem, setSlxSystem] = useState(0);
+    const [slxSelected, setSlxSelected] = useState<string | null>(null);
+    const structure = useMemo<SlxImport | null>(
+        () =>
+            preview ??
+            (doc.slx && slxView
+                ? {
+                      runnable: doc.slx.runnable,
+                      document: doc.slx.document,
+                      issues: doc.slx.issues,
+                  }
+                : null),
+        [preview, doc.slx, slxView],
+    );
+    const originalBlock = structure?.document.systems[slxSystem]?.blocks.find(
+        (b) => b.sid === slxSelected,
+    );
+    const slxReady =
+        !doc.slx ||
+        (doc.slx.runnable && doc.slx.parameters === doc.slx.appliedParameters);
     const [pane, setPane] = useState<"scope" | "diagnostics" | "code">("scope");
     const [codePath, setCodePath] = useState<string | null>(null);
     const [componentDraft, setComponentDraft] = useState<{
@@ -381,6 +405,11 @@ function Editor(props: Props) {
     sourceWorkspaceRef.current = props.sourceWorkspace;
     const sourceIsDirty = () =>
         modelSources(docRef.current.model).some((reference) => {
+            if (
+                docRef.current.sources &&
+                Object.hasOwn(docRef.current.sources, reference)
+            )
+                return false;
             const source = sourceWorkspaceRef.current?.getSource(
                 sourcePath(draftRef.current.file?.path ?? null, reference),
             );
@@ -398,23 +427,32 @@ function Editor(props: Props) {
                 sources: Object.fromEntries(
                     modelSources(doc.model).map((reference) => [
                         reference,
-                        props.sourceWorkspace?.getSource(
-                            sourcePath(file?.path ?? null, reference),
-                        )?.content ?? "",
+                        doc.sources?.[reference] ??
+                            props.sourceWorkspace?.getSource(
+                                sourcePath(file?.path ?? null, reference),
+                            )?.content ??
+                            "",
                     ]),
                 ),
                 execution: doc.execution ?? DEFAULT_EXECUTION,
             }),
-        [doc.model, doc.execution, file, props.sourceWorkspace],
+        [doc.model, doc.execution, doc.sources, file, props.sourceWorkspace],
     );
-    const editable = !preview && !fileBusy;
+    const operable = !preview && !fileBusy;
+    const editable = operable && !structure;
     const report = useCallback(
         (error: unknown) =>
             setError(error instanceof Error ? error.message : String(error)),
         [],
     );
-    const edit = useCallback((next: ModelDocument) => {
+    const edit = useCallback((next: ModelDocument, regenerated = false) => {
         if (
+            next.sources ||
+            next.slx ||
+            next.model.blocks.some((b) => b.kind.type === "step")
+        )
+            next.model.schemaVersion = 4;
+        else if (
             next.model.components?.length ||
             next.model.blocks.some((b) => b.kind.type === "component")
         )
@@ -423,9 +461,17 @@ function Editor(props: Props) {
             next.model.blocks.some((block) => block.kind.type === "mFunction")
         )
             next.model.schemaVersion = 2;
-        if (next.model.schemaVersion === 3) next.schemaVersion = 3;
+        if (next.model.schemaVersion === 4) next.schemaVersion = 4;
+        else if (next.model.schemaVersion === 3) next.schemaVersion = 3;
         else if (next.model.schemaVersion === 2 || next.execution)
             next.schemaVersion = 2;
+        if (
+            !regenerated &&
+            next.slx &&
+            numericalSource(next.model) !==
+                numericalSource(docRef.current.model)
+        )
+            next.slx.snapshotEdited = true;
         invalidParameter.current = false;
         docRef.current = next;
         setHistory((previous) => commit(previous, next));
@@ -516,6 +562,9 @@ function Editor(props: Props) {
             setSelected([]);
             setSelectedEdges([]);
             setPreview(null);
+            setSlxView(Boolean(next.slx));
+            setSlxSystem(0);
+            setSlxSelected(null);
             setError(null);
             setNotice(null);
             setMenu(null);
@@ -586,8 +635,9 @@ function Editor(props: Props) {
         async (path: string): Promise<boolean> =>
             props.pendingSaves.run(async () => {
                 if (busyRef.current || preview) return false;
-                const snapshot = serializeDocument(docRef.current);
-                const modelSnapshot = structuredClone(docRef.current.model);
+                const documentSnapshot = structuredClone(docRef.current);
+                const snapshot = serializeDocument(documentSnapshot);
+                const modelSnapshot = documentSnapshot.model;
                 busyRef.current = true;
                 setFileBusy(true);
                 setError(null);
@@ -600,9 +650,16 @@ function Editor(props: Props) {
                         file?.path ?? null,
                         workspace,
                         sourceWorkspaceRef.current,
+                        documentSnapshot.sources,
                     );
                     await saveFunctionSources(
-                        sources,
+                        sources.filter(
+                            (s) =>
+                                !Object.hasOwn(
+                                    documentSnapshot.sources ?? {},
+                                    s.reference,
+                                ),
+                        ),
                         target,
                         workspace,
                         rootGeneration,
@@ -656,7 +713,9 @@ function Editor(props: Props) {
             if (!saveAs && file) return saveToWorkspace(file.path);
             if (
                 !platform.files ||
-                modelSources(docRef.current.model).length > 0
+                modelSources(docRef.current.model).some(
+                    (p) => !Object.hasOwn(docRef.current.sources ?? {}, p),
+                )
             ) {
                 setPathInput(
                     `${docRef.current.model.name.replace(/[<>:"/\\|?*]/g, "_")}.omsim`,
@@ -779,40 +838,115 @@ function Editor(props: Props) {
     ]);
 
     const acceptImport = useCallback(
-        (result: SlxImport) => {
-            if (result.runnable && result.model) {
-                const next = parseDocument(JSON.stringify(result.model));
-                next.model.name = next.model.name
-                    .replace(/^.*[\\/]/, "")
-                    .replace(/\.slx$/i, "");
-                const positions = importLayout(
-                    next.model.blocks.map((block) => block.position!),
-                );
-                next.model.blocks.forEach((block, index) => {
-                    block.position = positions[index]!;
-                });
-                for (const system of result.document.systems)
-                    for (const block of system.blocks) {
-                        const node = next.model.blocks.find(
-                            (item) =>
-                                item.id ===
-                                `slx_${block.sid.replaceAll(":", "_")}`,
-                        );
-                        if (node) next.editor.labels[node.id] = block.name;
-                    }
-                replace(next);
-                setNotice(
-                    "SLX 已导入。编辑结果将另存为 OpenMat 模型，原文件保持完整。",
-                );
-            } else {
-                setPreview(result);
-                runRef.current.setDiagnostics(result.issues);
-                setPane("diagnostics");
-                setNotice("此 SLX 包含当前不支持的内容，可查看结构与诊断。");
-            }
+        (
+            result: SlxImport,
+            asset: Pick<SlxAsset, "name" | "package" | "parameters">,
+        ) => {
+            const next = parseDocument(
+                JSON.stringify(
+                    result.model ?? {
+                        ...example("blank").model,
+                        schemaVersion: 4,
+                        name: result.document.name,
+                    },
+                ),
+            );
+            next.schemaVersion = 4;
+            next.sources = result.sources ?? {};
+            next.slx = {
+                ...asset,
+                appliedParameters: asset.parameters,
+                runnable: result.runnable,
+                issues: result.issues,
+                document: result.document,
+            };
+            next.model.name = next.model.name
+                .replace(/^.*[\\/]/, "")
+                .replace(/\.slx$/i, "");
+            const positions = importLayout(
+                next.model.blocks.map((block) => block.position!),
+            );
+            next.model.blocks.forEach((block, index) => {
+                block.position = positions[index]!;
+            });
+            for (const system of result.document.systems)
+                for (const block of system.blocks) {
+                    const node = next.model.blocks.find(
+                        (item) =>
+                            item.id === `slx_${block.sid.replaceAll(":", "_")}`,
+                    );
+                    if (node) next.editor.labels[node.id] = block.name;
+                }
+            replace(next);
+            runRef.current.setDiagnostics(result.issues);
+            if (!result.runnable) setPane("diagnostics");
+            setNotice(
+                result.runnable
+                    ? "SLX 已导入。原始层级、参数和数值源码将随 OpenMat 模型保存。"
+                    : "此 SLX 暂不能运行。请查看诊断；缺失的变量可在左侧参数区补充。",
+            );
         },
         [replace],
     );
+    const applySlxParameters = async () => {
+        const asset = docRef.current.slx;
+        if (!asset || busyRef.current || runRef.current.busy) return;
+        busyRef.current = true;
+        setFileBusy(true);
+        setError(null);
+        try {
+            const result = await runRef.current.client.current!.importSlx(
+                new Blob([decodeSlx(asset.package)]),
+                asset.name,
+                asset.parameters,
+            );
+            if (!alive.current) return;
+            const next = structuredClone(docRef.current);
+            next.slx = {
+                ...asset,
+                runnable: result.runnable,
+                issues: result.issues,
+                document: result.document,
+            };
+            if (result.runnable && result.model) {
+                const imported = parseDocument(JSON.stringify(result.model));
+                const oldPositions = new Map(
+                    next.model.blocks.map((b) => [b.id, b.position]),
+                );
+                const positions = importLayout(
+                    imported.model.blocks.map((b) => b.position!),
+                );
+                imported.model.blocks.forEach((b, i) => {
+                    b.position = oldPositions.get(b.id) ?? positions[i]!;
+                });
+                next.model = imported.model;
+                next.sources = result.sources ?? {};
+                next.editor = imported.editor;
+                for (const system of result.document.systems)
+                    for (const block of system.blocks) {
+                        const id = `slx_${block.sid.replaceAll(":", "_")}`;
+                        if (next.model.blocks.some((b) => b.id === id))
+                            next.editor.labels[id] = block.name;
+                    }
+                next.slx.appliedParameters = asset.parameters;
+                delete next.slx.snapshotEdited;
+            }
+            edit(next, true);
+            runRef.current.reset();
+            runRef.current.setDiagnostics(result.issues);
+            setPane(result.runnable ? "scope" : "diagnostics");
+            setNotice(
+                result.runnable
+                    ? "参数已应用，数值模型已重新生成。"
+                    : "参数检查未通过，运行已禁用；请查看诊断。",
+            );
+        } catch (error) {
+            report(error);
+        } finally {
+            busyRef.current = false;
+            if (alive.current) setFileBusy(false);
+        }
+    };
     const load = useCallback(
         async (path: string) => {
             if (busyRef.current) return;
@@ -830,12 +964,20 @@ function Editor(props: Props) {
                     const response = await fetch(ticket.url);
                     if (!response.ok)
                         throw new Error(`读取 SLX 失败：${response.status}`);
+                    const blob = await response.blob();
                     const result =
                         await runRef.current.client.current!.importSlx(
-                            await response.blob(),
+                            blob,
                             path,
                         );
-                    if (alive.current) acceptImport(result);
+                    if (alive.current)
+                        acceptImport(result, {
+                            name: path,
+                            package: encodeSlx(
+                                new Uint8Array(await blob.arrayBuffer()),
+                            ),
+                            parameters: "",
+                        });
                 } else {
                     const opened = await workspace.read(path),
                         next = parseDocument(opened.content);
@@ -906,6 +1048,13 @@ function Editor(props: Props) {
                         incoming,
                         incoming.name,
                     ),
+                    {
+                        name: incoming.name,
+                        package: encodeSlx(
+                            new Uint8Array(await incoming.arrayBuffer()),
+                        ),
+                        parameters: "",
+                    },
                 );
             else {
                 if (incoming.size > 8 * 1024 * 1024)
@@ -1336,6 +1485,15 @@ function Editor(props: Props) {
     );
     const executeModel = useCallback(
         async (check = false) => {
+            const imported = docRef.current.slx;
+            if (
+                imported &&
+                (!imported.runnable ||
+                    imported.parameters !== imported.appliedParameters)
+            ) {
+                setError("请先在左侧应用 SLX 参数并通过兼容性检查。");
+                return;
+            }
             if (
                 invalidParameter.current ||
                 busyRef.current ||
@@ -1353,6 +1511,7 @@ function Editor(props: Props) {
                     draftRef.current.file?.path ?? null,
                     workspace,
                     sourceWorkspaceRef.current,
+                    snapshot.sources,
                 );
                 const bundle = {
                     sources: sourceBundle(files),
@@ -1394,6 +1553,12 @@ function Editor(props: Props) {
                 reference,
             );
             try {
+                if (Object.hasOwn(docRef.current.sources ?? {}, reference)) {
+                    setCodePath(reference);
+                    setPane("code");
+                    setBottom((current) => Math.max(current, 330));
+                    return;
+                }
                 await readFunctionSources(
                     { ...docRef.current.model, blocks: [block] },
                     draftRef.current.file?.path ?? null,
@@ -1754,7 +1919,12 @@ function Editor(props: Props) {
                     (item) => item.id === block.id,
                 )!;
                 const type = node.kind.type;
-                if (type === "mFunction" || type === "component") return;
+                if (
+                    type === "mFunction" ||
+                    type === "component" ||
+                    type === "step"
+                )
+                    return;
                 node.kind =
                     type === "constant"
                         ? { type, value: values }
@@ -1876,17 +2046,17 @@ function Editor(props: Props) {
                         if (incoming) void importFile(incoming);
                     }}
                 />
-                <button disabled={!editable} onClick={() => void save()}>
+                <button disabled={!operable} onClick={() => void save()}>
                     保存
                 </button>
-                <button disabled={!editable} onClick={() => void save(true)}>
+                <button disabled={!operable} onClick={() => void save(true)}>
                     另存为
                 </button>
                 <span className="sim-toolbar-divider" />
                 <button
                     title="撤销 Ctrl+Z"
                     aria-label="撤销"
-                    disabled={!editable || !history.past.length}
+                    disabled={!operable || !history.past.length}
                     onClick={() => setHistory(undo)}
                 >
                     ↶
@@ -1894,13 +2064,15 @@ function Editor(props: Props) {
                 <button
                     title="重做 Ctrl+Shift+Z"
                     aria-label="重做"
-                    disabled={!editable || !history.future.length}
+                    disabled={!operable || !history.future.length}
                     onClick={() => setHistory(redo)}
                 >
                     ↷
                 </button>
                 <button
-                    disabled={!editable || run.busy || !run.connected}
+                    disabled={
+                        !operable || !slxReady || run.busy || !run.connected
+                    }
                     onClick={() => {
                         setPane("diagnostics");
                         void executeModel(true);
@@ -1910,7 +2082,9 @@ function Editor(props: Props) {
                 </button>
                 <button
                     className="sim-run"
-                    disabled={!editable || run.busy || !run.connected}
+                    disabled={
+                        !operable || !slxReady || run.busy || !run.connected
+                    }
                     onClick={runModel}
                 >
                     ▶ 运行 <kbd>F5</kbd>
@@ -1924,6 +2098,18 @@ function Editor(props: Props) {
                     ■ 停止
                 </button>
                 <span className="sim-toolbar-spacer" />
+                {doc.slx && (
+                    <button
+                        disabled={fileBusy}
+                        onClick={() => {
+                            setSlxView(!slxView);
+                            setSelected([]);
+                            setSelectedEdges([]);
+                        }}
+                    >
+                        {slxView ? "查看 / 编辑数值模型" : "查看原始 SLX 层级"}
+                    </button>
+                )}
                 <select
                     aria-label="打开示例"
                     value=""
@@ -2028,93 +2214,126 @@ function Editor(props: Props) {
                 <LibraryPanels
                     storageKey="openmat.simulation.library-split.v1"
                     palette={
-                        <section className="sim-palette">
-                            <div className="sim-pane-title">
-                                方块库 <span>{DEFINITIONS.length}</span>
-                            </div>
-                            <input
-                                aria-label="搜索方块"
-                                className="sim-search"
-                                placeholder="搜索方块…"
-                                value={filter}
-                                onChange={(event) =>
-                                    setFilter(event.target.value)
-                                }
-                            />
-                            <div className="sim-palette-scroll">
-                                {[
-                                    ...new Set(
-                                        DEFINITIONS.map((def) => def.category),
-                                    ),
-                                ].map((category) => {
-                                    const items = DEFINITIONS.filter(
-                                        (def) =>
-                                            def.type !== "component" &&
-                                            def.category === category &&
-                                            `${def.label} ${def.category}`
-                                                .toLowerCase()
-                                                .includes(filter.toLowerCase()),
+                        doc.slx && slxView ? (
+                            <SlxParameters
+                                asset={doc.slx}
+                                busy={fileBusy || run.busy}
+                                onChange={(parameters) => {
+                                    const next = structuredClone(
+                                        docRef.current,
                                     );
-                                    return items.length ? (
-                                        <section key={category}>
-                                            <h3>{category}</h3>
-                                            {items.map((def) => (
-                                                <button
-                                                    key={def.type}
-                                                    draggable={editable}
-                                                    disabled={!editable}
-                                                    onDragStart={(event) => {
-                                                        event.dataTransfer.setData(
-                                                            "application/openmat-block",
-                                                            def.type,
-                                                        );
-                                                        event.dataTransfer.effectAllowed =
-                                                            "copy";
-                                                    }}
-                                                    onClick={() =>
-                                                        add(def.type)
-                                                    }
-                                                    title={`拖入画布或点击添加 ${def.label}`}
-                                                >
-                                                    <BlockIcon
-                                                        type={def.type}
-                                                    />
-                                                    <span>{def.label}</span>
-                                                    <span className="sim-add-hint">
-                                                        ＋
-                                                    </span>
-                                                </button>
-                                            ))}
-                                        </section>
-                                    ) : null;
-                                })}
-                                <ComponentLibrary
-                                    workspace={workspace}
-                                    generation={rootGeneration}
-                                    refresh={libraryRefresh}
-                                    filter={filter}
-                                    disabled={!editable}
-                                    definitions={doc.model.components ?? []}
-                                    onInsert={(entry) =>
-                                        void insertComponent(entry)
-                                    }
-                                    onDrag={(entry) => {
-                                        draggedComponent.current = entry;
-                                    }}
-                                    onCreate={() =>
-                                        setComponentDraft({
-                                            definition: blankComponent(
-                                                `custom_${uid().slice(6)}`,
-                                            ),
-                                            isNew: true,
-                                        })
+                                    next.slx!.parameters = parameters;
+                                    edit(next);
+                                }}
+                                onApply={() => void applySlxParameters()}
+                                onError={setError}
+                            />
+                        ) : (
+                            <section className="sim-palette">
+                                <div className="sim-pane-title">
+                                    方块库 <span>{DEFINITIONS.length}</span>
+                                </div>
+                                <input
+                                    aria-label="搜索方块"
+                                    className="sim-search"
+                                    placeholder="搜索方块…"
+                                    value={filter}
+                                    onChange={(event) =>
+                                        setFilter(event.target.value)
                                     }
                                 />
-                            </div>
-                        </section>
+                                <div className="sim-palette-scroll">
+                                    {[
+                                        ...new Set(
+                                            DEFINITIONS.map(
+                                                (def) => def.category,
+                                            ),
+                                        ),
+                                    ].map((category) => {
+                                        const items = DEFINITIONS.filter(
+                                            (def) =>
+                                                def.type !== "component" &&
+                                                def.category === category &&
+                                                `${def.label} ${def.category}`
+                                                    .toLowerCase()
+                                                    .includes(
+                                                        filter.toLowerCase(),
+                                                    ),
+                                        );
+                                        return items.length ? (
+                                            <section key={category}>
+                                                <h3>{category}</h3>
+                                                {items.map((def) => (
+                                                    <button
+                                                        key={def.type}
+                                                        draggable={editable}
+                                                        disabled={!editable}
+                                                        onDragStart={(
+                                                            event,
+                                                        ) => {
+                                                            event.dataTransfer.setData(
+                                                                "application/openmat-block",
+                                                                def.type,
+                                                            );
+                                                            event.dataTransfer.effectAllowed =
+                                                                "copy";
+                                                        }}
+                                                        onClick={() =>
+                                                            add(def.type)
+                                                        }
+                                                        title={`拖入画布或点击添加 ${def.label}`}
+                                                    >
+                                                        <BlockIcon
+                                                            type={def.type}
+                                                        />
+                                                        <span>{def.label}</span>
+                                                        <span className="sim-add-hint">
+                                                            ＋
+                                                        </span>
+                                                    </button>
+                                                ))}
+                                            </section>
+                                        ) : null;
+                                    })}
+                                    <ComponentLibrary
+                                        workspace={workspace}
+                                        generation={rootGeneration}
+                                        refresh={libraryRefresh}
+                                        filter={filter}
+                                        disabled={!editable}
+                                        definitions={doc.model.components ?? []}
+                                        onInsert={(entry) =>
+                                            void insertComponent(entry)
+                                        }
+                                        onDrag={(entry) => {
+                                            draggedComponent.current = entry;
+                                        }}
+                                        onCreate={() =>
+                                            setComponentDraft({
+                                                definition: blankComponent(
+                                                    `custom_${uid().slice(6)}`,
+                                                ),
+                                                isNew: true,
+                                            })
+                                        }
+                                    />
+                                </div>
+                            </section>
+                        )
                     }
                     tree={
-                        preview ? (
+                        structure ? (
+                            <SlxTree
+                                document={structure.document}
+                                active={slxSystem}
+                                selected={slxSelected}
+                                onSystem={(index) => {
+                                    setSlxSystem(index);
+                                    setSlxSelected(null);
+                                }}
+                                onSelect={setSlxSelected}
+                            />
+                        ) : preview ? (
                             <section className="sim-tree">
                                 <div className="sim-pane-title">
                                     SLX 对象 · 只读
@@ -2243,11 +2462,17 @@ function Editor(props: Props) {
                 <main className="sim-center">
                     <div className="sim-canvas-header">
                         <span>
-                            {preview
+                            {structure
                                 ? "SLX 结构检查"
                                 : `${doc.model.blocks.length} blocks · ${doc.model.connections.length} connections`}
                         </span>
-                        <span>双击方块编辑参数 · 空格拖动画布</span>
+                        <span>
+                            {structure
+                                ? doc.slx?.snapshotEdited
+                                    ? "原始结构 · 数值模型已有独立修改"
+                                    : "双击子系统进入 · 左侧编辑模型参数"
+                                : "双击方块编辑参数 · 空格拖动画布"}
+                        </span>
                     </div>
                     <div
                         className="sim-canvas"
@@ -2287,12 +2512,20 @@ function Editor(props: Props) {
                                 );
                         }}
                     >
-                        {preview ? (
+                        {structure ? (
                             <Suspense fallback={<p>读取结构…</p>}>
                                 <ImportPreview
-                                    result={preview}
+                                    result={structure}
+                                    activeSystem={slxSystem}
+                                    selectedSid={slxSelected}
+                                    onSystem={(index) => {
+                                        setSlxSystem(index);
+                                        setSlxSelected(null);
+                                    }}
+                                    onSelect={setSlxSelected}
                                     onBack={() => {
                                         setPreview(null);
+                                        setSlxView(false);
                                         setNotice(null);
                                     }}
                                 />
@@ -2386,6 +2619,11 @@ function Editor(props: Props) {
                                 reveal={codeReveal}
                                 onRun={runModel}
                                 onSave={() => void save()}
+                                embedded={
+                                    codePath
+                                        ? doc.sources?.[codePath]
+                                        : undefined
+                                }
                             />
                         ) : pane === "scope" ? (
                             <ScopePanel
@@ -2450,23 +2688,52 @@ function Editor(props: Props) {
                 />
                 <aside className="sim-inspector">
                     <div className="sim-pane-title">检查器</div>
-                    {preview ? (
+                    {structure ? (
                         <>
-                            <h3>SLX 结构检查</h3>
+                            <h3>{originalBlock?.name ?? "SLX 结构检查"}</h3>
                             <p className="sim-help">
-                                在图中选择方块查看原始参数，或切换子系统查看内部结构。当前导入包含不支持的内容，不能执行。
+                                {structure.runnable
+                                    ? "模型已通过兼容性检查。选择方块查看原始参数，双击子系统进入内部。"
+                                    : "当前模型尚未通过兼容性检查。可补充左侧参数，再重新应用检查。"}
                             </p>
-                            {preview.issues.map((issue, index) => (
-                                <p key={index} className="sim-help">
-                                    <strong>
-                                        {issue.block
-                                            ? `SID ${issue.block}`
-                                            : issue.code}
-                                    </strong>
-                                    <br />
-                                    {issue.message}
-                                </p>
-                            ))}
+                            {originalBlock && (
+                                <>
+                                    <p className="sim-help">
+                                        {originalBlock.blockType} · SID{" "}
+                                        {originalBlock.sid}
+                                        <br />
+                                        {originalBlock.source.part}
+                                    </p>
+                                    <dl className="sim-slx-original-parameters">
+                                        {Object.entries(
+                                            originalBlock.properties,
+                                        ).map(([name, value]) => (
+                                            <div key={name}>
+                                                <dt>{name}</dt>
+                                                <dd>{value}</dd>
+                                            </div>
+                                        ))}
+                                    </dl>
+                                </>
+                            )}
+                            {structure.issues
+                                .filter(
+                                    (issue) =>
+                                        !originalBlock ||
+                                        !issue.block ||
+                                        issue.block === originalBlock.sid,
+                                )
+                                .map((issue, index) => (
+                                    <p key={index} className="sim-help">
+                                        <strong>
+                                            {issue.block
+                                                ? `SID ${issue.block}`
+                                                : issue.code}
+                                        </strong>
+                                        <br />
+                                        {issue.message}
+                                    </p>
+                                ))}
                         </>
                     ) : chosen ? (
                         <>
@@ -2556,6 +2823,142 @@ function Editor(props: Props) {
                                     }
                                 />
                             )}
+                            {chosen.kind.type === "step" && (
+                                <>
+                                    <label>
+                                        阶跃时刻
+                                        <CommitField
+                                            name="Step 时间"
+                                            value={String(chosen.kind.time)}
+                                            onCommit={(text) => {
+                                                const time = Number(text);
+                                                if (
+                                                    !text.trim() ||
+                                                    !Number.isFinite(time)
+                                                ) {
+                                                    setError(
+                                                        "阶跃时刻必须是有限实数。",
+                                                    );
+                                                    return false;
+                                                }
+                                                change((next) => {
+                                                    const b =
+                                                        next.model.blocks.find(
+                                                            (b) =>
+                                                                b.id ===
+                                                                chosen.id,
+                                                        )!;
+                                                    if (b.kind.type === "step")
+                                                        b.kind.time = time;
+                                                });
+                                            }}
+                                        />
+                                    </label>
+                                    {(["before", "after"] as const).map(
+                                        (key) => (
+                                            <label key={key}>
+                                                {key === "before"
+                                                    ? "阶跃前"
+                                                    : "阶跃后"}
+                                                <CommitField
+                                                    name={`Step ${key}`}
+                                                    value={
+                                                        chosen.kind.type ===
+                                                        "step"
+                                                            ? chosen.kind[
+                                                                  key
+                                                              ].join(" ")
+                                                            : ""
+                                                    }
+                                                    onCommit={(text) => {
+                                                        try {
+                                                            const values =
+                                                                numericLiteral(
+                                                                    text,
+                                                                );
+                                                            if (
+                                                                values.length >
+                                                                4096
+                                                            )
+                                                                throw new Error(
+                                                                    "Step 向量上限为 4096。",
+                                                                );
+                                                            const next =
+                                                                    structuredClone(
+                                                                        docRef.current,
+                                                                    ),
+                                                                b =
+                                                                    next.model.blocks.find(
+                                                                        (b) =>
+                                                                            b.id ===
+                                                                            chosen.id,
+                                                                    )!;
+                                                            if (
+                                                                b.kind.type !==
+                                                                "step"
+                                                            )
+                                                                return false;
+                                                            const other =
+                                                                key === "before"
+                                                                    ? "after"
+                                                                    : "before";
+                                                            const width =
+                                                                Math.max(
+                                                                    values.length,
+                                                                    b.kind[
+                                                                        other
+                                                                    ].length,
+                                                                );
+                                                            if (
+                                                                (values.length !==
+                                                                    1 &&
+                                                                    values.length !==
+                                                                        width) ||
+                                                                (b.kind[other]
+                                                                    .length !==
+                                                                    1 &&
+                                                                    b.kind[
+                                                                        other
+                                                                    ].length !==
+                                                                        width)
+                                                            )
+                                                                throw new Error(
+                                                                    "阶跃前后值需要相同宽度，或使用标量展开。",
+                                                                );
+                                                            b.kind[key] =
+                                                                values.length ===
+                                                                1
+                                                                    ? (Array(
+                                                                          width,
+                                                                      ).fill(
+                                                                          values[0],
+                                                                      ) as number[])
+                                                                    : values;
+                                                            if (
+                                                                b.kind[other]
+                                                                    .length ===
+                                                                1
+                                                            )
+                                                                b.kind[other] =
+                                                                    Array(
+                                                                        width,
+                                                                    ).fill(
+                                                                        b.kind[
+                                                                            other
+                                                                        ][0],
+                                                                    ) as number[];
+                                                            edit(next);
+                                                        } catch (error) {
+                                                            report(error);
+                                                            return false;
+                                                        }
+                                                    }}
+                                                />
+                                            </label>
+                                        ),
+                                    )}
+                                </>
+                            )}
                             {chosen.kind.type === "component" &&
                                 componentFor(doc.model, chosen) && (
                                     <ComponentInspector
@@ -2591,6 +2994,15 @@ function Editor(props: Props) {
                                         onLibrary={() =>
                                             void saveComponentLibrary(chosen)
                                         }
+                                        embedded={blockSources(
+                                            doc.model,
+                                            chosen,
+                                        ).some((path) =>
+                                            Object.hasOwn(
+                                                doc.sources ?? {},
+                                                path,
+                                            ),
+                                        )}
                                         onError={(message) => {
                                             invalidParameter.current = true;
                                             setError(message);
@@ -2599,6 +3011,7 @@ function Editor(props: Props) {
                                 )}
                             {chosen.kind.type !== "scope" &&
                                 chosen.kind.type !== "mFunction" &&
+                                chosen.kind.type !== "step" &&
                                 chosen.kind.type !== "component" && (
                                     <label>
                                         {chosen.kind.type === "sum"

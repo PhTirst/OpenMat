@@ -1,13 +1,20 @@
 /** OpenMat authoring data. No React Flow implementation fields are persisted. */
 import {
+    validateEmbeddedSources,
+    validateSlxAsset,
+    type SlxAsset,
+} from "./slx-authoring";
+import {
     componentFor,
     validateComponent,
     validateComponentKind,
     attachComponent,
+    modelSources,
     type ComponentDefinition,
     type ComponentKind,
 } from "./components";
 export type BlockType =
+    | "step"
     | "constant"
     | "sum"
     | "gain"
@@ -131,6 +138,7 @@ export function parseExecution(raw: unknown): ExecutionOptions {
     return structuredClone(e) as unknown as ExecutionOptions;
 }
 export type BlockKind =
+    | { type: "step"; time: number; before: number[]; after: number[] }
     | { type: "constant"; value: number[] }
     | { type: "sum"; signs: number[] }
     | { type: "gain"; gain: number[] }
@@ -156,7 +164,7 @@ export interface Connection {
     to: Port;
 }
 export interface Model {
-    schemaVersion: 1 | 2 | 3;
+    schemaVersion: 1 | 2 | 3 | 4;
     name: string;
     settings: {
         startTime: number;
@@ -170,7 +178,9 @@ export interface Model {
 }
 export interface ModelDocument {
     format: "openmat-simulation";
-    schemaVersion: 1 | 2 | 3;
+    schemaVersion: 1 | 2 | 3 | 4;
+    sources?: Record<string, string>;
+    slx?: SlxAsset;
     execution?: ExecutionOptions;
     model: Model;
     editor: {
@@ -191,6 +201,14 @@ export interface BlockDefinition {
 }
 // Offline authoring baseline; the native catalog is verified against these renderers.
 export const DEFINITIONS: readonly BlockDefinition[] = [
+    {
+        type: "step",
+        label: "Step",
+        category: "信号源",
+        icon: "step",
+        inputs: [],
+        outputs: ["out"],
+    },
     {
         type: "component",
         label: "Component",
@@ -298,6 +316,8 @@ export function ports(
 }
 export function kind(type: BlockType): BlockKind {
     switch (type) {
+        case "step":
+            return { type, time: 1, before: [0], after: [1] };
         case "component":
             return { type, component: "", parameters: {} };
         case "mFunction":
@@ -333,6 +353,8 @@ export const label = (doc: ModelDocument, block: Block): string =>
           definition(block.kind.type).label);
 export function parameterText(block: Block): string {
     const data = block.kind;
+    if (data.type === "step")
+        return `t ≥ ${data.time}: ${data.after.join(", ")}`;
     if (data.type === "component") return data.component;
     if (data.type === "mFunction")
         return `${data.entry}(${data.inputs.map((input) => input.name).join(", ")})`;
@@ -442,7 +464,8 @@ export function parseModel(value: unknown): Model {
     if (
         data.schemaVersion !== 1 &&
         data.schemaVersion !== 2 &&
-        data.schemaVersion !== 3
+        data.schemaVersion !== 3 &&
+        data.schemaVersion !== 4
     )
         throw new Error("不支持的模型版本。");
     if (
@@ -453,7 +476,7 @@ export function parseModel(value: unknown): Model {
     const components = ((data.components ?? []) as unknown[]).map(
         validateComponent,
     );
-    if (components.length && data.schemaVersion !== 3)
+    if (components.length && data.schemaVersion < 3)
         throw new Error("组件定义需要模型版本 3。");
     if (new Set(components.map((d) => d.id)).size !== components.length)
         throw new Error("组件 ID 重复。");
@@ -482,9 +505,25 @@ export function parseModel(value: unknown): Model {
             throw new Error(`不支持的方块类型：${String(k.type)}`);
         const def = definition(k.type);
         if (k.type === "component") {
-            if (data.schemaVersion !== 3)
+            if (data.schemaVersion !== 3 && data.schemaVersion !== 4)
                 throw new Error("自定义组件需要模型版本 3。");
             Object.assign(k, validateComponentKind(k, components));
+        } else if (k.type === "step") {
+            if (data.schemaVersion !== 4)
+                throw new Error("Step 需要模型版本 4。");
+            keys(k, ["type", "time", "before", "after"], "Step 参数");
+            number(k.time, "阶跃时刻");
+            for (const values of [k.before, k.after]) {
+                if (
+                    !Array.isArray(values) ||
+                    !values.length ||
+                    values.length > 4096
+                )
+                    throw new Error("Step 前后值需要非空的有限实数向量。");
+                values.forEach((v) => number(v, "Step 参数"));
+            }
+            if ((k.before as number[]).length !== (k.after as number[]).length)
+                throw new Error("Step 前后值宽度必须相同。");
         } else if (k.type === "mFunction") {
             if (data.schemaVersion === 1)
                 throw new Error("M Function 需要模型版本 2。");
@@ -573,18 +612,34 @@ export function parseDocument(source: string): ModelDocument {
     if (!Object.hasOwn(raw, "format")) return fromModel(parseModel(raw));
     keys(
         raw,
-        ["format", "schemaVersion", "model", "editor", "execution"],
+        [
+            "format",
+            "schemaVersion",
+            "model",
+            "editor",
+            "execution",
+            "sources",
+            "slx",
+        ],
         "模型文件",
     );
     if (
         raw.format !== "openmat-simulation" ||
         (raw.schemaVersion !== 1 &&
             raw.schemaVersion !== 2 &&
-            raw.schemaVersion !== 3)
+            raw.schemaVersion !== 3 &&
+            raw.schemaVersion !== 4)
     )
         throw new Error("不支持的编辑器文件格式或版本。");
     const doc = fromModel(parseModel(raw.model));
     doc.schemaVersion = raw.schemaVersion;
+    if (raw.sources !== undefined || raw.slx !== undefined) {
+        if (raw.schemaVersion !== 4)
+            throw new Error("内嵌源码和 SLX 层级需要文件版本 4。");
+        if (raw.sources !== undefined)
+            doc.sources = validateEmbeddedSources(raw.sources);
+        if (raw.slx !== undefined) doc.slx = validateSlxAsset(raw.slx);
+    }
     if (doc.schemaVersion < doc.model.schemaVersion)
         throw new Error("文件版本不能早于模型版本。");
     if (
@@ -666,6 +721,15 @@ export function copySelection(
         Object.entries(fragment.editor.bends).filter(([id]) => edges.has(id)),
     );
     delete fragment.editor.viewport;
+    delete fragment.slx;
+    if (fragment.sources) {
+        const references = new Set(modelSources(fragment.model));
+        fragment.sources = Object.fromEntries(
+            Object.entries(fragment.sources).filter(([path]) =>
+                references.has(path),
+            ),
+        );
+    }
     return fragment;
 }
 export function pasteFragment(
@@ -678,6 +742,23 @@ export function pasteFragment(
         remap = new Map(
             fragment.model.blocks.map((block) => [block.id, idFactory()]),
         );
+    if (next.model.schemaVersion < fragment.model.schemaVersion)
+        next.model.schemaVersion = fragment.model.schemaVersion;
+    if (next.schemaVersion < next.model.schemaVersion)
+        next.schemaVersion = next.model.schemaVersion;
+    if (fragment.sources) {
+        next.sources ??= {};
+        for (const [path, content] of Object.entries(fragment.sources)) {
+            if (
+                Object.hasOwn(next.sources, path) &&
+                next.sources[path] !== content
+            )
+                throw new Error(`内嵌源码冲突：${path}`);
+            next.sources[path] = content;
+        }
+        next.schemaVersion = 4;
+        next.model.schemaVersion = 4;
+    }
     for (const d of fragment.model.components ?? []) {
         if (
             fragment.model.blocks.some(

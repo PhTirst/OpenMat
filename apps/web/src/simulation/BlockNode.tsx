@@ -28,6 +28,12 @@ export function BlockIcon({
     size?: number;
 }) {
     const shapes = {
+        step: (
+            <>
+                <path d="M3 20h18M4 19v-1h7V6h9" />
+                <path d="M4 3v17" />
+            </>
+        ),
         component: (
             <>
                 <rect x="4" y="4" width="16" height="16" rx="3" />

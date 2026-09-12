@@ -13,6 +13,7 @@ export function ComponentInspector({
     value,
     definition,
     disabled,
+    embedded = false,
     onChange,
     onOpen,
     onEdit,
@@ -22,6 +23,7 @@ export function ComponentInspector({
     value: ComponentKind;
     definition: ComponentDefinition;
     disabled: boolean;
+    embedded?: boolean;
     onChange(value: ComponentKind): void;
     onOpen(callback: Callback): void;
     onEdit(): void;
@@ -89,10 +91,16 @@ export function ComponentInspector({
                 输出和导数用于连续求值；update
                 只在采样时刻执行，其结果在下一采样时刻成为可见状态。
             </p>
-            <button disabled={disabled} onClick={onEdit}>
+            {embedded && (
+                <p className="sim-help">
+                    此方块由 SLX 参数生成。请通过原始 SLX
+                    视图修改参数；暂不支持单独导出到组件库。
+                </p>
+            )}
+            <button disabled={disabled || embedded} onClick={onEdit}>
                 编辑组件定义…
             </button>
-            <button disabled={disabled} onClick={onLibrary}>
+            <button disabled={disabled || embedded} onClick={onLibrary}>
                 保存到项目组件库
             </button>
         </div>

@@ -38,6 +38,7 @@ export async function readFunctionSources(
     modelPath: string | null,
     workspace: WorkspaceClient,
     shared?: DesignerSourceWorkspace,
+    embedded?: Record<string, string>,
 ): Promise<FunctionSourceSnapshot[]> {
     const references = modelSources(model);
     // Capture all existing drafts before awaiting any filesystem reads.
@@ -49,7 +50,14 @@ export async function readFunctionSources(
     const files: FunctionSourceSnapshot[] = [];
     for (const { reference, path, doc } of drafts) {
         try {
-            if (doc)
+            if (embedded && Object.hasOwn(embedded, reference))
+                files.push({
+                    reference,
+                    path,
+                    content: embedded[reference]!,
+                    revision: "",
+                });
+            else if (doc)
                 files.push({
                     reference,
                     path,

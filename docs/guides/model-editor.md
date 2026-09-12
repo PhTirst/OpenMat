@@ -41,6 +41,7 @@ double-clicking Scope opens the result pane.
 | Integrator | Initial continuous state; input is its derivative |
 | Unit Delay | Initial discrete state; updates on the model's shared sample period |
 | Scope | Observes one scalar/vector signal |
+| Step | Finite transition time and before/after vectors; continuous stage-time evaluation |
 | M Function | Pure m function with declared inputs, parameters and output width |
 | Component | Reusable m component with named ports, public parameters and private continuous/discrete states |
 
@@ -104,23 +105,33 @@ not a replacement for a saved file. Scope data is not included in the cache.
 
 ## SLX compatibility
 
-Open or import an `.slx` file to use the existing bounded OPC/SLX loader. Models
-within the implemented six-block, parameter and solver subset become editable
-and runnable. Their display positions are spaced for OpenMat's larger cards;
-the connections and numerical semantics are preserved. Save creates an OpenMat
-authoring document. It does not overwrite or export SLX.
+Open or import an `.slx` file to select the `control-v1` OPC/SLX profile.
+The original-structure view has an explicit m parameter area, a system tree,
+subsystem navigation and an inspector. Double-click a virtual subsystem to enter
+it; use the breadcrumb/system tree or **返回上层** to navigate. Missing variables
+can be supplied in the parameter area or read from an assignment-only .m file.
+Press **应用参数并检查** before running. Pending parameters or compatibility
+errors disable run/check; unsupported blocks never become dummy executable blocks.
 
-Unsupported models open a read-only structural view with a system selector,
-original block parameters and compatibility diagnostics. They cannot run, and
-unsupported blocks are never replaced by dummy executable blocks. Model scripts,
-callbacks, S-functions, library links, masks and executable subsystems remain
-unsupported. See [the SLX guide](../../simulation/docs/slx-import.md) for the
-precise import subset. Interactive uploads are limited to 2 MiB; the CLI has
-separate limits.
+The profile adds ordinary nested virtual subsystems, routing, elementwise math,
+continuous Sine/Step, State-Space and proper Transfer Fcn. It still rejects
+inherited/multiple rates, executable callbacks, masks, library links, MATLAB
+S-functions, model references, Stateflow and nonvirtual/conditional subsystems.
+See [the SLX guide](../../simulation/docs/slx-import.md) for precise limits.
+
+**查看 / 编辑数值模型** opens the flattened numerical snapshot for independent
+edits. The original source hierarchy remains separate, and a visible notice warns
+that reapplying source parameters replaces those edits. Saving creates a schema-4
+.omsim containing the original package, hierarchy, parameter text and immutable
+generated .m sources. It reopens and runs without a temporary source directory.
+Generated callbacks are readable in the source panel, but changes use SLX
+parameters; separate component-library export is unavailable for these generated
+components. Original SLX is not overwritten or exported. Interactive package
+uploads are limited to 2 MiB and parameter text to 64 KiB.
 
 ## Runs and results
 
-`/simulation/v3` (with legacy `/simulation/v1` and `/simulation/v2`) shares the native server's existing configured port. A separate
+`/simulation/v4` (with legacy `/simulation/v1`, `/simulation/v2` and `/simulation/v3`) shares the native server's existing configured port. A separate
 WebSocket carries catalog/check/run/cancel/import requests; no extra server
 listener is started. Each connection owns one job. Disconnect cancels its job;
 a different connection cannot cancel it. The native worker evaluates an immutable
