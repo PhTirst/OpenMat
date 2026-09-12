@@ -1,0 +1,137 @@
+# Graphical model editor v0
+
+OpenMat now includes a block diagram editor in the existing React workbench.
+It uses the native Rust reference simulation engine. Browser and desktop share
+the editor and theme; native file dialogs stay behind the desktop platform
+adapter. No computation runs in React or in a browser m-language VM.
+
+## Open and run
+
+Start the current source checkout using the normal development launcher:
+
+```powershell
+pwsh -NoProfile -File tools/openmat-dev/Invoke-OpenMatDev.ps1
+```
+
+Click **模型编辑器** in the workbench toolbar. Select **一阶反馈系统** from
+the example menu and press **F5** or **运行**. Scope displays accepted native
+simulation samples. **两个时间常数** demonstrates vector signals and
+**离散计数器** demonstrates UnitDelay. The 300-block example is an interaction
+fixture, not a solver benchmark. These changes require a build from current
+source; previously published installers do not acquire them automatically.
+
+The layout has a searchable block library and model tree on the left, the graph
+in the center, an inspector on the right, and Scope/diagnostics below the graph.
+Drag the dividers to resize these areas. The library/tree divider also supports
+arrow keys when focused. Light and dark colors follow the workbench setting.
+
+## Build a model
+
+Drag a block from the library to the graph, or click a library item.
+Connect a named output handle to a named input handle. An output can branch to
+multiple consumers; an input accepts one connection. Select a block to edit its
+name and numerical parameters. Double-clicking a block focuses its parameter;
+double-clicking Scope opens the result pane.
+
+| Block | Parameter and behavior |
+| --- | --- |
+| Constant | Finite scalar or column vector, for example `1` or `[1, 2]` |
+| Sum | One or more `+`/`-` signs; all input widths must match |
+| Gain | One scalar or a coefficient vector; elementwise multiplication |
+| Integrator | Initial continuous state; input is its derivative |
+| Unit Delay | Initial discrete state; updates on the model's shared sample period |
+| Scope | Observes one scalar/vector signal |
+
+Every block has its own icon. Parameters accept numerical literals; they do not
+evaluate m-language expressions, workspace variables or callbacks. The inspector
+also edits start time, stop time, maximum step and the shared discrete sample
+period. The current solver is RK4; unsupported solver options are not selectable.
+
+Use Shift to select multiple nodes or draw a selection box. Right-click the graph,
+a node, a connection or the object tree for the available operations. Selected
+connections expose a draggable bend handle; their context menu can reset routing.
+Moving nodes or changing parameters is undoable. Keyboard movement of a focused
+selected node is saved as an authoring change.
+
+| Shortcut | Action |
+| --- | --- |
+| F5 | Run the visible model; does not reload the page |
+| Ctrl+S / Ctrl+Shift+S | Save / Save As |
+| Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y | Undo / Redo |
+| Ctrl+C / Ctrl+V | Copy/paste selected blocks and their internal connections |
+| Delete / Backspace | Delete the selection and incident connections |
+| F2 | Rename a selected block |
+| Space+drag, middle-drag | Pan the graph |
+
+Ordinary input text editing retains its own shortcuts. Run and save finish an
+active inspector edit first. **检查模型** uses native validation; diagnostics
+identify the block/port when available. Direct-feedthrough algebraic loops,
+missing connections and mismatched widths are errors.
+
+## Files and recovery
+
+`.omsim` is a versioned UTF-8 JSON authoring document. It contains the RFC 0010
+numeric model and editor metadata: labels, routing and viewport. It contains
+neither React Flow runtime state nor Scope samples. Incomplete graphs can be
+saved and completed later. Old raw `.omsim.json` models can be opened and saved
+as `.omsim`. Unknown versions or unsupported fields fail explicitly.
+
+Open model files from Current Folder or the editor's **打开** action. In Web,
+**导入文件** reads a browser-selected file; saves write into the server's current
+workspace using file revisions. If another program changes an opened file,
+OpenMat reports a conflict instead of overwriting that change. Desktop uses
+native file selection and Save As dialogs. For repeated revision-checked saves,
+keep the model in Current Folder. Saving outside that folder is supported through
+the native dialog; subsequent saves ask for a location again in v0.
+
+A local draft is cached per workspace. Closing or replacing a dirty model offers
+save/discard/cancel. Switching Current Folder through the workbench uses the same
+guard; it asks you to stop an active simulation first. A cache is recovery help,
+not a replacement for a saved file. Scope data is not included in the cache.
+
+## SLX compatibility
+
+Open or import an `.slx` file to use the existing bounded OPC/SLX loader. Models
+within the implemented six-block, parameter and solver subset become editable
+and runnable. Their display positions are spaced for OpenMat's larger cards;
+the connections and numerical semantics are preserved. Save creates an OpenMat
+authoring document. It does not overwrite or export SLX.
+
+Unsupported models open a read-only structural view with a system selector,
+original block parameters and compatibility diagnostics. They cannot run, and
+unsupported blocks are never replaced by dummy executable blocks. Model scripts,
+callbacks, S-functions, library links, masks and executable subsystems remain
+unsupported. See [the SLX guide](../../simulation/docs/slx-import.md) for the
+precise import subset. Interactive uploads are limited to 2 MiB; the CLI has
+separate limits.
+
+## Runs and results
+
+`/simulation/v1` shares the native server's existing configured port. A separate
+WebSocket carries catalog/check/run/cancel/import requests; no extra server
+listener is started. Each connection owns one job. Disconnect cancels its job;
+a different connection cannot cancel it. The native worker evaluates an immutable
+model snapshot and sends bounded, sequenced batches of accepted samples.
+
+Scope draws at a bounded refresh rate and reduces traces to pixel envelopes for
+display. CSV export retains every collected sample. Up to eight components are
+visible at once; use the channel selector for wider signals. Editing numerical
+parameters or wiring after a run marks the result as belonging to an earlier
+model. Moving or renaming a block does not change the numerical result.
+
+The interactive run limit is 100,000 frames and 2,000,000 scalar values. Exceeding
+it produces an explicit error; shorten the run or increase the step. Cancellation
+and failures preserve already received samples. This service is local-first and
+does not add multi-user authentication or resource quotas.
+
+## Current boundary
+
+This milestone provides an editor-to-native-engine workflow. SUNDIALS, zero
+crossings, DAE/algebraic solving, multiple sample rates, general signal buses,
+executable subsystems, optimized m-language function blocks and C generation are
+future work. The standalone CLI can already use its optional numerical LLVM
+backend; the editor selects the reference backend and does not claim m-language
+JIT acceleration.
+
+Implementation details and verification requirements are in
+[RFC 0012](../rfcs/0012-simulation-editor-v0.md).

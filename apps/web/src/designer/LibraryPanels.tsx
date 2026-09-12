@@ -14,14 +14,16 @@ const clamp = (value: number, min: number, max: number) =>
 export function LibraryPanels({
     palette,
     tree,
+    storageKey = STORAGE_KEY,
 }: {
     palette: ReactNode;
     tree: ReactNode;
+    storageKey?: string;
 }) {
     const [split, setSplit] = useState(() => {
         try {
             const saved = JSON.parse(
-                localStorage.getItem(STORAGE_KEY) ?? "null",
+                localStorage.getItem(storageKey) ?? "null",
             );
             if (typeof saved === "number" && Number.isFinite(saved))
                 return clamp(saved, 10, 90);
@@ -51,11 +53,11 @@ export function LibraryPanels({
     }, []);
     useEffect(() => {
         try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(split));
+            localStorage.setItem(storageKey, JSON.stringify(split));
         } catch {
             /* Resizing still works without storage. */
         }
-    }, [split]);
+    }, [split, storageKey]);
     useEffect(() => () => cleanup.current?.(), []);
     return (
         <aside

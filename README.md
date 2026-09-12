@@ -7,7 +7,8 @@ incomplete and is defined by the checked-in specifications and tests.
 
 The Rust server runs the compiler, bytecode interpreter, and numerical kernel.
 The React client provides editing, language services, workspace inspection,
-figures, and a drag-and-drop App Designer backed by M-language classes. Rust
+figures, a drag-and-drop App Designer backed by M-language classes, and a
+[block diagram model editor](docs/guides/model-editor.md). Rust
 compiled to WebAssembly handles plot rendering; the language VM runs natively.
 The desktop application embeds this frontend using Tauri.
 
@@ -39,8 +40,9 @@ for workspace selection, smoke tests, and build options, and
 ## Repository
 
 - `crates/`: compiler, runtime, numerical providers, server, LSP, and plotting.
-- `apps/web/`: React IDE and App Designer.
+- `apps/web/`: React IDE, App Designer, and simulation model editor.
 - `apps/desktop/`: Tauri desktop shell.
+- `simulation/`: numerical block models, reference/LLVM execution, SLX import and CLI.
 - `sdk/`, `include/`, `plugins/`, `toolboxes/`: extension interfaces and examples.
 - `spec/` and `docs/rfcs/`: language and protocol contracts.
 - `tests/conformance/`: OpenMat-authored tests and normalized reference data.

@@ -113,7 +113,10 @@ pub async fn desktop_pick_file(
             .file()
             .set_parent(&window)
             .set_title("Open File")
-            .add_filter("OpenMat source and apps", &["m", "omui"])
+            .add_filter(
+                "OpenMat source, apps and models",
+                &["m", "omui", "omsim", "slx", "json"],
+            )
             .add_filter("All files", &["*"]);
         if let Some(directory) = initial_directory {
             dialog = dialog.set_directory(directory);

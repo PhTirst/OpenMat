@@ -10,6 +10,7 @@ import {
 } from "react";
 import { DesktopCloseDialog, type DesktopCloseActions } from "./components/DesktopCloseDialog";
 import type { DesignerSession } from "./designer/designer-session";
+import type { ModelEditorSession } from "./simulation/session";
 import { PendingOperations } from "./platform/pending-operations";
 import { useCommitBarrier } from "./platform/use-commit-barrier";
 import { DESKTOP_CLOSE_PREPARE_EVENT } from "./platform/desktop-lifecycle";
@@ -133,6 +134,7 @@ import { WebSocketWorkspaceClient } from "./workspace/websocket-workspace-client
 
 const SESSION_ID = "openmat-web-alpha";
 const AppDesigner = lazy(() => import("./designer/AppDesigner"));
+const ModelEditor = lazy(() => import("./simulation/ModelEditor"));
 const INSPECTION_ELEMENT_LIMIT = 256;
 
 interface AppProps {
@@ -262,6 +264,7 @@ function AppWorkbench({
   const [pendingSaves] = useState(() => new PendingOperations());
   const waitForCommit = useCommitBarrier();
   const designerSession = useRef<DesignerSession | null>(null);
+  const simulationSession = useRef<ModelEditorSession | null>(null);
   const desktopCloseInFlight = useRef(false);
   const desktopCloseHandler = useRef<() => void>(() => {});
   const windowManager = useOpenMatWindowManagerActions();
@@ -290,6 +293,9 @@ function AppWorkbench({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [designerVisible, setDesignerVisible] = useState(false);
   const [designerMounted, setDesignerMounted] = useState(false);
+  const [simulationVisible, setSimulationVisible] = useState(false);
+  const [simulationMounted, setSimulationMounted] = useState(false);
+  const [simulationOpenRequest, setSimulationOpenRequest] = useState<{ path: string; serial: number; rootPath: string } | null>(null);
   const [restoredDesktopWorkspace, setRestoredDesktopWorkspace] = useState<DesktopWorkspaceSession | null>(null);
   const [designerOpenRequest, setDesignerOpenRequest] = useState<{
     path: string;
@@ -421,6 +427,7 @@ function AppWorkbench({
   }, [invalidateVariableEditorRequests]);
 
   const installCurrentFolderSnapshot = useCallback((snapshot: WorkspaceSnapshot) => {
+    setSimulationOpenRequest(previous => previous?.rootPath === snapshot.rootPath ? previous : null);
     currentFolderGeneration.current = snapshot.rootGeneration;
     loadedWorkspacePaths.current = new Set([""]);
     loadingWorkspacePaths.current.clear();
@@ -1241,6 +1248,14 @@ function AppWorkbench({
     activeDocument !== null &&
     isDocumentDirty(activeDocument);
 
+  const prepareSimulationSwitch = useCallback(async () => {
+    const session = simulationSession.current;
+    if (simulationMounted && session === null) { setSimulationVisible(true); return false; }
+    if (!session || !session.dirty && !session.busy) return true;
+    setSimulationVisible(true); setDesignerVisible(false);
+    return session.prepareSwitch();
+  }, [simulationMounted]);
+
   const navigateCurrentFolder = useCallback(
     async (path: string): Promise<string | null> => {
       if (!folderReady || workspaceBusy) {
@@ -1249,6 +1264,7 @@ function AppWorkbench({
       setWorkspaceBusy(true);
       setWorkspaceError(null);
       try {
+        if (!await prepareSimulationSwitch()) return null;
         const directory = await workspaceClient.changeDirectory(path);
         if (currentFolderGeneration.current !== directory.generation) {
           currentFolderGeneration.current = directory.generation;
@@ -1262,7 +1278,7 @@ function AppWorkbench({
         setWorkspaceBusy(false);
       }
     },
-    [folderReady, installCurrentFolderSnapshot, workspaceBusy, workspaceClient],
+    [folderReady, installCurrentFolderSnapshot, prepareSimulationSwitch, workspaceBusy, workspaceClient],
   );
 
   const browseDirectoryPicker = useCallback(
@@ -1308,6 +1324,7 @@ function AppWorkbench({
       try {
         const path = await platform.files.pickDirectory(folder.rootPath);
         if (path !== null) {
+          if (!await prepareSimulationSwitch()) return;
           await workspaceClient.changeDirectory(path);
           installCurrentFolderSnapshot(await workspaceClient.list("", false));
         }
@@ -1323,7 +1340,7 @@ function AppWorkbench({
     setDirectoryPickerSnapshot(null);
     setDirectoryPickerError(null);
     void browseDirectoryPicker(folder.rootPath);
-  }, [browseDirectoryPicker, folder.rootPath, folderReady, installCurrentFolderSnapshot, platform, workspaceBusy, workspaceClient]);
+  }, [browseDirectoryPicker, folder.rootPath, folderReady, installCurrentFolderSnapshot, platform, prepareSimulationSwitch, workspaceBusy, workspaceClient]);
 
   const selectDirectoryPickerFolder = useCallback(async () => {
     if (
@@ -1338,6 +1355,8 @@ function AppWorkbench({
     setWorkspaceError(null);
     setDirectoryPickerError(null);
     try {
+      closeDirectoryPicker();
+      if (!await prepareSimulationSwitch()) return;
       const directory = await workspaceClient.changeDirectory(
         directoryPickerSnapshot.path,
       );
@@ -1359,6 +1378,7 @@ function AppWorkbench({
     directoryPickerSnapshot,
     folderReady,
     installCurrentFolderSnapshot,
+    prepareSimulationSwitch,
     workspaceBusy,
     workspaceClient,
   ]);
@@ -1636,12 +1656,19 @@ function AppWorkbench({
     try {
       const selected = await platform.files.pickFile(folder.rootPath);
       if (selected === null) return;
+      if (nativeFileKey(selected.directory) !== nativeFileKey(folder.rootPath) && !await prepareSimulationSwitch()) return;
       const directory = await workspaceClient.changeDirectory(selected.directory);
       installCurrentFolderSnapshot(await workspaceClient.list("", false));
       if (selected.name.toLowerCase().endsWith(".omui")) {
         setDesignerOpenRequest(previous => ({ path: selected.name, serial: (previous?.serial ?? 0) + 1 }));
         setDesignerMounted(true);
         setDesignerVisible(true);
+        setSimulationVisible(false);
+      } else if (/\.(omsim(?:\.json)?|slx)$/i.test(selected.name)) {
+        setSimulationOpenRequest(previous => ({ path: selected.name, serial: (previous?.serial ?? 0) + 1, rootPath: directory.path }));
+        setSimulationMounted(true);
+        setSimulationVisible(true);
+        setDesignerVisible(false);
       } else {
         const existing = openDocumentsRef.current.find(document =>
           nativeFileKey(workspaceSourceName(document.rootPath, document.path)) === nativeFileKey(selected.path));
@@ -1660,7 +1687,7 @@ function AppWorkbench({
       nativeFileBusy.current = false;
       setWorkspaceBusy(false);
     }
-  }, [folder.rootPath, folderReady, installCurrentFolderSnapshot, openWorkspaceFile, platform, workspaceBusy, workspaceClient]);
+  }, [folder.rootPath, folderReady, installCurrentFolderSnapshot, openWorkspaceFile, platform, prepareSimulationSwitch, workspaceBusy, workspaceClient]);
 
   const revealNativePath = useCallback(async (path: string) => {
     if (!platform.files || workspaceBusy) return;
@@ -1685,6 +1712,12 @@ function AppWorkbench({
           }));
           setDesignerMounted(true);
           setDesignerVisible(true);
+          setSimulationVisible(false);
+        } else if (/\.(omsim(?:\.json)?|slx)$/i.test(entry.path)) {
+          setSimulationOpenRequest(previous => ({ path: entry.path, serial: (previous?.serial ?? 0) + 1, rootPath: folder.rootPath }));
+          setSimulationMounted(true);
+          setSimulationVisible(true);
+          setDesignerVisible(false);
         } else {
           void openWorkspaceFile(entry);
         }
@@ -1696,7 +1729,7 @@ function AppWorkbench({
         });
       }
     },
-    [openWorkspaceFile, toggleWorkspaceDirectory],
+    [folder.rootPath, openWorkspaceFile, toggleWorkspaceDirectory],
   );
 
   const downloadWorkspaceEntry = useCallback(
@@ -2550,13 +2583,19 @@ function AppWorkbench({
         await waitForCommit();
         if (designerMounted && designerSession.current === null) throw new Error("App Designer is still loading. Please retry shortly.");
         if (designerSession.current?.busy) throw new Error("App Designer is still opening a file. Please wait and retry.");
+        if (simulationMounted && simulationSession.current === null) throw new Error("Model Editor is still loading. Please retry shortly.");
+        if (simulationSession.current?.busy) throw new Error("Model Editor is processing a file or running a simulation. Wait or stop the run before closing.");
       },
       unsavedNames() {
         const names = openDocumentsRef.current.filter(isDocumentDirty).map((document) => workspaceSourceName(document.rootPath, document.path));
         if (designerSession.current?.dirty) names.push(`App Designer: ${designerSession.current.path}`);
+        if (simulationSession.current?.dirty) names.push(`Model Editor: ${simulationSession.current.path}`);
         return names;
       },
       async saveAll() {
+        if (simulationSession.current?.dirty && !await simulationSession.current.save()) {
+          throw new Error(simulationSession.current?.error ?? "Could not save the model. Resolve its file conflict in Model Editor and retry.");
+        }
         if (designerSession.current?.dirty && !await designerSession.current.save()) {
           throw new Error(designerSession.current?.error ?? "Could not save App Designer. Check its source or recovery conflict and retry.");
         }
@@ -2582,9 +2621,10 @@ function AppWorkbench({
         await documentPersistence.flush(documents, { rootPath: folderRef.current.rootPath,
           designerMounted: Boolean(restoreDesigner), designerVisible: Boolean(restoreDesigner && designerVisible) });
         designer?.flush(discard);
+        simulationSession.current?.flush(discard);
         await platform.lifecycle!.close();
       },
-      resume() { documentPersistence.resume(); designerSession.current?.resume(); },
+      resume() { documentPersistence.resume(); designerSession.current?.resume(); simulationSession.current?.resume(); },
     };
     void windowManager.openDialog<void>({
       label: "Close OpenMat", dismissResult: undefined, closeOnEscape: false, closeOnBackdrop: false,
@@ -2962,7 +3002,7 @@ function AppWorkbench({
     state.capabilities?.executionModes.includes("cell") === true &&
     state.kernelStatus !== "busy" &&
     state.activeRequestId === null;
-  useDesktopRunShortcut(platform.kind === "desktop", canRun && !designerVisible, runEditor);
+  useDesktopRunShortcut(platform.kind === "desktop", canRun && !designerVisible && !simulationVisible, runEditor);
   const canSave =
     activeDocument !== null &&
     activeDocument.recoveryStatus === "none" &&
@@ -3083,9 +3123,15 @@ function AppWorkbench({
           onClick={() => {
             setDesignerMounted(true);
             setDesignerVisible(value => !value);
+            setSimulationVisible(false);
           }}
         >
           <ComponentIcon type="Window" />App Designer
+        </button>
+        <button className="designer-launch-button" type="button" disabled={!folder.rootPath} aria-expanded={simulationVisible} onClick={() => {
+          setSimulationMounted(true); setSimulationVisible(value => !value); setDesignerVisible(false);
+        }}>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><rect x="2" y="3" width="7" height="7" rx="1" /><rect x="15" y="14" width="7" height="7" rx="1" /><path d="M9 6h4v12h2M4 16h5m-2-2 2 2-2 2" /></svg>模型编辑器
         </button>
         <div
           className="connection-indicator"
@@ -3319,6 +3365,16 @@ function AppWorkbench({
           </Suspense>
         </div>
       ) : null}
+
+      {simulationMounted ? <div hidden={!simulationVisible}>
+        <Suspense fallback={<div className="app-designer">加载模型编辑器…</div>}>
+          <ModelEditor key={`${folder.rootPath}:${folder.rootGeneration}`} workspace={workspaceClient}
+            rootPath={folder.rootPath} rootGeneration={folder.rootGeneration} wsUrl={wsUrl ?? kernelWebSocketUrl()}
+            theme={theme} visible={simulationVisible} openRequest={simulationOpenRequest}
+            onClose={() => setSimulationVisible(false)} onSaved={() => void refreshCurrentFolder()}
+            onOpenNative={() => void openNativeFile()} sessionRef={simulationSession} pendingSaves={pendingSaves} />
+        </Suspense>
+      </div> : null}
 
       <footer className="statusbar">
         <span>

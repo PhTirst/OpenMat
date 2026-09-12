@@ -1,9 +1,11 @@
 # OpenMat simulation kernel v0
 
-This opt-in workspace implements the numerical foundation for a future block
-diagram editor. It runs JSON models and a constrained R2022b SLX subset with a
-Rust reference interpreter or actual LLVM ORC machine code. It is independent of the existing web client, server,
-bytecode VM and desktop package. There is no graphical editor in this milestone.
+This workspace implements the numerical foundation for OpenMat's
+[graphical model editor](../docs/guides/model-editor.md). It runs JSON models
+and a constrained R2022b SLX subset with a Rust reference interpreter or actual
+LLVM ORC machine code. The web/desktop editor uses the reference backend through
+the existing native server. The CLI retains optional LLVM execution; the
+m-language bytecode VM is unchanged.
 
 The contract is [RFC 0010](../docs/rfcs/0010-simulation-kernel-v0.md). Fixtures and
 tests are authored for OpenMat using elementary mathematical models; no MATLAB
@@ -12,6 +14,12 @@ The SLX extension is described by [RFC 0011](../docs/rfcs/0011-slx-import-v0.md)
 and the [SLX import guide](docs/slx-import.md). Loading an SLX document and
 supporting its simulation semantics are separate checks; this is not full
 Simulink compatibility.
+
+The editor and streaming service are described by
+[RFC 0012](../docs/rfcs/0012-simulation-editor-v0.md). The editor opens the raw
+`.omsim.json` models below and saves `.omsim` authoring documents containing the
+numeric model plus names, routing and viewport. The CLI currently accepts the raw
+numeric JSON, not the editor wrapper.
 
 ## Run the examples
 
@@ -151,7 +159,7 @@ The collector defaults to 100,000 frames and 8,000,000 observed scalar values;
 of retaining a complete trajectory. This is not a hard real-time engine or a
 multi-user resource scheduler.
 
-## Code boundaries and next integration
+## Code boundaries and further work
 
 | Crate | Responsibility |
 | --- | --- |
@@ -168,10 +176,14 @@ time scheduling stay outside LLVM. Program identity includes constant bit
 patterns, including signed zero. A runner refuses a kernel for a different
 program.
 
-The next integration can add a React block editor and a native server job that
-loads the same versioned models and streams accepted frames. The native runtime
-continues to compute independently of browser rendering. Existing server
-protocols and routes are deliberately unchanged in this opt-in workspace.
+The React model editor now loads these models and runs connection-owned native
+jobs through `/simulation/v1` on the existing server listener. Accepted frames
+stream to Scope, independently of browser rendering. The editor and CLI share
+model semantics; the interactive service has its own smaller result limits.
+Existing server protocols retain their meanings. The four reusable simulation
+library manifests declare explicit package/dependency/lint settings so they can
+also be consumed by the root and desktop Cargo workspaces without changing
+their workspace membership.
 SUNDIALS can later replace the continuous solver behind this state/evaluation
 contract; algebraic loops, DAE initialization, events and multiple sample rates
 need additional semantics and tests before being enabled. Typed m-language
