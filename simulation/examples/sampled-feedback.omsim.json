@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "name": "Continuous integrator with delayed sampled feedback",
+  "settings": { "startTime": 0.0, "stopTime": 0.4, "maxStep": 0.07, "sampleTime": 0.1 },
+  "blocks": [
+    { "id": "one", "kind": { "type": "constant", "value": [1.0] } },
+    { "id": "sum", "kind": { "type": "sum", "signs": [1, -1] } },
+    { "id": "plant", "kind": { "type": "integrator", "initial": [0.0] } },
+    { "id": "memory", "kind": { "type": "unitDelay", "initial": [0.0] } },
+    { "id": "plant_scope", "kind": { "type": "scope" } },
+    { "id": "sample_scope", "kind": { "type": "scope" } }
+  ],
+  "connections": [
+    { "from": { "block": "one", "port": "out" }, "to": { "block": "sum", "port": "in0" } },
+    { "from": { "block": "memory", "port": "out" }, "to": { "block": "sum", "port": "in1" } },
+    { "from": { "block": "sum", "port": "out" }, "to": { "block": "plant", "port": "in" } },
+    { "from": { "block": "plant", "port": "out" }, "to": { "block": "memory", "port": "in" } },
+    { "from": { "block": "plant", "port": "out" }, "to": { "block": "plant_scope", "port": "in" } },
+    { "from": { "block": "memory", "port": "out" }, "to": { "block": "sample_scope", "port": "in" } }
+  ]
+}

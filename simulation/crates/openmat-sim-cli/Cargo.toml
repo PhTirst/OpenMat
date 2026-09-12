@@ -1,0 +1,18 @@
+[package]
+name = "openmat-sim-cli"
+license = "AGPL-3.0-only"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "openmat-sim"
+path = "src/main.rs"
+
+[dependencies]
+openmat-sim = { path = "../openmat-sim" }
+openmat-sim-llvm = { path = "../openmat-sim-llvm" }
+serde_json.workspace = true
+
+[lints]
+workspace = true

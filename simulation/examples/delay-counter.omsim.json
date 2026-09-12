@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "name": "Unit Delay counter",
+  "settings": { "startTime": 0.0, "stopTime": 0.3, "maxStep": 0.03, "sampleTime": 0.1 },
+  "blocks": [
+    { "id": "one", "kind": { "type": "constant", "value": [1.0] } },
+    { "id": "sum", "kind": { "type": "sum", "signs": [1, 1] } },
+    { "id": "delay", "kind": { "type": "unitDelay", "initial": [0.0] } },
+    { "id": "scope", "kind": { "type": "scope" } }
+  ],
+  "connections": [
+    { "from": { "block": "one", "port": "out" }, "to": { "block": "sum", "port": "in0" } },
+    { "from": { "block": "delay", "port": "out" }, "to": { "block": "sum", "port": "in1" } },
+    { "from": { "block": "sum", "port": "out" }, "to": { "block": "delay", "port": "in" } },
+    { "from": { "block": "delay", "port": "out" }, "to": { "block": "scope", "port": "in" } }
+  ]
+}
