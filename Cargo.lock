@@ -417,6 +417,7 @@ checksum = "6e634e2e0ebac1ee034020da1ca582e17ffe4e0f5e985823721e168928136dcb"
 dependencies = [
  "crc32fast",
  "miniz_oxide",
+ "zlib-rs",
 ]
 
 [[package]]
@@ -1367,6 +1368,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "openmat-opc"
+version = "0.1.0"
+dependencies = [
+ "roxmltree",
+ "serde",
+ "zip",
+]
+
+[[package]]
 name = "openmat-openblas"
 version = "0.1.0"
 dependencies = [
@@ -1479,9 +1489,41 @@ dependencies = [
  "openmat-plot-protocol",
  "openmat-protocol",
  "openmat-runtime",
+ "openmat-sim",
+ "openmat-sim-slx",
  "serde",
  "serde_json",
  "tungstenite",
+]
+
+[[package]]
+name = "openmat-sim"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "openmat-sim-llvm"
+version = "0.1.0"
+dependencies = [
+ "libloading 0.8.9",
+ "openmat-sim",
+ "serde_json",
+]
+
+[[package]]
+name = "openmat-sim-slx"
+version = "0.1.0"
+dependencies = [
+ "openmat-opc",
+ "openmat-sim",
+ "openmat-sim-llvm",
+ "roxmltree",
+ "serde",
+ "serde_json",
+ "zip",
 ]
 
 [[package]]
@@ -1812,6 +1854,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "19b30a45b0cd0bcca8037f3d0dc3421eaf95327a17cad11964fb8179b4fc4832"
 
 [[package]]
+name = "roxmltree"
+version = "0.21.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f1964b10c76125c36f8afe190065a4bf9a87bf324842c05701330bba9f1cacbb"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "rustc-hash"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2119,6 +2170,12 @@ dependencies = [
  "sha1",
  "thiserror 2.0.20",
 ]
+
+[[package]]
+name = "typed-path"
+version = "0.12.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e28f89b80c87b8fb0cf04ab448d5dd0dd0ade2f8891bae878de66a75a28600e"
 
 [[package]]
 name = "typenum"
@@ -2626,6 +2683,25 @@ dependencies = [
  "quote",
  "syn 2.0.119",
 ]
+
+[[package]]
+name = "zip"
+version = "8.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d04a6b5381502aa6087c94c669499eb1602eb9c5e8198e534de571f7154809b"
+dependencies = [
+ "crc32fast",
+ "flate2",
+ "indexmap",
+ "memchr",
+ "typed-path",
+]
+
+[[package]]
+name = "zlib-rs"
+version = "0.6.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34b31d188d9d685a4f9c7b46d6e36631b07058d2cfe190267adce54dc230bf12"
 
 [[package]]
 name = "zmij"

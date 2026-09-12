@@ -1,14 +1,18 @@
 [package]
 name = "openmat-opc"
 license = "AGPL-3.0-only"
-version.workspace = true
-edition.workspace = true
-rust-version.workspace = true
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
 
 [dependencies]
-zip.workspace = true
-roxmltree.workspace = true
-serde.workspace = true
+zip = { version = "8.6.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+roxmltree = "0.21.1"
+serde = { version = "1.0", features = ["derive"] }
 
-[lints]
-workspace = true
+[lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[lints.clippy]
+all = "warn"
+pedantic = "warn"

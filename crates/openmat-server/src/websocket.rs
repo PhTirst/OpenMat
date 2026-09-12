@@ -230,12 +230,7 @@ where
         .set_write_timeout(Some(WRITE_TIMEOUT))
         .map_err(ServerError::WebSocketIo)?;
 
-    if matches!(
-        endpoint.get(),
-        Some(Endpoint::Workspace(
-            WorkspaceProtocol::V1 | WorkspaceProtocol::V2 | WorkspaceProtocol::V3
-        ))
-    ) {
+    if let Some(Endpoint::Workspace(protocol)) = endpoint.get() {
         socket
             .get_mut()
             .set_nonblocking(false)
@@ -247,15 +242,14 @@ where
         let service = workspace.ok_or(ServerError::State(
             "workspace handshake succeeded without a configured workspace",
         ))?;
-        let Endpoint::Workspace(protocol) = endpoint.get().ok_or(ServerError::State(
-            "workspace handshake did not retain its protocol",
-        ))?
-        else {
-            return Err(ServerError::State(
-                "workspace endpoint changed after handshake",
-            ));
-        };
         return run_workspace_connection(&mut socket, &service, protocol);
+    }
+    if endpoint.get() == Some(Endpoint::Simulation) {
+        socket
+            .get_mut()
+            .set_read_timeout(Some(Duration::from_millis(10)))
+            .map_err(ServerError::WebSocketIo)?;
+        return crate::simulation_websocket::serve(&mut socket);
     }
     if endpoint.get() == Some(Endpoint::Lsp) {
         socket
@@ -361,7 +355,10 @@ fn serve_workspace_http(
     }
     match (method, target) {
         ("GET", target) if target.starts_with(DOWNLOAD_PATH_PREFIX) => {
-            serve_workspace_download(stream, workspace, target)
+            let Ok(origin) = download_origin(&head.text) else {
+                return write_http_empty_response(&mut stream, "403 Forbidden");
+            };
+            serve_workspace_download(stream, workspace, target, origin)
         }
         ("OPTIONS", target) if target.starts_with(UPLOAD_PATH_PREFIX) => {
             write_upload_preflight(&mut stream)
@@ -376,10 +373,35 @@ fn serve_workspace_http(
     }
 }
 
+fn local_origin_allowed(origin: &str) -> bool {
+    origin
+        .parse::<Uri>()
+        .ok()
+        .and_then(|origin| origin.host().map(str::to_owned))
+        .is_some_and(|host| {
+            host.eq_ignore_ascii_case("localhost")
+                || host.eq_ignore_ascii_case("tauri.localhost")
+                || host == "127.0.0.1"
+        })
+}
+
+fn download_origin(head: &str) -> Result<Option<&str>, ()> {
+    let mut origins = head.split("\r\n").skip(1).filter_map(|line| {
+        let (name, value) = line.split_once(':')?;
+        name.eq_ignore_ascii_case("origin").then_some(value.trim())
+    });
+    let origin = origins.next();
+    if origins.next().is_some() || origin.is_some_and(|value| !local_origin_allowed(value)) {
+        return Err(());
+    }
+    Ok(origin)
+}
+
 fn serve_workspace_download(
     mut stream: TcpStream,
     workspace: Option<&WorkspaceService>,
     target: &str,
+    origin: Option<&str>,
 ) -> Result<(), ServerError> {
     let Some(ticket) = target.strip_prefix(DOWNLOAD_PATH_PREFIX) else {
         return write_http_empty_response(&mut stream, "404 Not Found");
@@ -391,9 +413,12 @@ fn serve_workspace_download(
         return write_http_empty_response(&mut stream, "404 Not Found");
     };
     let disposition = content_disposition(&download.name);
+    let cors = origin.map_or_else(String::new, |origin| {
+        format!("Access-Control-Allow-Origin: {origin}\r\n")
+    });
     write!(
         stream,
-        "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Disposition: {disposition}\r\nContent-Length: {}\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\nConnection: close\r\n\r\n",
+        "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Disposition: {disposition}\r\nContent-Length: {}\r\n{cors}Vary: Origin\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\nConnection: close\r\n\r\n",
         download.size,
     )
     .map_err(ServerError::WebSocketIo)?;
@@ -628,6 +653,7 @@ fn content_disposition(name: &str) -> String {
 enum Endpoint {
     Kernel,
     Lsp,
+    Simulation,
     Graphics(openmat_plot_protocol::GraphicsProtocol),
     Workspace(WorkspaceProtocol),
 }
@@ -1177,6 +1203,7 @@ fn validate_handshake(
     let selected = match (request.uri().path(), request.uri().query()) {
         ("/kernel", None) => Endpoint::Kernel,
         ("/lsp", None) => Endpoint::Lsp,
+        ("/simulation/v1", None) => Endpoint::Simulation,
         ("/graphics/v1", None) => Endpoint::Graphics(openmat_plot_protocol::GraphicsProtocol::V1),
         ("/graphics/v2", None) => Endpoint::Graphics(openmat_plot_protocol::GraphicsProtocol::V2),
         ("/graphics/v3", None) => Endpoint::Graphics(openmat_plot_protocol::GraphicsProtocol::V3),
@@ -1193,7 +1220,7 @@ fn validate_handshake(
         _ => {
             return Err(handshake_rejection(
                 StatusCode::NOT_FOUND,
-                "WebSocket endpoints are /kernel, /lsp, /graphics/v1, /graphics/v2, /graphics/v3, /graphics/v4, and configured /workspace/v1, /workspace/v2, or /workspace/v3",
+                "WebSocket endpoints are /kernel, /lsp, /simulation/v1, /graphics/v1, /graphics/v2, /graphics/v3, /graphics/v4, and configured /workspace/v1, /workspace/v2, or /workspace/v3",
             ));
         }
     };
@@ -1206,17 +1233,8 @@ fn validate_handshake(
     let origins = request.headers().get_all("origin");
     let mut origins = origins.iter();
     if let Some(origin) = origins.next() {
-        let allowed = origins.next().is_none()
-            && origin
-                .to_str()
-                .ok()
-                .and_then(|origin| origin.parse::<Uri>().ok())
-                .and_then(|origin| origin.host().map(str::to_owned))
-                .is_some_and(|host| {
-                    host.eq_ignore_ascii_case("localhost")
-                        || host.eq_ignore_ascii_case("tauri.localhost")
-                        || host == "127.0.0.1"
-                });
+        let allowed =
+            origins.next().is_none() && origin.to_str().ok().is_some_and(local_origin_allowed);
         if !allowed {
             return Err(handshake_rejection(
                 StatusCode::FORBIDDEN,
@@ -2604,19 +2622,34 @@ mod tests {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let address = listener.local_addr().unwrap();
         let worker = thread::spawn(move || {
-            let (stream, _) = listener.accept().unwrap();
-            serve_connection(
-                stream,
-                || -> Result<ExactEngine, EngineError> {
-                    panic!("HTTP download must not construct a kernel engine")
-                },
-                Some(service),
-            )
+            for _ in 0..3 {
+                let (stream, _) = listener.accept().unwrap();
+                serve_connection(
+                    stream,
+                    || -> Result<ExactEngine, EngineError> {
+                        panic!("HTTP download must not construct a kernel engine")
+                    },
+                    Some(service.clone()),
+                )?;
+            }
+            Ok::<(), ServerError>(())
         });
+        // Rejected origins must not consume the one-use download ticket.
+        for origin in [
+            "Origin: https://untrusted.example\r\n",
+            "Origin: http://localhost:5173\r\nOrigin: http://127.0.0.1:5173\r\n",
+        ] {
+            let mut client = TcpStream::connect(address).unwrap();
+            write!(client, "GET {DOWNLOAD_PATH_PREFIX}{ticket} HTTP/1.1\r\nHost: {address}\r\n{origin}Connection: close\r\n\r\n").unwrap();
+            let mut response = String::new();
+            client.read_to_string(&mut response).unwrap();
+            assert!(response.starts_with("HTTP/1.1 403 Forbidden\r\n"));
+            assert!(!response.contains("Access-Control-Allow-Origin"));
+        }
         let mut client = TcpStream::connect(address).unwrap();
         write!(
             client,
-            "GET {DOWNLOAD_PATH_PREFIX}{ticket} HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\n\r\n"
+            "GET {DOWNLOAD_PATH_PREFIX}{ticket} HTTP/1.1\r\nHost: {address}\r\nOrigin: http://localhost:5173\r\nConnection: close\r\n\r\n"
         )
         .unwrap();
         let mut response = Vec::new();
@@ -2631,6 +2664,8 @@ mod tests {
         assert!(headers.starts_with("HTTP/1.1 200 OK\r\n"));
         assert!(headers.contains("Content-Disposition: attachment; filename=\"result.mat\""));
         assert!(headers.contains("Content-Type: application/octet-stream"));
+        assert!(headers.contains("Access-Control-Allow-Origin: http://localhost:5173\r\n"));
+        assert!(headers.contains("Vary: Origin\r\n"));
         assert_eq!(&response[separator + 4..], expected);
     }
 

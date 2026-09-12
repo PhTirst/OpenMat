@@ -14,6 +14,8 @@ openmat-openblas = { path = "../openmat-openblas" }
 openmat-plot-protocol = { path = "../openmat-plot-protocol" }
 openmat-protocol = { path = "../openmat-protocol" }
 openmat-runtime = { path = "../openmat-runtime" }
+openmat-sim = { path = "../../simulation/crates/openmat-sim" }
+openmat-sim-slx = { path = "../../simulation/crates/openmat-sim-slx" }
 notify = "8.2.0"
 serde = "1.0"
 serde_json = "1.0"
