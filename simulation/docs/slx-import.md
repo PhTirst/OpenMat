@@ -1,13 +1,78 @@
-# SLX 导入 v0
+# SLX 导入与控制模型兼容范围
 
 现在可以直接读取一部分 MATLAB/Simulink R2022b 的 `.slx` 模型，并交给
-OpenMat 现有仿真引擎执行。当前入口是独立的仿真命令行，还没有接入网页
-编辑器或桌面安装包。
+OpenMat 现有仿真引擎执行。当前源码中的 Web/Desktop 模型编辑器使用
+`control-v1` 配置；命令行保留旧配置为默认值，也可以显式选择新配置。
+这些功能需要从当前源码构建，已发布安装包不会自动获得更新。
 
 “文件结构可以读取”和“模型可以正确仿真”分别检查。遇到不支持的方块、
 求解配置或参数，结构仍尽量保留，但运行会返回兼容性诊断。
 
-## 使用
+## control-v1：层级、参数和连续控制方块
+
+在模型编辑器中导入 `.slx` 后，左侧显示参数区和系统层级，中间显示原始
+结构，右侧显示所选方块的原始参数。双击子系统进入，使用路径导航或
+“返回上层”离开。缺少 `K`、`Ts` 等变量时，在参数区直接填写，或选择一个
+自己准备的 `.m` 参数文件，然后点击“应用参数并检查”。例如：
+
+```matlab
+K = 2;
+Ts = 0.05;
+A = [-1 1; 0 -2];
+B = eye(2);
+C = eye(2);
+D = zeros(2);
+x0 = [1; -1];
+```
+
+这里使用普通 m 语法解析器读取常量赋值，支持标量、矩阵、转置、四则运算、
+标量展开、矩阵乘法，以及 `zeros`、`ones`、`eye`、`reshape`、`sin`、`cos`、
+`tan`、`exp`、`log`、`sqrt`、`abs`。参数按文件顺序定义；不访问全局工作区，
+不执行任意脚本、`eval`、模型回调、函数定义、循环、索引赋值或数据字典。
+缺失变量、尺寸错误、非有限值均报错。上限：64 KiB 文本、256 个变量，
+单数组 4096 个数值，总存储 65536 个数值，并限制表达式深度和计算量。
+
+除下文的六类基础方块外，新配置支持：
+
+| 方块 | 当前范围 |
+| --- | --- |
+| SubSystem + Inport/Outport | 普通虚拟子系统、多层嵌套；端口从 1 连续编号；保留 SID 与模型路径 |
+| Mux / Demux | 固定宽度实数向量拼接/拆分；不等宽拆分使用明确的宽度向量 |
+| Ground / Terminator | 接地信号与未使用信号终止 |
+| Product / Bias | 逐元素乘除和偏置；标量展开或匹配向量宽度 |
+| Sine Wave | 时间模式、仿真时间输入、明确的连续采样 `SampleTime=0` |
+| State-Space | 实数 A/B/C/D；1–32 个状态、输入、输出；初值和直接馈通检查 |
+| Transfer Fcn | SISO 真有理或等阶传递函数，0–32 个状态；零初值 |
+| Step | 明确的连续采样 `SampleTime=0`；有限时间、前后值与标量展开 |
+
+信号是标量或固定宽度向量；参数矩阵不等同于矩阵信号。模型仍采用明确
+`ode4`/`FixedStepDiscrete` 设置和单一 UnitDelay 周期。Sine Wave/Step 的
+R2022b 内置缺省采样时间是继承值 `-1`，本配置会拒绝，必须显式设为 `0`。
+根级 Inport/Outport 的外部数据输入输出尚未实现。原子、启用、触发子系统、
+多速率、总线、Mask、库链接、S-function、Model Reference 和 Stateflow
+仍不在支持范围内。
+
+通过检查后可直接运行，或切到“查看 / 编辑数值模型”。该视图显示展开后的
+OpenMat 运行图，支持独立修改；原始 SLX 结构保持供导航和检查使用。
+重新应用参数会由原 SLX 重新生成运行图，界面会提示替换独立修改。
+参数待应用或检查失败时，编辑器与 CLI 都禁止执行旧快照。
+
+保存为 `.omsim`（JSON schema 4）会同时保存原始 SLX 包、层级、参数和
+生成的 m 数值源码。单文件可以移动并重新打开运行。内嵌生成源码可以查看，
+通过 SLX 参数重新生成；暂不单独导出到组件库。没有 SLX 写回/导出功能。
+内嵌源码最多 64 个文件，单文件 64 KiB、总计 1 MiB；超过限制会给出诊断。
+
+命令行用法：
+
+```powershell
+cargo run --manifest-path simulation/Cargo.toml --locked -p openmat-sim-cli -- inspect-slx 'C:/models/plant.slx' --slx-profile control-v1 --parameters 'C:/models/parameters.m'
+cargo run --manifest-path simulation/Cargo.toml --locked -p openmat-sim-cli -- import-slx 'C:/models/plant.slx' --slx-profile control-v1 --parameters 'C:/models/parameters.m' --output 'C:/models/plant.omsim'
+cargo run --manifest-path simulation/Cargo.toml --locked -p openmat-sim-cli -- run 'C:/models/plant.omsim'
+```
+
+未指定 `--slx-profile control-v1` 时仍采用下面的旧导入配置。
+
+## 旧配置使用方式
 
 从仓库根目录运行，先把示例路径替换成自己的文件：
 
@@ -47,7 +112,7 @@ cargo run --manifest-path simulation/Cargo.toml --locked -p openmat-sim-cli -- i
 特有的编辑和未知元数据；原始 SLX 不会被修改，也没有 SLX 写回功能。
 未来面向 PDE/有限元的 OpenMat 自有 OPC 格式不属于本次实现。
 
-## 当前支持范围
+## 旧配置支持范围
 
 | 方块 | 支持的配置 | 主要限制 |
 | --- | --- | --- |
@@ -77,6 +142,31 @@ cargo run --manifest-path simulation/Cargo.toml --locked -p openmat-sim-cli -- i
 会给出诊断。当前兼容范围不是整个 Simulink 产品的等价实现。
 
 ## 本机对照验收
+
+新配置使用独立编写的生成器：
+
+```powershell
+$env:OPENMAT_SLX_CONTROL_ORACLE_DIR = & ./simulation/tools/Invoke-SlxOracle.ps1 -Profile control
+$env:OPENMAT_SIM_LLVM_LIBRARY = & ./simulation/tools/Prepare-Llvm.ps1
+cargo test --manifest-path simulation/Cargo.toml --locked -p openmat-sim-slx --test control_oracle -- --ignored --nocapture
+```
+
+它在本机 R2022b 中生成 16 个可运行对照模型及两个继承采样时间的拒绝样例。
+参考与 LLVM 后端分别逐时刻比较数值。常量速率信号在 MATLAB 中可能仅记录
+一次；此时也检查 OpenMat 各帧保持相同数值。
+
+本阶段的 Windows 本机验收中，两种后端均通过上述对照，最大绝对误差为
+`7.105e-15`。浏览器完成了嵌套子系统导航、参数文件读取、F5 运行、内嵌回调
+查看和保存后重开。将 State-Space 的 `.omsim` 单独复制到新目录后，CLI
+仍能运行；21 个采样点、两个输出通道与 R2022b 对照的最大误差为 `2.22e-16`。
+这些结果只覆盖本节列出的原创模型和配置，不代表完整 Simulink 兼容性。
+
+连续 Step 在固定 ode4 中按 RK4 各阶段的时间求值，恰好到达阶跃时刻的阶段
+使用阶跃后值；不会改成理想分段积分。显式选择 CVODE 时，求解器停在已知
+阶跃边界，以左极限结束前一段，再用右极限重启。这是两种明确的求解方式，
+不声称 CVODE 复现 Simulink 的可变步长求解器，也未实现一般零交叉定位。
+
+旧配置的原有验收方式继续保留：
 
 需要单独安装并许可 MATLAB/Simulink R2022b；普通构建和运行 SLX 不需要它。
 PowerShell 7 下运行：

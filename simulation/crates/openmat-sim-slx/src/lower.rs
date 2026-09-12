@@ -107,7 +107,7 @@ pub(crate) fn lower(document: &Document, package: &Package) -> Result<Model, Vec
     Ok(model)
 }
 
-fn settings(props: &Properties) -> Result<Settings, Issue> {
+pub(crate) fn settings(props: &Properties) -> Result<Settings, Issue> {
     let solver = value(props, "SolverName", "");
     if !["ode4", "FixedStepDiscrete"].contains(&solver) {
         return Err(Issue::new(

@@ -137,6 +137,7 @@ pub struct Runner<K> {
     slopes: [Vec<f64>; 4],
     next_tick: u32,
     sample_hit: bool,
+    event_hit: bool,
     failed: bool,
     solver: Option<Box<dyn ContinuousSolver>>,
 }
@@ -181,6 +182,7 @@ impl<K: Kernel> Runner<K> {
                 plan.program.output_count() - count - plan.discrete_initial.len()
             ],
             sample_hit: !plan.discrete_initial.is_empty(),
+            event_hit: false,
             scratch: Scratch {
                 inputs: vec![0.0; plan.program.input_count()],
                 outputs: vec![0.0; plan.program.output_count()],
@@ -310,7 +312,17 @@ impl<K: Kernel> Runner<K> {
             s.start_time
                 + f64::from(self.next_tick) * s.sample_time.expect("validated discrete sample time")
         };
-        let boundary = s.stop_time.min(hit);
+        let event = if self.solver.is_some() {
+            self.plan
+                .time_events
+                .iter()
+                .copied()
+                .find(|t| *t > self.time)
+                .unwrap_or(f64::INFINITY)
+        } else {
+            f64::INFINITY
+        };
+        let boundary = s.stop_time.min(hit).min(event);
         let mut next = (self.time + s.max_step).min(boundary);
         if let Some(solver) = self.solver.as_mut() {
             let scratch = &mut self.scratch;
@@ -318,7 +330,14 @@ impl<K: Kernel> Runner<K> {
             let plan = &self.plan;
             let held = &self.held;
             let mut rhs = |time: f64, state: &[f64], derivatives: &mut [f64]| {
-                scratch.evaluate(kernel, &plan.origins, time, state, held, cancel)?;
+                // CVODE integrates up to the left limit; the accepted frame and
+                // next solver history use the right limit. RK4 preserves stage-time semantics.
+                let rhs_time = if event.is_finite() && time >= event {
+                    event.next_down()
+                } else {
+                    time
+                };
+                scratch.evaluate(kernel, &plan.origins, rhs_time, state, held, cancel)?;
                 derivatives.copy_from_slice(&scratch.outputs[..state.len()]);
                 Ok(())
             };
@@ -330,7 +349,9 @@ impl<K: Kernel> Runner<K> {
                     state: &self.continuous,
                     candidate: &mut self.trial,
                     cancel,
-                    reinitialize: self.sample_hit || self.time.to_bits() == s.start_time.to_bits(),
+                    reinitialize: self.sample_hit
+                        || self.event_hit
+                        || self.time.to_bits() == s.start_time.to_bits(),
                 },
                 &mut rhs,
             )?;
@@ -345,6 +366,10 @@ impl<K: Kernel> Runner<K> {
         }
         if near(next, s.stop_time) {
             next = s.stop_time;
+        }
+        let event_hit = event.is_finite() && near(next, event);
+        if event_hit {
+            next = event;
         }
         let sample_hit = hit.is_finite() && near(next, hit);
         if sample_hit && hit < s.stop_time && !near(hit, s.stop_time) {
@@ -394,6 +419,7 @@ impl<K: Kernel> Runner<K> {
         self.continuous.copy_from_slice(&self.trial);
         self.time = next;
         self.sample_hit = sample_hit;
+        self.event_hit = event_hit;
         self.next_tick = next_tick;
         if sample_hit {
             self.held.copy_from_slice(&self.pending);

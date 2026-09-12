@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+use base64::Engine;
 use std::ffi::OsString;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
@@ -13,9 +14,30 @@ use openmat_sim_slx::ImportedSlx;
 use openmat_sim_sundials::{Cvode, Method, Options as CvodeOptions};
 use serde_json::{Value, json};
 
-const USAGE: &str = "OpenMat simulation\n\n  openmat-sim check MODEL.json|MODEL.slx\n  openmat-sim run MODEL.json|MODEL.slx [--backend reference|llvm] [--llvm-library PATH]\n                                    [--output RESULT.json] [--max-samples COUNT]\n                                    [--solver rk4|cvode-adams|cvode-bdf]\n                                    [--sundials-directory PATH] [--rtol VALUE] [--atol VALUE]\n  openmat-sim emit-llvm MODEL [--output KERNEL.ll]\n  openmat-sim inspect-slx MODEL.slx [--output DOCUMENT.json]\n  openmat-sim import-slx MODEL.slx [--output MODEL.json]\n\nSLX execution requires a supported R2022b model configuration.\nLLVM requires an explicit LLVM 22 library path or OPENMAT_SIM_LLVM_LIBRARY.\nOutput files are created without overwriting existing files.\n";
+const USAGE: &str = r"OpenMat simulation
+
+  openmat-sim check MODEL.json|MODEL.omsim|MODEL.slx
+  openmat-sim run MODEL [--backend reference|llvm] [--llvm-library PATH]
+                       [--output RESULT.json] [--max-samples COUNT]
+                       [--solver rk4|cvode-adams|cvode-bdf]
+                       [--sundials-directory PATH] [--rtol VALUE] [--atol VALUE]
+  openmat-sim emit-llvm MODEL [--output KERNEL.ll]
+  openmat-sim inspect-slx MODEL.slx [--output DOCUMENT.json]
+  openmat-sim import-slx MODEL.slx [--output MODEL.omsim]
+
+SLX options for every command:
+  --slx-profile legacy|control-v1  (default: legacy)
+  --parameters FILE.m            (control-v1 only; explicit constant assignments)
+
+Control-v1 import exports a self-contained schema-4 authoring snapshot.
+SLX execution requires a supported R2022b model configuration.
+LLVM requires an explicit LLVM 22 library path or OPENMAT_SIM_LLVM_LIBRARY.
+Output files are created without overwriting existing files.
+";
 
 struct Options {
+    slx_profile: String,
+    parameters: Option<PathBuf>,
     command: String,
     model: PathBuf,
     output: Option<PathBuf>,
@@ -43,6 +65,7 @@ fn failure(code: &str, message: impl Into<String>) -> Value {
     json!({"code": code, "message": message.into()})
 }
 
+#[allow(clippy::too_many_lines)] // Validate command-specific options before any file access.
 fn parse_options(args: &[OsString]) -> Result<Options, Value> {
     let command = args[0]
         .to_str()
@@ -53,6 +76,8 @@ fn parse_options(args: &[OsString]) -> Result<Options, Value> {
         .filter(|a| !a.to_string_lossy().starts_with("--"))
         .ok_or_else(|| failure("arguments", "a model file is required"))?;
     let mut options = Options {
+        slx_profile: "legacy".into(),
+        parameters: None,
         command: command.into(),
         model: model.into(),
         output: None,
@@ -76,6 +101,16 @@ fn parse_options(args: &[OsString]) -> Result<Options, Value> {
             .get(index + 1)
             .ok_or_else(|| failure("arguments", format!("{name} needs a value")))?;
         match name {
+            "--slx-profile" => {
+                options.slx_profile = value
+                    .to_str()
+                    .filter(|p| ["legacy", "control-v1"].contains(p))
+                    .ok_or_else(|| {
+                        failure("arguments", "SLX profile must be legacy or control-v1")
+                    })?
+                    .into();
+            }
+            "--parameters" => options.parameters = Some(value.into()),
             "--output" if command != "check" => options.output = Some(value.into()),
             "--backend" if command == "run" => {
                 options.backend = value
@@ -133,6 +168,15 @@ fn parse_options(args: &[OsString]) -> Result<Options, Value> {
             "--llvm-library requires --backend llvm",
         ));
     }
+    if (options.slx_profile != "legacy" && !is_slx(&options.model))
+        || (options.parameters.is_some()
+            && (options.slx_profile != "control-v1" || !is_slx(&options.model)))
+    {
+        return Err(failure(
+            "arguments",
+            "--parameters requires an SLX model and --slx-profile control-v1",
+        ));
+    }
     if options.solver == "rk4"
         && ["--rtol", "--atol", "--sundials-directory"]
             .iter()
@@ -157,7 +201,7 @@ fn read_model(path: &Path) -> Result<Model, Value> {
         serde_json::from_slice(&bytes).map_err(|e| failure("model_json", e.to_string()))?;
     let model = if raw.get("format").is_some() {
         if raw["format"] != "openmat-simulation"
-            || !matches!(raw["schemaVersion"].as_u64(), Some(1..=3))
+            || !matches!(raw["schemaVersion"].as_u64(), Some(1..=4))
         {
             return Err(failure("model_json", "unsupported authoring document"));
         }
@@ -173,6 +217,17 @@ fn read_model(path: &Path) -> Result<Model, Value> {
                 "authoring version cannot be older than its numerical model",
             ));
         }
+        if let Some(asset) = raw.get("slx")
+            && (raw["schemaVersion"] != 4
+                || asset["runnable"] != true
+                || !asset["parameters"].is_string()
+                || asset["parameters"] != asset["appliedParameters"])
+        {
+            return Err(failure(
+                "slx_parameters",
+                "SLX parameters must be applied successfully before this authoring document can run",
+            ));
+        }
         raw["model"].clone()
     } else {
         raw
@@ -182,6 +237,21 @@ fn read_model(path: &Path) -> Result<Model, Value> {
 
 #[allow(clippy::case_sensitive_file_extension_comparisons)] // Match portable source-bundle path semantics.
 fn read_sources(model: &Model, path: &Path) -> Result<SourceBundle, Value> {
+    let mut embedded = SourceBundle::new();
+    if !is_slx(path) {
+        let document: Value = serde_json::from_slice(&read_bytes(path, 16 * 1024 * 1024)?)
+            .map_err(|e| failure("model_json", e.to_string()))?;
+        if let Some(value) = document.get("sources") {
+            if document["format"] != "openmat-simulation" || document["schemaVersion"] != 4 {
+                return Err(failure(
+                    "model_json",
+                    "embedded sources require authoring schema 4",
+                ));
+            }
+            embedded = serde_json::from_value(value.clone())
+                .map_err(|e| failure("source_file", e.to_string()))?;
+        }
+    }
     let base = path
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())
@@ -191,6 +261,10 @@ fn read_sources(model: &Model, path: &Path) -> Result<SourceBundle, Value> {
     let mut sources = SourceBundle::new();
     for source in openmat_sim::component::source_references(model) {
         if sources.contains_key(source) {
+            continue;
+        }
+        if let Some(content) = embedded.get(source) {
+            sources.insert(source.into(), content.clone());
             continue;
         }
         if sources.len() >= 64
@@ -251,7 +325,60 @@ fn read_bytes(path: &Path, limit: u64) -> Result<Vec<u8>, Value> {
     Ok(bytes)
 }
 
+#[allow(clippy::too_many_lines)] // Dispatch immutable imported snapshots and existing CLI commands together.
 fn execute(options: &Options) -> Result<(), Value> {
+    let control = if options.slx_profile == "control-v1" {
+        let bytes = read_bytes(&options.model, 64 * 1024 * 1024)?;
+        let name = options
+            .model
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("imported-model");
+        let imported = ImportedSlx::read(&bytes, name).map_err(|e| json!(e))?;
+        let parameters = options
+            .parameters
+            .as_ref()
+            .map(|p| {
+                read_bytes(p, openmat_sim_slx::MAX_PARAMETER_TEXT as u64).and_then(|b| {
+                    String::from_utf8(b).map_err(|e| failure("parameter_file", e.to_string()))
+                })
+            })
+            .transpose()?
+            .unwrap_or_default();
+        let lowered = imported.lower_control(&parameters);
+        if options.command == "inspect-slx" {
+            return write_output(options.output.as_deref(),&serde_json::to_string_pretty(&json!({"ok":true,"profile":"control-v1","document":imported.document(),"blockPaths":imported.block_paths(),"runnable":lowered.is_ok(),"issues":lowered.err().unwrap_or_default()})).map_err(|e|failure("result_json",e.to_string()))?);
+        }
+        let result =
+            lowered.map_err(|issues| json!({"code":"slx_compatibility","issues":issues}))?;
+        if options.command == "import-slx" {
+            let labels: std::collections::BTreeMap<_, _> = imported
+                .document()
+                .systems
+                .iter()
+                .flat_map(|s| &s.blocks)
+                .filter_map(|b| {
+                    let id = format!("slx_{}", b.sid.replace(':', "_"));
+                    result
+                        .model
+                        .blocks
+                        .iter()
+                        .any(|n| n.id == id)
+                        .then(|| (id, b.name.clone()))
+                })
+                .collect();
+            let document = json!({"format":"openmat-simulation","schemaVersion":4,"model":result.model,"sources":result.sources,
+                "editor":{"labels":labels,"bends":{}},"slx":{"name":name,"package":base64::engine::general_purpose::STANDARD.encode(&bytes),"parameters":parameters,"appliedParameters":parameters,"runnable":true,"issues":[],"document":imported.document()}});
+            return write_output(
+                options.output.as_deref(),
+                &serde_json::to_string_pretty(&document)
+                    .map_err(|e| failure("result_json", e.to_string()))?,
+            );
+        }
+        Some((result.model, result.sources))
+    } else {
+        None
+    };
     if ["inspect-slx", "import-slx"].contains(&options.command.as_str()) {
         let imported = read_slx(&options.model)?;
         let lowered = imported.lower();
@@ -267,8 +394,13 @@ fn execute(options: &Options) -> Result<(), Value> {
                 .map_err(|e| failure("result_json", e.to_string()))?,
         );
     }
-    let model = read_model(&options.model)?;
-    let sources = read_sources(&model, &options.model)?;
+    let (model, sources) = if let Some(control) = control {
+        control
+    } else {
+        let model = read_model(&options.model)?;
+        let sources = read_sources(&model, &options.model)?;
+        (model, sources)
+    };
     let plan = compile_with_sources(&model, &sources).map_err(|error| json!(error.0))?;
     if options.command == "check" {
         return write_output(None, &serde_json::to_string_pretty(&json!({

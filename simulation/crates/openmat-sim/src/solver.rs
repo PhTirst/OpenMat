@@ -12,7 +12,7 @@ pub struct OdeStep<'a> {
     pub state: &'a [f64],
     pub candidate: &'a mut [f64],
     pub cancel: &'a AtomicBool,
-    /// True initially and immediately after discrete outputs change.
+    /// True initially and immediately after discrete outputs or scheduled inputs change.
     pub reinitialize: bool,
 }
 

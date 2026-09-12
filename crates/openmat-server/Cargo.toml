@@ -25,3 +25,6 @@ tungstenite = { version = "0.30.0", default-features = false, features = ["hands
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+zip = { version = "8.6.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }

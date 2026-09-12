@@ -14,6 +14,7 @@ The contract is [RFC 0010](../docs/rfcs/0010-simulation-kernel-v0.md). Fixtures 
 tests are authored for OpenMat using elementary mathematical models; no MATLAB
 or Simulink source, test data, messages or proprietary model files are included.
 The SLX extension is described by [RFC 0011](../docs/rfcs/0011-slx-import-v0.md)
+and [RFC 0015](../docs/rfcs/0015-slx-control-profile-v1.md) (control-v1, schema 4)
 and the [SLX import guide](docs/slx-import.md). Loading an SLX document and
 supporting its simulation semantics are separate checks; this is not full
 Simulink compatibility.
@@ -221,7 +222,7 @@ solutions and RK4 convergence rather than relying on backend parity alone.
 CVODE acceptance covers a stiff analytic problem, exact discrete sample hits,
 nonlinear m functions with both backends and both methods, and callback failures.
 
-Two additional, explicitly ignored SLX differential tests require a separately
+Additional, explicitly ignored SLX differential tests require a separately
 licensed local MATLAB/Simulink R2022b installation. The [SLX guide](docs/slx-import.md)
 explains how to generate the project-authored models and run those tests against
 both backends. Generated SLX packages and observations are not checked in.

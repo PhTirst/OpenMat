@@ -8,6 +8,9 @@ use tungstenite::stream::MaybeTlsStream;
 use tungstenite::{Message, WebSocket, connect};
 
 type Socket = WebSocket<MaybeTlsStream<TcpStream>>;
+#[allow(dead_code)]
+#[path = "../../../simulation/crates/openmat-sim-slx/tests/support/mod.rs"]
+mod slx_fixture;
 struct Server {
     child: Child,
     url: String,
@@ -87,6 +90,113 @@ fn request_v3(socket: &mut Socket, id: &str, operation: &str, data: Value) {
     };
     message.as_object_mut().unwrap().extend(data);
     socket.send(Message::text(message.to_string())).unwrap();
+}
+
+fn request_v4(socket: &mut Socket, id: &str, operation: &str, data: Value) {
+    let mut message =
+        json!({"protocol":"openmat-simulation-v4","requestId":id,"operation":operation});
+    let Value::Object(data) = data else {
+        panic!("request data must be an object")
+    };
+    message.as_object_mut().unwrap().extend(data);
+    socket.send(Message::text(message.to_string())).unwrap();
+}
+
+#[test]
+fn v4_imports_explicit_parameters_and_runs_the_embedded_source_snapshot() {
+    let mut server = Server::start();
+    server.url = server.url.replace("/simulation/v1", "/simulation/v3");
+    let mut legacy = server.connect();
+    server.url = server.url.replace("/simulation/v3", "/simulation/v4");
+    let mut socket = server.connect();
+    request_v4(&mut socket, "catalog", "catalog", json!({}));
+    let catalog = read(&mut socket);
+    assert_eq!(catalog["protocol"], "openmat-simulation-v4");
+    assert_eq!(catalog["result"]["schemaVersion"], 4);
+    assert!(
+        catalog["result"]["blocks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|b| b["type"] == "step")
+    );
+    let mut fixture = slx_fixture::Fixture::feedback();
+    fixture.edit(
+        slx_fixture::SYSTEM,
+        "BlockType=\"Gain\"",
+        "BlockType=\"Bias\"",
+    );
+    fixture.edit(
+        slx_fixture::SYSTEM,
+        "<P Name=\"Gain\">1</P>",
+        "<P Name=\"Bias\">K</P>",
+    );
+    let bytes = fixture.package();
+    request_v4(
+        &mut socket,
+        "missing",
+        "importSlxControl",
+        json!({"name":"authored.slx","bytes":bytes}),
+    );
+    let missing = read(&mut socket);
+    assert_eq!(missing["result"]["runnable"], false);
+    assert_eq!(missing["result"]["issues"][0]["parameter"], "Bias");
+    assert_eq!(missing["result"]["issues"][0]["block"], "4");
+    assert!(
+        !missing["result"]["document"]["systems"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    request_v4(
+        &mut socket,
+        "import",
+        "importSlxControl",
+        json!({"name":"authored.slx","bytes":bytes,"parameters":"K=2;"}),
+    );
+    let imported = read(&mut socket);
+    let imported = &imported["result"];
+    assert_eq!(imported["runnable"], true, "{imported}");
+    let model = &imported["model"];
+    let sources = &imported["sources"];
+    assert!(!sources.as_object().unwrap().is_empty());
+    request_v3(
+        &mut legacy,
+        "new-schema",
+        "check",
+        json!({"model":model,"sources":sources,"revision":"old"}),
+    );
+    assert_eq!(read(&mut legacy)["error"]["code"], "protocol");
+    request_v3(
+        &mut legacy,
+        "new-import",
+        "importSlxControl",
+        json!({"name":"authored.slx","bytes":bytes}),
+    );
+    assert_eq!(read(&mut legacy)["error"]["code"], "protocol");
+    request_v4(
+        &mut socket,
+        "run",
+        "run",
+        json!({"model":model,"sources":sources,"revision":"frozen"}),
+    );
+    assert_eq!(read(&mut socket)["ok"], true);
+    let mut last = 0.0_f64;
+    let mut count = 0;
+    loop {
+        let event = read(&mut socket);
+        assert_eq!(event["protocol"], "openmat-simulation-v4");
+        if event["event"] == "finished" {
+            break;
+        }
+        assert_eq!(event["event"], "samples", "{event}");
+        for frame in event["data"]["frames"].as_array().unwrap() {
+            last = frame["values"][0].as_f64().unwrap();
+            count += 1;
+        }
+    }
+    assert_eq!(count, 21);
+    assert!((last + 1.0 - (-1.0_f64).exp()).abs() < 1e-7);
 }
 
 #[test]

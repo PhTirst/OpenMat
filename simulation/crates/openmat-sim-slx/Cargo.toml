@@ -10,6 +10,10 @@ openmat-opc = { path = "../openmat-opc" }
 openmat-sim = { path = "../openmat-sim" }
 roxmltree = "0.21.1"
 serde = { version = "1.0", features = ["derive"] }
+openmat-parser = { path = "../../../crates/openmat-parser" }
+openmat-hir = { path = "../../../crates/openmat-hir" }
+openmat-source = { path = "../../../crates/openmat-source" }
+openmat-syntax = { path = "../../../crates/openmat-syntax" }
 
 [dev-dependencies]
 openmat-sim-llvm = { path = "../openmat-sim-llvm" }

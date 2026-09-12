@@ -15,6 +15,7 @@ openmat-sim-llvm = { path = "../openmat-sim-llvm" }
 openmat-sim-slx = { path = "../openmat-sim-slx" }
 openmat-sim-sundials = { path = "../openmat-sim-sundials" }
 serde_json.workspace = true
+base64 = "0.22.1"
 
 [dev-dependencies]
 zip.workspace = true

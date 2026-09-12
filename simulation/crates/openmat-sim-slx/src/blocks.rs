@@ -175,7 +175,7 @@ fn check_ports(block: &Block, kind: &BlockKind) -> Result<(), Issue> {
     Ok(())
 }
 
-fn parameter_supported(block: &Block, key: &str, text: &str) -> bool {
+pub(crate) fn parameter_supported(block: &Block, key: &str, text: &str) -> bool {
     match key {
         "Position"
         | "ZOrder"

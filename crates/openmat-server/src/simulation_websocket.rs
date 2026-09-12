@@ -22,6 +22,7 @@ use crate::ServerError;
 const PROTOCOL: &str = "openmat-simulation-v1";
 const PROTOCOL_V2: &str = "openmat-simulation-v2";
 const PROTOCOL_V3: &str = "openmat-simulation-v3";
+const PROTOCOL_V4: &str = "openmat-simulation-v4";
 const MAX_MESSAGE: usize = 8 * 1024 * 1024;
 const MAX_SLX: usize = 2 * 1024 * 1024;
 const MAX_SAMPLES: usize = 100_000;
@@ -64,6 +65,12 @@ enum Operation {
     ImportSlx {
         name: String,
         bytes: Vec<u8>,
+    },
+    ImportSlxControl {
+        name: String,
+        bytes: Vec<u8>,
+        #[serde(default)]
+        parameters: String,
     },
 }
 
@@ -361,10 +368,32 @@ fn import_slx(name: &str, bytes: &[u8]) -> Result<Value, Value> {
     })
 }
 
+fn import_slx_control(name: &str, bytes: &[u8], parameters: &str) -> Result<Value, Value> {
+    if bytes.len() > MAX_SLX
+        || name.len() > 1024
+        || parameters.len() > openmat_sim_slx::MAX_PARAMETER_TEXT
+    {
+        return Err(error(
+            "slx_limit",
+            "Control import accepts at most 2 MiB of SLX and 64 KiB of parameter text.",
+        ));
+    }
+    let imported = ImportedSlx::read(bytes, name).map_err(|issue| json!(issue))?;
+    Ok(match imported.lower_control(parameters) {
+        Ok(result) => {
+            json!({"runnable":true,"profile":"control-v1","model":result.model,"sources":result.sources,"parameters":result.parameters,"blockPaths":result.block_paths,"document":imported.document(),"issues":[]})
+        }
+        Err(issues) => {
+            json!({"runnable":false,"profile":"control-v1","blockPaths":imported.block_paths(),"document":imported.document(),"issues":issues})
+        }
+    })
+}
+
 #[allow(clippy::too_many_lines)] // Keep both protocol versions and connection-owned job dispatch together.
 fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
     let id = &request.id;
-    let v3 = request.protocol == PROTOCOL_V3;
+    let v4 = request.protocol == PROTOCOL_V4;
+    let v3 = request.protocol == PROTOCOL_V3 || v4;
     let v2 = request.protocol == PROTOCOL_V2 || v3;
     if (request.protocol != PROTOCOL && !v2) || id.is_empty() || id.len() > 128 {
         return Some(failure(
@@ -387,6 +416,10 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
                 result["schemaVersion"] = json!(3);
                 result["blocks"].as_array_mut().expect("catalog array").push(json!({"type":"component","label":"Component","category":"Components","icon":"component","inputs":[],"outputs":[]}));
             }
+            if v4 {
+                result["schemaVersion"] = json!(4);
+                result["blocks"].as_array_mut().expect("catalog array").push(json!({"type":"step","label":"Step","category":"Sources","icon":"step","inputs":[],"outputs":["out"]}));
+            }
             response(id, result)
         }
         Operation::Check {
@@ -395,6 +428,12 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
             sources,
             execution,
         } => {
+            if !v4 && model.schema_version >= 4 {
+                return Some(failure(
+                    id,
+                    error("protocol", "control models require /simulation/v4"),
+                ));
+            }
             if !v3 && model.schema_version >= 3 {
                 return Some(failure(
                     id,
@@ -437,6 +476,12 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
             sources,
             execution,
         } => {
+            if !v4 && model.schema_version >= 4 {
+                return Some(failure(
+                    id,
+                    error("protocol", "control models require /simulation/v4"),
+                ));
+            }
             if !v3 && model.schema_version >= 3 {
                 return Some(failure(
                     id,
@@ -492,6 +537,28 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
             Ok(value) => response(id, value),
             Err(err) => failure(id, err),
         },
+        Operation::ImportSlxControl {
+            name,
+            bytes,
+            parameters,
+        } => {
+            if !v4 {
+                failure(
+                    id,
+                    error("protocol", "control-v1 import requires /simulation/v4"),
+                )
+            } else if job.is_some() {
+                failure(
+                    id,
+                    error("busy", "Stop the active run before importing a model."),
+                )
+            } else {
+                match import_slx_control(&name, &bytes, &parameters) {
+                    Ok(value) => response(id, value),
+                    Err(err) => failure(id, err),
+                }
+            }
+        }
     })
 }
 
@@ -512,6 +579,7 @@ fn send(
 
 pub(crate) fn serve(socket: &mut WebSocket<TcpStream>, version: u32) -> Result<(), ServerError> {
     let protocol = match version {
+        4 => PROTOCOL_V4,
         3 => PROTOCOL_V3,
         2 => PROTOCOL_V2,
         _ => PROTOCOL,

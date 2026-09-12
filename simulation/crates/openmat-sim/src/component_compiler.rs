@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::component::ComponentDefinition;
 use crate::model::{Block, BlockKind, FunctionInput, Model, Port};
-use crate::numeric::{Instruction, Kernel, MAX_VALUES, Program, ReferenceKernel};
+use crate::numeric::{Comparison, Instruction, Kernel, MAX_VALUES, Program, ReferenceKernel};
 use crate::static_function::{self, Signature};
 use crate::{CompiledModel, ModelError, ScopeInfo, SourceBundle, m_function};
 
@@ -190,6 +190,20 @@ pub(crate) fn compile(model: &Model, sources: &SourceBundle) -> Result<CompiledM
     } else {
         Some(program(input_count, update.instructions, next)?)
     };
+    let mut time_events: Vec<_> = model
+        .blocks
+        .iter()
+        .filter_map(|b| {
+            if let BlockKind::Step { time, .. } = b.kind {
+                (time > model.settings.start_time && time <= model.settings.stop_time)
+                    .then_some(time)
+            } else {
+                None
+            }
+        })
+        .collect();
+    time_events.sort_by(f64::total_cmp);
+    time_events.dedup();
     Ok(CompiledModel {
         name: model.name.clone(),
         settings: model.settings.clone(),
@@ -201,6 +215,7 @@ pub(crate) fn compile(model: &Model, sources: &SourceBundle) -> Result<CompiledM
         scopes,
         origins,
         execution_order,
+        time_events,
     })
 }
 
@@ -240,6 +255,7 @@ fn node<'a>(
         };
         let width = match &block.kind {
             BlockKind::Constant { value } => value.len(),
+            BlockKind::Step { before, .. } => before.len(),
             BlockKind::Integrator { initial } | BlockKind::UnitDelay { initial } => initial.len(),
             BlockKind::MFunction { output_width, .. } => *output_width,
             _ => 0,
@@ -479,6 +495,7 @@ fn lower_component(node: &mut Node<'_>, sources: &SourceBundle) -> Result<(), Mo
     Ok(())
 }
 
+#[allow(clippy::too_many_lines)] // One checked adapter per supported builtin, sharing local signal offsets.
 fn lower_builtin(node: &mut Node<'_>, sources: &SourceBundle) -> Result<(), ModelError> {
     match &node.block.kind {
         BlockKind::Integrator { initial } => node.x.clone_from(initial),
@@ -504,6 +521,26 @@ fn lower_builtin(node: &mut Node<'_>, sources: &SourceBundle) -> Result<(), Mode
         id
     };
     let output = match &node.block.kind {
+        BlockKind::Step {
+            time,
+            before,
+            after,
+        } => {
+            let event = push(&mut ops, Instruction::Constant(*time));
+            let condition = push(
+                &mut ops,
+                Instruction::Compare(Comparison::GreaterEqual, 0, event),
+            );
+            before
+                .iter()
+                .zip(after)
+                .map(|(&a, &b)| {
+                    let a = push(&mut ops, Instruction::Constant(a));
+                    let b = push(&mut ops, Instruction::Constant(b));
+                    push(&mut ops, Instruction::Select(condition, b, a))
+                })
+                .collect()
+        }
         BlockKind::Constant { value } => value
             .iter()
             .map(|&v| push(&mut ops, Instruction::Constant(v)))

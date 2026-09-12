@@ -4,9 +4,14 @@
 mod blocks;
 mod compatibility;
 mod configuration;
+mod control;
+mod control_blocks;
+mod control_emit;
+mod control_graph;
 mod document;
 mod literal;
 mod lower;
+mod parameters;
 
 use openmat_opc::{Limits, Package};
 use openmat_sim::model::Model;
@@ -14,7 +19,9 @@ use serde::Serialize;
 use std::fmt;
 
 pub use configuration::ConfigurationObject;
+pub use control::ControlModel;
 pub use document::{Block, Document, Line, PortProperties, Properties, Source, System};
+pub use parameters::{MAX_PARAMETER_TEXT, ParameterArray, Parameters};
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Issue {

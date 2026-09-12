@@ -188,6 +188,8 @@ Library JSON uses its own `openmat-component` schema 1; it is not an OPC package
 
 These callbacks form OpenMat's own compiled component interface. They do not
 load arbitrary MATLAB Level-2 S-functions, MATLAB Function blocks or Simulink
-library implementations. Existing SLX import compatibility is unchanged.
+library implementations. SLX `control-v1` can additionally generate numerical
+components for its bounded control-block subset; see the [SLX guide](slx-import.md).
+This does not implement MATLAB S-function compatibility.
 Zero-crossing/reset events, DAE/IDA, multiple sample rates, executable subsystems,
 general buses, C generation and ordinary m JIT remain future work.

@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 pub const SCHEMA_VERSION: u32 = 1;
 pub const FUNCTION_SCHEMA_VERSION: u32 = 2;
 pub const COMPONENT_SCHEMA_VERSION: u32 = 3;
+pub const CONTROL_SCHEMA_VERSION: u32 = 4;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -48,6 +49,11 @@ pub struct Position {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
 pub enum BlockKind {
+    Step {
+        time: f64,
+        before: Vec<f64>,
+        after: Vec<f64>,
+    },
     Component {
         component: String,
         #[serde(default)]
@@ -96,7 +102,7 @@ pub struct FunctionParameter {
 impl BlockKind {
     pub(crate) fn inputs(&self) -> Vec<String> {
         match self {
-            Self::Constant { .. } => Vec::new(),
+            Self::Constant { .. } | Self::Step { .. } => Vec::new(),
             Self::Sum { signs } => (0..signs.len()).map(|i| format!("in{i}")).collect(),
             Self::MFunction { inputs, .. } => {
                 inputs.iter().map(|input| input.name.clone()).collect()

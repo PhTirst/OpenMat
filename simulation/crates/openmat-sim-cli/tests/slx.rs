@@ -113,3 +113,55 @@ fn invalid_packages_fail_with_structured_errors_and_no_output_file() {
     );
     assert!(!destination.0.exists());
 }
+
+#[test]
+fn control_parameters_export_a_self_contained_authoring_snapshot() {
+    let source = TestFile::new("slx");
+    let parameters = TestFile::new("m");
+    let mut fixture = Fixture::feedback();
+    fixture.edit(SYSTEM, "BlockType=\"Gain\"", "BlockType=\"Bias\"");
+    fixture.edit(SYSTEM, "<P Name=\"Gain\">1</P>", "<P Name=\"Bias\">K</P>");
+    std::fs::write(&source.0, fixture.package()).unwrap();
+    std::fs::write(&parameters.0, "K = 2;").unwrap();
+    let imported = Command::new(env!("CARGO_BIN_EXE_openmat-sim"))
+        .arg("import-slx")
+        .arg(&source.0)
+        .args(["--slx-profile", "control-v1", "--parameters"])
+        .arg(&parameters.0)
+        .output()
+        .unwrap();
+    assert!(
+        imported.status.success(),
+        "{}",
+        String::from_utf8_lossy(&imported.stderr)
+    );
+    let mut document = json(&imported);
+    assert_eq!(document["schemaVersion"], 4);
+    assert!(!document["sources"].as_object().unwrap().is_empty());
+    assert_eq!(document["slx"]["parameters"], "K = 2;");
+    let snapshot = TestFile::new("omsim");
+    std::fs::write(&snapshot.0, &imported.stdout).unwrap();
+    assert!(run("check", &snapshot).status.success());
+    let output = run("run", &snapshot);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    document["slx"]["parameters"] = Value::String("K=3;".into());
+    std::fs::write(&snapshot.0, document.to_string()).unwrap();
+    let pending = run("run", &snapshot);
+    assert!(!pending.status.success());
+    assert_eq!(
+        serde_json::from_slice::<Value>(&pending.stderr).unwrap()["error"]["code"],
+        "slx_parameters"
+    );
+    let bad_option = Command::new(env!("CARGO_BIN_EXE_openmat-sim"))
+        .arg("check")
+        .arg(&source.0)
+        .arg("--parameters")
+        .arg(&parameters.0)
+        .output()
+        .unwrap();
+    assert!(!bad_option.status.success());
+}

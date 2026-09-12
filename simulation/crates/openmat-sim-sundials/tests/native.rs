@@ -20,6 +20,64 @@ fn missing_runtime_and_invalid_options_are_explicit_errors() {
 
 #[test]
 #[ignore = "requires pinned SUNDIALS runtime"]
+fn scheduled_steps_use_left_limit_restart_and_do_not_create_discrete_ticks() {
+    for event_time in [0.15_f64, 0.2, 0.5] {
+        for method in [Method::Adams, Method::Bdf] {
+            let model: Model = serde_json::from_value(serde_json::json!({
+                "schemaVersion":4, "name":"scheduled-input",
+                "settings":{"startTime":0,"stopTime":0.5,"maxStep":0.11,"sampleTime":0.1},
+                "blocks":[
+                    {"id":"input","kind":{"type":"step","time":event_time,"before":[0],"after":[1]}},
+                    {"id":"state","kind":{"type":"integrator","initial":[0]}},
+                    {"id":"delay","kind":{"type":"unitDelay","initial":[0]}},
+                    {"id":"scope","kind":{"type":"scope"}}
+                ],
+                "connections":[
+                    {"from":{"block":"input","port":"out"},"to":{"block":"state","port":"in"}},
+                    {"from":{"block":"input","port":"out"},"to":{"block":"delay","port":"in"}},
+                    {"from":{"block":"state","port":"out"},"to":{"block":"scope","port":"in"}}
+                ]
+            })).unwrap();
+            let plan = compile(&model).unwrap();
+            let solver = Cvode::new(
+                &directory(),
+                1,
+                Options {
+                    method,
+                    relative_tolerance: 1e-9,
+                    absolute_tolerance: 1e-11,
+                },
+            )
+            .unwrap();
+            let update = plan.update_program().cloned().map(ReferenceKernel::new);
+            let mut runner = Runner::new_with_update(
+                plan.clone(),
+                ReferenceKernel::new(plan.program().clone()),
+                update,
+            )
+            .unwrap()
+            .with_solver(Box::new(solver))
+            .unwrap();
+            let mut hit_count = 1;
+            let mut saw_event = false;
+            while let Some(frame) = runner.advance().unwrap() {
+                hit_count += usize::from(frame.sample_hit);
+                saw_event |= frame.time.to_bits() == event_time.to_bits();
+                assert!(
+                    (frame.values[0] - (frame.time - event_time).max(0.0)).abs() < 2e-8,
+                    "{method:?}, event={event_time}, t={}, value={}",
+                    frame.time,
+                    frame.values[0]
+                );
+            }
+            assert!(saw_event);
+            assert_eq!(hit_count, 6);
+        }
+    }
+}
+
+#[test]
+#[ignore = "requires pinned SUNDIALS runtime"]
 fn stiff_feedback_and_sample_boundaries() {
     let mut model: Model =
         serde_json::from_str(include_str!("../../../examples/first-order.omsim.json")).unwrap();
