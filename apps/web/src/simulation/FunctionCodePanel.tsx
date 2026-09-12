@@ -23,7 +23,7 @@ export function FunctionCodePanel({
     if (!doc || !shared)
         return (
             <p className="sim-help">
-                双击 M Function 方块，或在检查器中选择“编辑 m 函数”。
+                双击 M Function 方块，或在自定义组件的检查器中选择一个 m 回调。
             </p>
         );
     return (

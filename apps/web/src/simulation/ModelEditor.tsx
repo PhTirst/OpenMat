@@ -45,6 +45,26 @@ import type { DesignerSourceWorkspace } from "../documents/designer-source-works
 import { FunctionInspector } from "./FunctionInspector";
 import { FunctionCodePanel } from "./FunctionCodePanel";
 import { SolverInspector } from "./SolverInspector";
+import { ComponentInspector } from "./ComponentInspector";
+import { ComponentDialog, blankComponent } from "./ComponentDialog";
+import { ComponentLibrary } from "./ComponentLibrary";
+import {
+    attachComponent,
+    blockSources,
+    callbacks,
+    componentFile,
+    componentFor,
+    modelSources,
+    sameComponentDefinition,
+    validateComponentKind,
+    type ComponentDefinition,
+} from "./components";
+import {
+    callbackSkeletons,
+    copyComponentSources,
+    librarySources,
+    type LibraryEntry,
+} from "./component-library";
 import {
     functionTemplate,
     readFunctionSources,
@@ -58,6 +78,7 @@ import {
     example,
     stressExample,
     PENDULUM_SOURCE,
+    initializeComponentExample,
     type Example,
 } from "./examples";
 import { useSimulationRun, numericalSource } from "./use-simulation-run";
@@ -328,6 +349,12 @@ function Editor(props: Props) {
     const [preview, setPreview] = useState<SlxImport | null>(null);
     const [pane, setPane] = useState<"scope" | "diagnostics" | "code">("scope");
     const [codePath, setCodePath] = useState<string | null>(null);
+    const [componentDraft, setComponentDraft] = useState<{
+        definition: ComponentDefinition;
+        isNew: boolean;
+    } | null>(null);
+    const [libraryRefresh, setLibraryRefresh] = useState(0);
+    const draggedComponent = useRef<LibraryEntry | null>(null);
     const [codeReveal, setCodeReveal] = useState<{
         lineNumber: number;
         column: number;
@@ -353,13 +380,9 @@ function Editor(props: Props) {
     const sourceWorkspaceRef = useRef(props.sourceWorkspace);
     sourceWorkspaceRef.current = props.sourceWorkspace;
     const sourceIsDirty = () =>
-        docRef.current.model.blocks.some((block) => {
-            if (block.kind.type !== "mFunction") return false;
+        modelSources(docRef.current.model).some((reference) => {
             const source = sourceWorkspaceRef.current?.getSource(
-                sourcePath(
-                    draftRef.current.file?.path ?? null,
-                    block.kind.source,
-                ),
+                sourcePath(draftRef.current.file?.path ?? null, reference),
             );
             return (
                 source &&
@@ -373,21 +396,12 @@ function Editor(props: Props) {
         () =>
             numericalSource(doc.model, {
                 sources: Object.fromEntries(
-                    doc.model.blocks.flatMap((block) =>
-                        block.kind.type === "mFunction"
-                            ? [
-                                  [
-                                      block.kind.source,
-                                      props.sourceWorkspace?.getSource(
-                                          sourcePath(
-                                              file?.path ?? null,
-                                              block.kind.source,
-                                          ),
-                                      )?.content ?? "",
-                                  ],
-                              ]
-                            : [],
-                    ),
+                    modelSources(doc.model).map((reference) => [
+                        reference,
+                        props.sourceWorkspace?.getSource(
+                            sourcePath(file?.path ?? null, reference),
+                        )?.content ?? "",
+                    ]),
                 ),
                 execution: doc.execution ?? DEFAULT_EXECUTION,
             }),
@@ -400,9 +414,17 @@ function Editor(props: Props) {
         [],
     );
     const edit = useCallback((next: ModelDocument) => {
-        if (next.model.blocks.some((block) => block.kind.type === "mFunction"))
+        if (
+            next.model.components?.length ||
+            next.model.blocks.some((b) => b.kind.type === "component")
+        )
+            next.model.schemaVersion = 3;
+        else if (
+            next.model.blocks.some((block) => block.kind.type === "mFunction")
+        )
             next.model.schemaVersion = 2;
-        if (next.model.schemaVersion === 2 || next.execution)
+        if (next.model.schemaVersion === 3) next.schemaVersion = 3;
+        else if (next.model.schemaVersion === 2 || next.execution)
             next.schemaVersion = 2;
         invalidParameter.current = false;
         docRef.current = next;
@@ -458,6 +480,7 @@ function Editor(props: Props) {
                 selected: selected.includes(block.id),
                 data: {
                     block,
+                    component: componentFor(doc.model, block),
                     label: label(doc, block),
                     invalid: run.diagnostics.some(
                         (issue) =>
@@ -466,7 +489,13 @@ function Editor(props: Props) {
                 },
             })),
         );
-    }, [doc.model.blocks, doc.editor.labels, selected, run.diagnostics]);
+    }, [
+        doc.model.blocks,
+        doc.model.components,
+        doc.editor.labels,
+        selected,
+        run.diagnostics,
+    ]);
     useEffect(() => {
         if (visible) {
             const timer = setTimeout(() => shell.current?.focus(), 0);
@@ -627,9 +656,7 @@ function Editor(props: Props) {
             if (!saveAs && file) return saveToWorkspace(file.path);
             if (
                 !platform.files ||
-                docRef.current.model.blocks.some(
-                    (block) => block.kind.type === "mFunction",
-                )
+                modelSources(docRef.current.model).length > 0
             ) {
                 setPathInput(
                     `${docRef.current.model.name.replace(/[<>:"/\\|?*]/g, "_")}.omsim`,
@@ -858,7 +885,10 @@ function Editor(props: Props) {
                                 .filter(
                                     (entry) =>
                                         entry.kind === "file" &&
-                                        /\.(omsim|slx|json)$/i.test(entry.path),
+                                        /\.(omsim|slx|json)$/i.test(
+                                            entry.path,
+                                        ) &&
+                                        !entry.path.endsWith(".omblock.json"),
                                 )
                                 .map((entry) => entry.path),
                         ),
@@ -893,6 +923,13 @@ function Editor(props: Props) {
     const add = useCallback(
         (type: BlockType, position?: Point) => {
             if (!editable) return;
+            if (type === "component") {
+                setComponentDraft({
+                    definition: blankComponent(`custom_${uid().slice(6)}`),
+                    isNew: true,
+                });
+                return;
+            }
             const bounds = shell.current
                 ?.querySelector(".sim-canvas")
                 ?.getBoundingClientRect();
@@ -946,6 +983,245 @@ function Editor(props: Props) {
         },
         [edit, editable, selectedEdges],
     );
+    const seedComponent = (
+        definition: ComponentDefinition,
+        sources: Record<string, string>,
+    ) => {
+        const shared = sourceWorkspaceRef.current;
+        if (!shared) throw new Error("当前工作台没有连接 m 源码编辑器。");
+        for (const [reference, content] of Object.entries(sources))
+            shared.ensureSource({
+                path: sourcePath(
+                    draftRef.current.file?.path ?? null,
+                    reference,
+                ),
+                content,
+                savedContent: "",
+                file: null,
+            });
+        return definition;
+    };
+    const insertComponent = async (entry: LibraryEntry, position?: Point) => {
+        if (!editable || busyRef.current) return;
+        busyRef.current = true;
+        setFileBusy(true);
+        try {
+            const next = structuredClone(docRef.current);
+            let definition = next.model.components?.find(
+                (d) => d.id === entry.definition.id,
+            );
+            const reused = definition !== undefined;
+            if (
+                definition &&
+                !sameComponentDefinition(definition, entry.definition, false)
+            )
+                throw new Error(
+                    "组件库与模型内相同 ID 的定义不同。请从“模型内的组件”添加实例，或先编辑模型内的定义；独立组件请在库文件中使用新的 ID。",
+                );
+            let pendingSources: Record<string, string> = {};
+            if (!definition) {
+                const sources = await librarySources(
+                    entry,
+                    workspace,
+                    sourceWorkspaceRef.current,
+                );
+                if (!alive.current) return;
+                const copied = copyComponentSources(
+                    entry.definition,
+                    sources,
+                    uid().slice(6),
+                );
+                definition = copied.definition;
+                attachComponent(next, definition);
+                pendingSources = copied.sources;
+            }
+            if (definition.sampleTime !== undefined) {
+                const hasDiscrete = next.model.blocks.some(
+                    (b) =>
+                        b.kind.type === "unitDelay" ||
+                        (componentFor(next.model, b)?.discreteStates ?? 0) > 0,
+                );
+                if (
+                    hasDiscrete &&
+                    next.model.settings.sampleTime !== definition.sampleTime
+                )
+                    throw new Error(
+                        "当前阶段所有离散组件需要相同的采样周期，请先统一模型与组件的周期。",
+                    );
+                next.model.settings.sampleTime = definition.sampleTime;
+            }
+            const bounds = shell.current
+                ?.querySelector(".sim-canvas")
+                ?.getBoundingClientRect();
+            const at =
+                position ??
+                flow.screenToFlowPosition({
+                    x: (bounds?.left ?? 300) + (bounds?.width ?? 600) / 2 - 80,
+                    y: (bounds?.top ?? 100) + (bounds?.height ?? 400) / 2 - 45,
+                });
+            const id = uid();
+            next.model.blocks.push({
+                id,
+                kind: {
+                    type: "component",
+                    component: definition.id,
+                    parameters: {},
+                },
+                position: {
+                    x: Math.round(at.x / 10) * 10,
+                    y: Math.round(at.y / 10) * 10,
+                },
+            });
+            if (modelSources(next.model).length > 64)
+                throw new Error("模型最多引用 64 个 m 源码文件。");
+            seedComponent(definition, pendingSources);
+            edit(next);
+            setSelected([id]);
+            setSelectedEdges([]);
+            if (reused)
+                setNotice(
+                    "已添加实例，使用当前模型内保存的组件定义与 m 源码。",
+                );
+        } catch (e) {
+            report(e);
+        } finally {
+            busyRef.current = false;
+            if (alive.current) setFileBusy(false);
+        }
+    };
+    const applyComponent = (definition: ComponentDefinition) => {
+        if (!componentDraft) return;
+        if (componentDraft.isNew) {
+            setComponentDraft(null);
+            void insertComponent({
+                key: `new:${definition.id}`,
+                definition,
+                sources: callbackSkeletons(definition),
+            });
+            return;
+        }
+        const previous = componentDraft.definition;
+        const newSources = callbackSkeletons(definition);
+        const oldPaths = new Set(callbacks(previous).map((c) => c.source));
+        const next = structuredClone(docRef.current);
+        next.model.components = next.model.components!.map((d) =>
+            d.id === definition.id ? definition : d,
+        );
+        let resetParameters = 0;
+        for (const block of next.model.blocks) {
+            if (
+                block.kind.type !== "component" ||
+                block.kind.component !== definition.id
+            )
+                continue;
+            const current = block.kind;
+            current.parameters = Object.fromEntries(
+                Object.entries(current.parameters).filter(([name, value]) => {
+                    try {
+                        validateComponentKind(
+                            { ...current, parameters: { [name]: value } },
+                            [definition],
+                        );
+                        return true;
+                    } catch {
+                        resetParameters++;
+                        return false;
+                    }
+                }),
+            );
+        }
+        if (definition.sampleTime !== undefined) {
+            if (
+                next.model.blocks.some((b) => {
+                    const d = componentFor(next.model, b);
+                    return (
+                        d?.sampleTime !== undefined &&
+                        d.sampleTime !== definition.sampleTime
+                    );
+                })
+            )
+                throw new Error("当前阶段所有离散组件需要相同的采样周期。");
+            next.model.settings.sampleTime = definition.sampleTime;
+        }
+        if (modelSources(next.model).length > 64)
+            throw new Error("模型最多引用 64 个 m 源码文件。");
+        seedComponent(
+            definition,
+            Object.fromEntries(
+                Object.entries(newSources).filter(
+                    ([path]) => !oldPaths.has(path),
+                ),
+            ),
+        );
+        const byId = new Map(next.model.blocks.map((b) => [b.id, b]));
+        next.model.connections = next.model.connections.filter(
+            (e) =>
+                ports(
+                    byId.get(e.from.block)!,
+                    next.model.components,
+                ).outputs.includes(e.from.port) &&
+                ports(
+                    byId.get(e.to.block)!,
+                    next.model.components,
+                ).inputs.includes(e.to.port),
+        );
+        const kept = new Set(next.model.connections.map(edgeId));
+        for (const id of Object.keys(next.editor.bends))
+            if (!kept.has(id)) delete next.editor.bends[id];
+        edit(next);
+        setComponentDraft(null);
+        setNotice(
+            `已更新模型内的组件定义。${resetParameters ? `${resetParameters} 个不再符合定义的参数覆盖已移除。` : ""}请检查回调的输出宽度，再运行模型检查。`,
+        );
+    };
+    const saveComponentLibrary = async (block: Block) => {
+        const definition = componentFor(docRef.current.model, block);
+        if (!definition || busyRef.current) return;
+        busyRef.current = true;
+        setFileBusy(true);
+        try {
+            await props.pendingSaves.run(async () => {
+                const sources = await readFunctionSources(
+                    { ...docRef.current.model, blocks: [block] },
+                    draftRef.current.file?.path ?? null,
+                    workspace,
+                    sourceWorkspaceRef.current,
+                );
+                const target = sourcePath(
+                    draftRef.current.file?.path ?? null,
+                    "placeholder.m",
+                ).replace(
+                    /placeholder\.m$/,
+                    `${definition.id}_${uid().slice(6, 14)}.omblock.json`,
+                );
+                await saveFunctionSources(
+                    sources,
+                    target,
+                    workspace,
+                    rootGeneration,
+                    sourceWorkspaceRef.current,
+                );
+                await workspace.create(target, "file");
+                const file = await workspace.read(target);
+                await workspace.write(
+                    target,
+                    componentFile(definition),
+                    file.revision,
+                    rootGeneration,
+                );
+                if (alive.current) {
+                    setLibraryRefresh((v) => v + 1);
+                    setNotice(`组件已保存：${target}`);
+                    props.onSaved();
+                }
+            });
+        } catch (e) {
+            report(e);
+        } finally {
+            busyRef.current = false;
+            if (alive.current) setFileBusy(false);
+        }
+    };
     const copy = useCallback((ids = selectedRef.current) => {
         clipboard.current = copySelection(docRef.current, new Set(ids));
         pasteCount.current = 0;
@@ -954,17 +1230,21 @@ function Editor(props: Props) {
     }, []);
     const paste = useCallback(() => {
         if (!clipboard.current || !editable) return;
-        const pasted = pasteFragment(
-            docRef.current,
-            clipboard.current,
-            uid,
-            40 * ++pasteCount.current,
-        );
-        edit(pasted.document);
-        setSelected(pasted.ids);
-        setSelectedEdges([]);
-        setMenu(null);
-    }, [edit, editable]);
+        try {
+            const pasted = pasteFragment(
+                docRef.current,
+                clipboard.current,
+                uid,
+                40 * ++pasteCount.current,
+            );
+            edit(pasted.document);
+            setSelected(pasted.ids);
+            setSelectedEdges([]);
+            setMenu(null);
+        } catch (error) {
+            report(error);
+        }
+    }, [edit, editable, report]);
     const commitBend = useCallback(
         (id: string, point: Point) =>
             change((next) => {
@@ -1024,8 +1304,12 @@ function Editor(props: Props) {
                     to &&
                     connection.sourceHandle &&
                     connection.targetHandle &&
-                    ports(from).outputs.includes(connection.sourceHandle) &&
-                    ports(to).inputs.includes(connection.targetHandle) &&
+                    ports(from, model.components).outputs.includes(
+                        connection.sourceHandle,
+                    ) &&
+                    ports(to, model.components).inputs.includes(
+                        connection.targetHandle,
+                    ) &&
                     !model.connections.some(
                         (edge) =>
                             edge.to.block === connection.target &&
@@ -1098,10 +1382,16 @@ function Editor(props: Props) {
     }, [executeModel]);
     const openFunction = useCallback(
         async (block: Block, issue?: SimulationDiagnostic) => {
-            if (block.kind.type !== "mFunction") return;
+            const reference =
+                issue?.sourcePath ??
+                (block.kind.type === "mFunction"
+                    ? block.kind.source
+                    : componentFor(docRef.current.model, block)?.outputsFunction
+                          .source);
+            if (!reference) return;
             const path = sourcePath(
                 draftRef.current.file?.path ?? null,
-                block.kind.source,
+                reference,
             );
             try {
                 await readFunctionSources(
@@ -1139,6 +1429,7 @@ function Editor(props: Props) {
                     !event.altKey &&
                     !modal &&
                     !pendingAction &&
+                    !componentDraft &&
                     !preview &&
                     !busyRef.current &&
                     !runRef.current.busy &&
@@ -1154,14 +1445,19 @@ function Editor(props: Props) {
             if (control && event.key.toLowerCase() === "s") {
                 event.preventDefault();
                 event.stopImmediatePropagation();
-                if (editable && !modal && !pendingAction) {
+                if (editable && !modal && !pendingAction && !componentDraft) {
                     if (document.activeElement instanceof HTMLInputElement)
                         document.activeElement.blur();
                     void save(event.shiftKey);
                 }
                 return;
             }
-            if (interactiveTarget(event.target) || modal || pendingAction)
+            if (
+                interactiveTarget(event.target) ||
+                modal ||
+                pendingAction ||
+                componentDraft
+            )
                 return;
             if (event.key === "Escape") {
                 setMenu(null);
@@ -1208,6 +1504,7 @@ function Editor(props: Props) {
         modal,
         paste,
         pendingAction,
+        componentDraft,
         preview,
         runModel,
         save,
@@ -1294,7 +1591,10 @@ function Editor(props: Props) {
         (_event: unknown, node: FlowBlock) => {
             setSelected([node.id]);
             if (node.data.block.kind.type === "scope") setPane("scope");
-            else if (node.data.block.kind.type === "mFunction")
+            else if (
+                node.data.block.kind.type === "mFunction" ||
+                node.data.block.kind.type === "component"
+            )
                 void openFunction(node.data.block);
             else
                 requestAnimationFrame(() =>
@@ -1429,7 +1729,8 @@ function Editor(props: Props) {
               )
             : undefined;
     const applyParameter = (block: Block, value: string) => {
-        if (block.kind.type === "mFunction") return;
+        if (block.kind.type === "mFunction" || block.kind.type === "component")
+            return;
         try {
             const values =
                 block.kind.type === "sum"
@@ -1453,7 +1754,7 @@ function Editor(props: Props) {
                     (item) => item.id === block.id,
                 )!;
                 const type = node.kind.type;
-                if (type === "mFunction") return;
+                if (type === "mFunction" || type === "component") return;
                 node.kind =
                     type === "constant"
                         ? { type, value: values }
@@ -1464,7 +1765,7 @@ function Editor(props: Props) {
                             : type === "scope"
                               ? { type }
                               : { type, initial: values };
-                const inputs = ports(node).inputs;
+                const inputs = ports(node, next.model.components).inputs;
                 next.model.connections = next.model.connections.filter(
                     (edge) =>
                         edge.to.block !== node.id ||
@@ -1654,6 +1955,21 @@ function Editor(props: Props) {
                                     });
                                 }
                             }
+                            if (next.model.components?.length) {
+                                const sources = initializeComponentExample(
+                                    next,
+                                    uid().slice(6),
+                                );
+                                for (const [path, content] of Object.entries(
+                                    sources,
+                                ))
+                                    sourceWorkspaceRef.current?.ensureSource({
+                                        path,
+                                        content,
+                                        savedContent: "",
+                                        file: null,
+                                    });
+                            }
                             replace(next);
                         });
                     }}
@@ -1665,6 +1981,11 @@ function Editor(props: Props) {
                     <option value="vector">两个时间常数</option>
                     <option value="counter">离散计数器</option>
                     <option value="pendulum">非线性摆 · m 函数</option>
+                    <option value="customDelay">
+                        自定义 Unit Delay · m 组件
+                    </option>
+                    <option value="massSpring">质量—弹簧—阻尼 · m 组件</option>
+                    <option value="piControl">离散 PI + 连续系统</option>
                     <option value="stress">300 方块交互测试</option>
                 </select>
             </div>
@@ -1728,6 +2049,7 @@ function Editor(props: Props) {
                                 ].map((category) => {
                                     const items = DEFINITIONS.filter(
                                         (def) =>
+                                            def.type !== "component" &&
                                             def.category === category &&
                                             `${def.label} ${def.category}`
                                                 .toLowerCase()
@@ -1766,6 +2088,28 @@ function Editor(props: Props) {
                                         </section>
                                     ) : null;
                                 })}
+                                <ComponentLibrary
+                                    workspace={workspace}
+                                    generation={rootGeneration}
+                                    refresh={libraryRefresh}
+                                    filter={filter}
+                                    disabled={!editable}
+                                    definitions={doc.model.components ?? []}
+                                    onInsert={(entry) =>
+                                        void insertComponent(entry)
+                                    }
+                                    onDrag={(entry) => {
+                                        draggedComponent.current = entry;
+                                    }}
+                                    onCreate={() =>
+                                        setComponentDraft({
+                                            definition: blankComponent(
+                                                `custom_${uid().slice(6)}`,
+                                            ),
+                                            isNew: true,
+                                        })
+                                    }
+                                />
                             </div>
                         </section>
                     }
@@ -1872,7 +2216,12 @@ function Editor(props: Props) {
                                             }}
                                         >
                                             <BlockIcon
-                                                type={block.kind.type}
+                                                type={
+                                                    componentFor(
+                                                        doc.model,
+                                                        block,
+                                                    )?.icon ?? block.kind.type
+                                                }
                                                 size={17}
                                             />
                                             <span>{label(doc, block)}</span>
@@ -1908,6 +2257,23 @@ function Editor(props: Props) {
                         }}
                         onDrop={(event) => {
                             event.preventDefault();
+                            const componentKey = event.dataTransfer.getData(
+                                "application/openmat-component",
+                            );
+                            if (
+                                componentKey &&
+                                draggedComponent.current?.key === componentKey
+                            ) {
+                                void insertComponent(
+                                    draggedComponent.current,
+                                    flow.screenToFlowPosition({
+                                        x: event.clientX,
+                                        y: event.clientY,
+                                    }),
+                                );
+                                draggedComponent.current = null;
+                                return;
+                            }
                             const type = event.dataTransfer.getData(
                                 "application/openmat-block",
                             );
@@ -2105,10 +2471,18 @@ function Editor(props: Props) {
                     ) : chosen ? (
                         <>
                             <div className="sim-inspector-heading">
-                                <BlockIcon type={chosen.kind.type} size={30} />
+                                <BlockIcon
+                                    type={
+                                        componentFor(doc.model, chosen)?.icon ??
+                                        chosen.kind.type
+                                    }
+                                    size={30}
+                                />
                                 <div>
                                     <strong>
-                                        {definition(chosen.kind.type).label}
+                                        {componentFor(doc.model, chosen)
+                                            ?.name ??
+                                            definition(chosen.kind.type).label}
                                     </strong>
                                     <small>{chosen.id}</small>
                                 </div>
@@ -2182,8 +2556,50 @@ function Editor(props: Props) {
                                     }
                                 />
                             )}
+                            {chosen.kind.type === "component" &&
+                                componentFor(doc.model, chosen) && (
+                                    <ComponentInspector
+                                        key={chosen.id}
+                                        value={chosen.kind}
+                                        definition={
+                                            componentFor(doc.model, chosen)!
+                                        }
+                                        disabled={!editable}
+                                        onChange={(kind) =>
+                                            change((next) => {
+                                                next.model.blocks.find(
+                                                    (b) => b.id === chosen.id,
+                                                )!.kind = kind;
+                                            })
+                                        }
+                                        onOpen={(callback) =>
+                                            void openFunction(chosen, {
+                                                code: "source",
+                                                message: "",
+                                                sourcePath: callback.source,
+                                            })
+                                        }
+                                        onEdit={() =>
+                                            setComponentDraft({
+                                                definition: componentFor(
+                                                    doc.model,
+                                                    chosen,
+                                                )!,
+                                                isNew: false,
+                                            })
+                                        }
+                                        onLibrary={() =>
+                                            void saveComponentLibrary(chosen)
+                                        }
+                                        onError={(message) => {
+                                            invalidParameter.current = true;
+                                            setError(message);
+                                        }}
+                                    />
+                                )}
                             {chosen.kind.type !== "scope" &&
-                                chosen.kind.type !== "mFunction" && (
+                                chosen.kind.type !== "mFunction" &&
+                                chosen.kind.type !== "component" && (
                                     <label>
                                         {chosen.kind.type === "sum"
                                             ? "输入符号"
@@ -2216,35 +2632,41 @@ function Editor(props: Props) {
                                             : "支持有限实数和固定宽度的数值向量。"}
                             </p>
                             <h3>端口</h3>
-                            {ports(chosen).inputs.map((port) => (
-                                <div className="sim-port-row" key={port}>
-                                    <span>→ {port}</span>
-                                    <small>
-                                        {doc.model.connections.some(
-                                            (edge) =>
-                                                edge.to.block === chosen.id &&
-                                                edge.to.port === port,
-                                        )
-                                            ? "已连接"
-                                            : "未连接"}
-                                    </small>
-                                </div>
-                            ))}
-                            {ports(chosen).outputs.map((port) => (
-                                <div className="sim-port-row" key={port}>
-                                    <span>{port} →</span>
-                                    <small>
-                                        {
-                                            doc.model.connections.filter(
+                            {ports(chosen, doc.model.components).inputs.map(
+                                (port) => (
+                                    <div className="sim-port-row" key={port}>
+                                        <span>→ {port}</span>
+                                        <small>
+                                            {doc.model.connections.some(
                                                 (edge) =>
-                                                    edge.from.block ===
-                                                    chosen.id,
-                                            ).length
-                                        }{" "}
-                                        条连接
-                                    </small>
-                                </div>
-                            ))}
+                                                    edge.to.block ===
+                                                        chosen.id &&
+                                                    edge.to.port === port,
+                                            )
+                                                ? "已连接"
+                                                : "未连接"}
+                                        </small>
+                                    </div>
+                                ),
+                            )}
+                            {ports(chosen, doc.model.components).outputs.map(
+                                (port) => (
+                                    <div className="sim-port-row" key={port}>
+                                        <span>{port} →</span>
+                                        <small>
+                                            {
+                                                doc.model.connections.filter(
+                                                    (edge) =>
+                                                        edge.from.block ===
+                                                            chosen.id &&
+                                                        edge.from.port === port,
+                                                ).length
+                                            }{" "}
+                                            条连接
+                                        </small>
+                                    </div>
+                                ),
+                            )}
                             <button
                                 className="sim-delete"
                                 onClick={() => deleteSelected([chosen.id], [])}
@@ -2349,7 +2771,7 @@ function Editor(props: Props) {
                         </>
                     )}
                     <div className="sim-inspector-footer">
-                        OpenMat Simulation · v1
+                        OpenMat Simulation
                         <br />
                         {preview ? "SLX 结构检查" : "选择方块查看参数"}
                     </div>
@@ -2387,6 +2809,13 @@ function Editor(props: Props) {
                         setMenu(null);
                         if (restoreFocus) shell.current?.focus();
                     }}
+                />
+            )}
+            {componentDraft && (
+                <ComponentDialog
+                    value={componentDraft.definition}
+                    onApply={applyComponent}
+                    onClose={() => setComponentDraft(null)}
                 />
             )}
             {modal && (

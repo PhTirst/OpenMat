@@ -6,10 +6,50 @@ import {
 } from "./model";
 import pendulumModel from "../../../../simulation/examples/pendulum.omsim.json";
 import pendulumSource from "../../../../simulation/examples/pendulum.m?raw";
+import delayModel from "../../../../simulation/examples/custom-delay.omsim.json";
+import plantModel from "../../../../simulation/examples/mass-spring-damper.omsim.json";
+import piModel from "../../../../simulation/examples/pi-control.omsim.json";
+import { copyComponentSources } from "./component-library";
+import { modelSources } from "./components";
+const componentSources = import.meta.glob<string>(
+    "../../../../simulation/examples/components/**/*.m",
+    { eager: true, query: "?raw", import: "default" },
+);
+export function initializeComponentExample(
+    doc: ModelDocument,
+    suffix: string,
+): Record<string, string> {
+    const sources = Object.fromEntries(
+        modelSources(doc.model).map((reference) => [
+            reference,
+            componentSources[`../../../../simulation/examples/${reference}`] ??
+                "",
+        ]),
+    );
+    const copied: Record<string, string> = {};
+    doc.model.components =
+        doc.model.components?.map((d, i) => {
+            const result = copyComponentSources(d, sources, `${suffix}_${i}`);
+            Object.assign(copied, result.sources);
+            return result.definition;
+        }) ?? [];
+    return copied;
+}
 export const PENDULUM_SOURCE = pendulumSource;
-export type Example = "feedback" | "vector" | "counter" | "blank" | "pendulum";
+export type Example =
+    | "feedback"
+    | "vector"
+    | "counter"
+    | "blank"
+    | "pendulum"
+    | "customDelay"
+    | "massSpring"
+    | "piControl";
 export function example(name: Example): ModelDocument {
     if (name === "pendulum") return fromModel(parseModel(pendulumModel));
+    if (name === "customDelay") return fromModel(parseModel(delayModel));
+    if (name === "massSpring") return fromModel(parseModel(plantModel));
+    if (name === "piControl") return fromModel(parseModel(piModel));
     const doc = emptyDocument(
         name === "blank"
             ? "Untitled"

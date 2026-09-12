@@ -1,5 +1,5 @@
 import type { BlockDefinition, Model, ExecutionOptions } from "./model";
-export const SIMULATION_PROTOCOL = "openmat-simulation-v2";
+export const SIMULATION_PROTOCOL = "openmat-simulation-v3";
 export interface SimulationSnapshot {
     sources: Record<string, string>;
     execution: ExecutionOptions;
@@ -108,9 +108,9 @@ export function simulationUrl(kernelUrl: string): string {
     const url = new URL(kernelUrl);
     if (url.protocol !== "ws:" && url.protocol !== "wss:")
         throw new Error("仿真服务需要 WebSocket 地址。");
-    url.pathname = url.pathname.replace(/\/kernel\/?$/, "/simulation/v2");
-    if (!url.pathname.endsWith("/simulation/v2"))
-        url.pathname = "/simulation/v2";
+    url.pathname = url.pathname.replace(/\/kernel\/?$/, "/simulation/v3");
+    if (!url.pathname.endsWith("/simulation/v3"))
+        url.pathname = "/simulation/v3";
     url.search = "";
     url.hash = "";
     return url.toString();

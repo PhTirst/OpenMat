@@ -2,6 +2,7 @@ import type { DesignerSourceWorkspace } from "../documents/designer-source-works
 import type { WorkspaceClient } from "../workspace/workspace-client";
 import { SimulationError } from "./client";
 import { validSourcePath, type FunctionKind, type Model } from "./model";
+import { modelSources, blockSources } from "./components";
 
 export interface FunctionSourceSnapshot {
     reference: string;
@@ -38,13 +39,7 @@ export async function readFunctionSources(
     workspace: WorkspaceClient,
     shared?: DesignerSourceWorkspace,
 ): Promise<FunctionSourceSnapshot[]> {
-    const references = [
-        ...new Set(
-            model.blocks.flatMap((block) =>
-                block.kind.type === "mFunction" ? [block.kind.source] : [],
-            ),
-        ),
-    ];
+    const references = modelSources(model);
     // Capture all existing drafts before awaiting any filesystem reads.
     const drafts = references.map((reference) => {
         const path = sourcePath(modelPath, reference),
@@ -77,9 +72,8 @@ export async function readFunctionSources(
                 });
             }
         } catch (error) {
-            const block = model.blocks.find(
-                (b) =>
-                    b.kind.type === "mFunction" && b.kind.source === reference,
+            const block = model.blocks.find((b) =>
+                blockSources(model, b).includes(reference),
             );
             throw new SimulationError({
                 code: "source_file",

@@ -1,4 +1,12 @@
 /** OpenMat authoring data. No React Flow implementation fields are persisted. */
+import {
+    componentFor,
+    validateComponent,
+    validateComponentKind,
+    attachComponent,
+    type ComponentDefinition,
+    type ComponentKind,
+} from "./components";
 export type BlockType =
     | "constant"
     | "sum"
@@ -6,7 +14,8 @@ export type BlockType =
     | "integrator"
     | "unitDelay"
     | "scope"
-    | "mFunction";
+    | "mFunction"
+    | "component";
 export interface FunctionKind {
     type: "mFunction";
     source: string;
@@ -127,7 +136,8 @@ export type BlockKind =
     | { type: "gain"; gain: number[] }
     | { type: "integrator" | "unitDelay"; initial: number[] }
     | { type: "scope" }
-    | FunctionKind;
+    | FunctionKind
+    | ComponentKind;
 export interface Point {
     x: number;
     y: number;
@@ -146,7 +156,7 @@ export interface Connection {
     to: Port;
 }
 export interface Model {
-    schemaVersion: 1 | 2;
+    schemaVersion: 1 | 2 | 3;
     name: string;
     settings: {
         startTime: number;
@@ -156,10 +166,11 @@ export interface Model {
     };
     blocks: Block[];
     connections: Connection[];
+    components?: ComponentDefinition[];
 }
 export interface ModelDocument {
     format: "openmat-simulation";
-    schemaVersion: 1 | 2;
+    schemaVersion: 1 | 2 | 3;
     execution?: ExecutionOptions;
     model: Model;
     editor: {
@@ -180,6 +191,14 @@ export interface BlockDefinition {
 }
 // Offline authoring baseline; the native catalog is verified against these renderers.
 export const DEFINITIONS: readonly BlockDefinition[] = [
+    {
+        type: "component",
+        label: "Component",
+        category: "自定义组件",
+        icon: "component",
+        inputs: [],
+        outputs: [],
+    },
     {
         type: "mFunction",
         label: "M Function",
@@ -251,7 +270,20 @@ export const definition = (type: BlockType): BlockDefinition =>
     DEFINITIONS.find((item) => item.type === type)!;
 export const isBlockType = (value: string): value is BlockType =>
     DEFINITIONS.some((item) => item.type === value);
-export function ports(block: Block): { inputs: string[]; outputs: string[] } {
+export function ports(
+    block: Block,
+    components?: ComponentDefinition[],
+): { inputs: string[]; outputs: string[] } {
+    if (block.kind.type === "component") {
+        const d = componentFor(
+            { ...(components ? { components } : {}) },
+            block,
+        );
+        return {
+            inputs: d?.inputs.map((p) => p.name) ?? [],
+            outputs: d?.outputs.map((p) => p.name) ?? [],
+        };
+    }
     if (block.kind.type === "mFunction")
         return {
             inputs: block.kind.inputs.map((input) => input.name),
@@ -266,6 +298,8 @@ export function ports(block: Block): { inputs: string[]; outputs: string[] } {
 }
 export function kind(type: BlockType): BlockKind {
     switch (type) {
+        case "component":
+            return { type, component: "", parameters: {} };
         case "mFunction":
             return {
                 type,
@@ -295,9 +329,11 @@ export const edgeId = (edge: Connection): string =>
 export const label = (doc: ModelDocument, block: Block): string =>
     Object.hasOwn(doc.editor.labels, block.id)
         ? doc.editor.labels[block.id]!
-        : definition(block.kind.type).label;
+        : (componentFor(doc.model, block)?.name ??
+          definition(block.kind.type).label);
 export function parameterText(block: Block): string {
     const data = block.kind;
+    if (data.type === "component") return data.component;
     if (data.type === "mFunction")
         return `${data.entry}(${data.inputs.map((input) => input.name).join(", ")})`;
     if (data.type === "scope") return "signal → time";
@@ -393,11 +429,34 @@ export function parseModel(value: unknown): Model {
     const data = object(value, "模型");
     keys(
         data,
-        ["schemaVersion", "name", "settings", "blocks", "connections"],
+        [
+            "schemaVersion",
+            "name",
+            "settings",
+            "blocks",
+            "connections",
+            "components",
+        ],
         "模型",
     );
-    if (data.schemaVersion !== 1 && data.schemaVersion !== 2)
+    if (
+        data.schemaVersion !== 1 &&
+        data.schemaVersion !== 2 &&
+        data.schemaVersion !== 3
+    )
         throw new Error("不支持的模型版本。");
+    if (
+        data.components !== undefined &&
+        (!Array.isArray(data.components) || data.components.length > 64)
+    )
+        throw new Error("模型组件定义列表无效。");
+    const components = ((data.components ?? []) as unknown[]).map(
+        validateComponent,
+    );
+    if (components.length && data.schemaVersion !== 3)
+        throw new Error("组件定义需要模型版本 3。");
+    if (new Set(components.map((d) => d.id)).size !== components.length)
+        throw new Error("组件 ID 重复。");
     const settings = object(data.settings, "仿真设置");
     keys(
         settings,
@@ -422,8 +481,12 @@ export function parseModel(value: unknown): Model {
         if (typeof k.type !== "string" || !isBlockType(k.type))
             throw new Error(`不支持的方块类型：${String(k.type)}`);
         const def = definition(k.type);
-        if (k.type === "mFunction") {
-            if (data.schemaVersion !== 2)
+        if (k.type === "component") {
+            if (data.schemaVersion !== 3)
+                throw new Error("自定义组件需要模型版本 3。");
+            Object.assign(k, validateComponentKind(k, components));
+        } else if (k.type === "mFunction") {
+            if (data.schemaVersion === 1)
                 throw new Error("M Function 需要模型版本 2。");
             validateFunctionKind(k);
         } else
@@ -471,7 +534,7 @@ export function parseModel(value: unknown): Model {
             const block = text(p.block, "端口方块"),
                 port = text(p.port, "端口名称");
             const node = byId.get(block);
-            if (!node || !ports(node)[direction].includes(port))
+            if (!node || !ports(node, components)[direction].includes(port))
                 throw new Error(`不存在的端口 ${block}.${port}`);
             return { block, port };
         };
@@ -489,6 +552,7 @@ export function parseModel(value: unknown): Model {
     });
     return {
         schemaVersion: data.schemaVersion,
+        ...(data.components !== undefined ? { components } : {}),
         name: text(data.name, "模型名称"),
         blocks,
         connections,
@@ -514,11 +578,15 @@ export function parseDocument(source: string): ModelDocument {
     );
     if (
         raw.format !== "openmat-simulation" ||
-        (raw.schemaVersion !== 1 && raw.schemaVersion !== 2)
+        (raw.schemaVersion !== 1 &&
+            raw.schemaVersion !== 2 &&
+            raw.schemaVersion !== 3)
     )
         throw new Error("不支持的编辑器文件格式或版本。");
     const doc = fromModel(parseModel(raw.model));
     doc.schemaVersion = raw.schemaVersion;
+    if (doc.schemaVersion < doc.model.schemaVersion)
+        throw new Error("文件版本不能早于模型版本。");
     if (
         raw.schemaVersion === 1 &&
         (doc.model.schemaVersion !== 1 || raw.execution !== undefined)
@@ -610,6 +678,14 @@ export function pasteFragment(
         remap = new Map(
             fragment.model.blocks.map((block) => [block.id, idFactory()]),
         );
+    for (const d of fragment.model.components ?? []) {
+        if (
+            fragment.model.blocks.some(
+                (b) => b.kind.type === "component" && b.kind.component === d.id,
+            )
+        )
+            attachComponent(next, d);
+    }
     for (const block of fragment.model.blocks) {
         const id = remap.get(block.id)!;
         next.model.blocks.push({

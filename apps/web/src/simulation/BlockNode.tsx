@@ -1,10 +1,11 @@
-import { memo, useState } from "react";
+import { memo, useLayoutEffect, useState } from "react";
 import {
     BaseEdge,
     EdgeLabelRenderer,
     Handle,
     Position,
     useReactFlow,
+    useUpdateNodeInternals,
     type Edge,
     type EdgeProps,
     type Node,
@@ -17,15 +18,50 @@ import {
     type BlockType,
     type Point,
 } from "./model";
+import type { ComponentDefinition, ComponentIcon } from "./components";
 
 export function BlockIcon({
     type,
     size = 24,
 }: {
-    type: BlockType | "unknown";
+    type: BlockType | ComponentIcon | "unknown";
     size?: number;
 }) {
     const shapes = {
+        component: (
+            <>
+                <rect x="4" y="4" width="16" height="16" rx="3" />
+                <path d="M1 8h3M1 16h3m16-8h3m-3 8h3M8 1v3m8-3v3M8 20v3m8-3v3" />
+            </>
+        ),
+        function: (
+            <>
+                <rect x="3" y="3" width="18" height="18" rx="3" />
+                <path d="M16 6h-3l-2 12H8m1-7h6" />
+            </>
+        ),
+        plant: (
+            <>
+                <path d="M3 20h18M5 20V8h14v12M8 8V3m8 5V3M8 12h8m-8 4h8" />
+            </>
+        ),
+        controller: (
+            <>
+                <circle cx="12" cy="12" r="9" />
+                <path d="M6 13h4V8h4v8h4" />
+            </>
+        ),
+        filter: (
+            <>
+                <path d="M3 4h18l-7 8v7l-4 2v-9Z" />
+            </>
+        ),
+        delay: (
+            <>
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 6v6l4 2" />
+            </>
+        ),
         mFunction: (
             <>
                 <rect x="2" y="2" width="20" height="20" rx="3" />
@@ -96,29 +132,54 @@ export type BlockNodeData = {
     invalid?: boolean;
     readonly?: boolean;
     detail?: string;
+    component?: ComponentDefinition | undefined;
 } & Record<string, unknown>;
 export type FlowBlock = Node<BlockNodeData, "block">;
 export const BlockNode = memo(function BlockNode({
+    id,
     data,
     selected,
 }: NodeProps<FlowBlock>) {
-    const p = ports(data.block);
+    const p = ports(data.block, data.component ? [data.component] : undefined);
+    const updateNodeInternals = useUpdateNodeInternals();
+    const portLayout = `${data.block.kind.type}/${p.inputs.join(",")}/${p.outputs.join(",")}`;
+    useLayoutEffect(() => {
+        updateNodeInternals(id);
+    }, [id, portLayout, updateNodeInternals]);
     return (
         <div
-            className={`sim-block ${selected ? "is-selected" : ""} ${data.invalid ? "is-invalid" : ""}`}
-            style={{ minHeight: Math.max(92, p.inputs.length * 28 + 36) }}
+            className={`sim-block ${data.component ? "sim-component-block" : ""} ${selected ? "is-selected" : ""} ${data.invalid ? "is-invalid" : ""}`}
+            style={{
+                minHeight: data.component
+                    ? Math.max(p.inputs.length, p.outputs.length) * 28 + 82
+                    : Math.max(
+                          92,
+                          Math.max(p.inputs.length, p.outputs.length) * 28 + 36,
+                      ),
+            }}
         >
             <div className="sim-block-title">
-                <BlockIcon type={data.block.kind.type} />
-                <span>{data.label}</span>
+                <BlockIcon
+                    type={data.component?.icon ?? data.block.kind.type}
+                />
+                <span title={data.label}>{data.label}</span>
             </div>
-            <div
-                className="sim-block-value"
-                title={data.detail ?? parameterText(data.block)}
-            >
-                {data.detail ?? parameterText(data.block)}
-            </div>
-            <div className="sim-block-kind">{data.block.kind.type}</div>
+            {data.component ? (
+                <div className="sim-block-kind sim-component-states">
+                    {data.component.continuousStates} 连续 ·{" "}
+                    {data.component.discreteStates} 离散
+                </div>
+            ) : (
+                <>
+                    <div
+                        className="sim-block-value"
+                        title={data.detail ?? parameterText(data.block)}
+                    >
+                        {data.detail ?? parameterText(data.block)}
+                    </div>
+                    <div className="sim-block-kind">{data.block.kind.type}</div>
+                </>
+            )}
             {p.inputs.map((name, i) => (
                 <Handle
                     key={name}
@@ -127,7 +188,9 @@ export const BlockNode = memo(function BlockNode({
                     id={name}
                     isConnectable={!data.readonly}
                     style={{
-                        top: `${((i + 1) / (p.inputs.length + 1)) * 100}%`,
+                        top: data.component
+                            ? 60 + i * 28
+                            : `${((i + 1) / (p.inputs.length + 1)) * 100}%`,
                     }}
                     title={`${data.label}.${name} · 输入`}
                     aria-label={`${data.label} 输入 ${name}`}
@@ -137,20 +200,31 @@ export const BlockNode = memo(function BlockNode({
                             ? data.block.kind.signs[i] === 1
                                 ? "+"
                                 : "−"
-                            : ""}
+                            : data.component
+                              ? name
+                              : ""}
                     </span>
                 </Handle>
             ))}
-            {p.outputs.map((name) => (
+            {p.outputs.map((name, i) => (
                 <Handle
                     key={name}
                     type="source"
                     position={Position.Right}
                     id={name}
                     isConnectable={!data.readonly}
+                    style={{
+                        top: data.component
+                            ? 60 + i * 28
+                            : `${((i + 1) / (p.outputs.length + 1)) * 100}%`,
+                    }}
                     title={`${data.label}.${name} · 输出`}
                     aria-label={`${data.label} 输出 ${name}`}
-                />
+                >
+                    {data.component && (
+                        <span className="sim-port-name output">{name}</span>
+                    )}
+                </Handle>
             ))}
         </div>
     );

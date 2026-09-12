@@ -42,6 +42,7 @@ double-clicking Scope opens the result pane.
 | Unit Delay | Initial discrete state; updates on the model's shared sample period |
 | Scope | Observes one scalar/vector signal |
 | M Function | Pure m function with declared inputs, parameters and output width |
+| Component | Reusable m component with named ports, public parameters and private continuous/discrete states |
 
 Every block has its own icon. Parameters accept numerical literals; they do not
 evaluate m-language expressions, workspace variables or callbacks. The inspector
@@ -50,6 +51,14 @@ period. RK4 is available without extra dependencies. Configured hosts also offer
 LLVM and CVODE Adams/BDF. The **非线性摆 · m 函数** example, source editor,
 solver setup and source-file workflow are covered in the
 [m functions and CVODE guide](../../simulation/docs/m-functions-cvode.md).
+
+The library also provides custom Unit Delay, mass-spring-damper and discrete PI
+templates. **新建自定义组件…** declares ports, parameter metadata and states;
+the inspector opens the corresponding initialization/output/derivative/update
+m functions. **保存到项目组件库** creates a discoverable `.omblock.json`
+description with relative source references. See the
+[stateful component guide](../../simulation/docs/stateful-components.md) for
+creation, sampling semantics, source reuse and complete runnable examples.
 
 Use Shift to select multiple nodes or draw a selection box. Right-click the graph,
 a node, a connection or the object tree for the available operations. Selected
@@ -111,7 +120,7 @@ separate limits.
 
 ## Runs and results
 
-`/simulation/v2` (with legacy `/simulation/v1`) shares the native server's existing configured port. A separate
+`/simulation/v3` (with legacy `/simulation/v1` and `/simulation/v2`) shares the native server's existing configured port. A separate
 WebSocket carries catalog/check/run/cancel/import requests; no extra server
 listener is started. Each connection owns one job. Disconnect cancels its job;
 a different connection cannot cancel it. The native worker evaluates an immutable
@@ -130,12 +139,15 @@ does not add multi-user authentication or resource quotas.
 
 ## Current boundary
 
-The editor and CLI support pure, fixed-size m function blocks, optional LLVM
-numerical execution, and optional CVODE Adams/BDF integration. This does not
+The editor and CLI support pure m function blocks, stateful m components with
+fixed-size matrices and static loops, optional LLVM numerical execution, and
+optional CVODE Adams/BDF integration. This does not
 add JIT to ordinary m-language execution. Zero crossings, DAE/algebraic solving,
 multiple sample rates, general signal buses, executable subsystems, full
-S-function lifecycle callbacks and C generation remain future work.
+MATLAB S-function compatibility and C generation remain future work. OpenMat's
+own initialize/outputs/derivatives/update interface is implemented for components.
 
 Implementation details and verification requirements are in
 [RFC 0012](../rfcs/0012-simulation-editor-v0.md) and the new
-[m function/CVODE contract](../rfcs/0013-m-function-cvode-v1.md).
+[m function/CVODE contract](../rfcs/0013-m-function-cvode-v1.md), extended by
+[the stateful component contract](../rfcs/0014-stateful-simulation-components-v1.md).
