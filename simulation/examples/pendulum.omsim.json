@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 2,
+  "name": "Nonlinear damped pendulum (m function)",
+  "settings": { "startTime": 0, "stopTime": 10, "maxStep": 0.02 },
+  "blocks": [
+    { "id": "rhs", "kind": { "type": "mFunction", "source": "pendulum.m", "entry": "pendulum", "inputs": [{ "name": "x", "width": 2 }], "parameters": [{ "name": "p", "value": [9.81, 0.2] }], "outputWidth": 2 }, "position": { "x": 180, "y": 120 } },
+    { "id": "state", "kind": { "type": "integrator", "initial": [1.2, 0] }, "position": { "x": 440, "y": 120 } },
+    { "id": "scope", "kind": { "type": "scope" }, "position": { "x": 690, "y": 120 } }
+  ],
+  "connections": [
+    { "from": { "block": "state", "port": "out" }, "to": { "block": "rhs", "port": "x" } },
+    { "from": { "block": "rhs", "port": "out" }, "to": { "block": "state", "port": "in" } },
+    { "from": { "block": "state", "port": "out" }, "to": { "block": "scope", "port": "in" } }
+  ]
+}

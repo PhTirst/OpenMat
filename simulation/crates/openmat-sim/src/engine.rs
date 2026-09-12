@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use serde::Serialize;
 
 use crate::numeric::Kernel;
+use crate::solver::{ContinuousSolver, OdeStep, SolverStats};
 use crate::{CompiledModel, ScopeInfo};
 
 #[derive(Clone, Debug, Serialize)]
@@ -49,7 +50,7 @@ pub struct RunError {
 }
 
 impl RunError {
-    fn new(code: &'static str, message: impl Into<String>) -> Self {
+    pub fn new(code: &'static str, message: impl Into<String>) -> Self {
         Self {
             code,
             message: message.into(),
@@ -134,6 +135,7 @@ pub struct Runner<K> {
     next_tick: u32,
     sample_hit: bool,
     failed: bool,
+    solver: Option<Box<dyn ContinuousSolver>>,
 }
 
 impl<K: Kernel> Runner<K> {
@@ -167,6 +169,7 @@ impl<K: Kernel> Runner<K> {
             slopes: std::array::from_fn(|_| vec![0.0; count]),
             next_tick: 1,
             failed: false,
+            solver: None,
             plan,
             kernel,
         };
@@ -174,6 +177,28 @@ impl<K: Kernel> Runner<K> {
         runner.capture_next();
         runner.capture_observations();
         Ok(runner)
+    }
+
+    /// Select a continuous solver before the first step.
+    /// # Errors
+    /// Rejects a run already advanced or a model without continuous states.
+    pub fn with_solver(mut self, solver: Box<dyn ContinuousSolver>) -> Result<Self, RunError> {
+        if self.time.to_bits() != self.plan.settings.start_time.to_bits()
+            || self.failed
+            || self.continuous.is_empty()
+        {
+            return Err(RunError::new(
+                "solver_configuration",
+                "a continuous solver requires continuous states and a fresh run",
+            ));
+        }
+        self.solver = Some(solver);
+        Ok(self)
+    }
+
+    #[must_use]
+    pub fn solver_statistics(&self) -> Option<SolverStats> {
+        self.solver.as_ref().map(|solver| solver.statistics())
     }
 
     #[must_use]
@@ -244,7 +269,39 @@ impl<K: Kernel> Runner<K> {
             s.start_time
                 + f64::from(self.next_tick) * s.sample_time.expect("validated discrete sample time")
         };
-        let mut next = (self.time + s.max_step).min(s.stop_time).min(hit);
+        let boundary = s.stop_time.min(hit);
+        let mut next = (self.time + s.max_step).min(boundary);
+        if let Some(solver) = self.solver.as_mut() {
+            let scratch = &mut self.scratch;
+            let kernel = &mut self.kernel;
+            let plan = &self.plan;
+            let held = &self.held;
+            let mut rhs = |time: f64, state: &[f64], derivatives: &mut [f64]| {
+                scratch.evaluate(kernel, plan, time, state, held, cancel)?;
+                derivatives.copy_from_slice(&scratch.outputs[..state.len()]);
+                Ok(())
+            };
+            next = solver.advance(
+                OdeStep {
+                    time: self.time,
+                    boundary,
+                    max_step: s.max_step,
+                    state: &self.continuous,
+                    candidate: &mut self.trial,
+                    cancel,
+                    reinitialize: self.sample_hit || self.time.to_bits() == s.start_time.to_bits(),
+                },
+                &mut rhs,
+            )?;
+            if (next > boundary && !near(next, boundary))
+                || (next > self.time + s.max_step && !near(next, self.time + s.max_step))
+            {
+                return Err(RunError::new(
+                    "solver_boundary",
+                    "ODE solver crossed the scheduler boundary or maximum step",
+                ));
+            }
+        }
         if near(next, s.stop_time) {
             next = s.stop_time;
         }
@@ -266,7 +323,7 @@ impl<K: Kernel> Runner<K> {
             self.next_tick
         };
         let step = next - self.time;
-        if !self.continuous.is_empty() {
+        if !self.continuous.is_empty() && self.solver.is_none() {
             self.integrate(step, cancel)?;
         }
         self.scratch.evaluate(

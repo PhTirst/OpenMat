@@ -61,6 +61,56 @@ fn check_and_run_are_machine_readable() {
 }
 
 #[test]
+fn relative_authoring_files_load_m_sources_and_validate_versions_and_paths() {
+    let directory = TestDirectory::new();
+    fs::copy(fixture("pendulum.m"), directory.0.join("pendulum.m")).unwrap();
+    let model: Value =
+        serde_json::from_slice(&fs::read(fixture("pendulum.omsim.json")).unwrap()).unwrap();
+    let mut document =
+        serde_json::json!({"format":"openmat-simulation", "schemaVersion":2,"model":model});
+    let path = directory.0.join("pendulum.omsim");
+    let invoke = || {
+        Command::new(env!("CARGO_BIN_EXE_openmat-sim"))
+            .current_dir(&directory.0)
+            .args(["run", "pendulum.omsim"])
+            .output()
+            .unwrap()
+    };
+    fs::write(&path, serde_json::to_vec(&document).unwrap()).unwrap();
+    let result = invoke();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert_eq!(
+        json(&result)["result"]["frames"]
+            .as_array()
+            .unwrap()
+            .last()
+            .unwrap()["time"],
+        10.0
+    );
+    document["schemaVersion"] = 1.into();
+    fs::write(&path, serde_json::to_vec(&document).unwrap()).unwrap();
+    let result = invoke();
+    assert!(!result.status.success());
+    assert_eq!(
+        serde_json::from_slice::<Value>(&result.stderr).unwrap()["error"]["code"],
+        "model_json"
+    );
+    document["schemaVersion"] = 2.into();
+    document["model"]["blocks"][0]["kind"]["source"] = "../outside.m".into();
+    fs::write(&path, serde_json::to_vec(&document).unwrap()).unwrap();
+    let result = invoke();
+    assert!(!result.status.success());
+    assert_eq!(
+        serde_json::from_slice::<Value>(&result.stderr).unwrap()["error"]["code"],
+        "source_file"
+    );
+}
+
+#[test]
 fn llvm_selection_fails_explicitly_when_unconfigured() {
     let model = fixture("first-order.omsim.json");
     let result = run(&[

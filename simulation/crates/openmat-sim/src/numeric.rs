@@ -11,6 +11,44 @@ pub enum Instruction {
     Add(usize, usize),
     Multiply(usize, usize),
     Negate(usize),
+    Subtract(usize, usize),
+    Divide(usize, usize),
+    Math(MathFunction, usize),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MathFunction {
+    Sin,
+    Cos,
+    Exp,
+    Sqrt,
+    Abs,
+    Tanh,
+}
+
+impl MathFunction {
+    #[must_use]
+    pub fn evaluate(self, value: f64) -> f64 {
+        match self {
+            Self::Sin => value.sin(),
+            Self::Cos => value.cos(),
+            Self::Exp => value.exp(),
+            Self::Sqrt => value.sqrt(),
+            Self::Abs => value.abs(),
+            Self::Tanh => value.tanh(),
+        }
+    }
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Sin => "sin",
+            Self::Cos => "cos",
+            Self::Exp => "exp",
+            Self::Sqrt => "sqrt",
+            Self::Abs => "abs",
+            Self::Tanh => "tanh",
+        }
+    }
 }
 
 impl PartialEq for Instruction {
@@ -23,6 +61,9 @@ impl PartialEq for Instruction {
             (Self::Add(a, b), Self::Add(c, d)) | (Self::Multiply(a, b), Self::Multiply(c, d)) => {
                 a == c && b == d
             }
+            (Self::Subtract(a, b), Self::Subtract(c, d))
+            | (Self::Divide(a, b), Self::Divide(c, d)) => a == c && b == d,
+            (Self::Math(f, a), Self::Math(g, b)) => f == g && a == b,
             _ => false,
         }
     }
@@ -65,8 +106,11 @@ impl Program {
             let valid = match *instruction {
                 Instruction::Input(input) => input < input_count,
                 Instruction::Constant(value) => value.is_finite(),
-                Instruction::Add(a, b) | Instruction::Multiply(a, b) => a < index && b < index,
-                Instruction::Negate(a) => a < index,
+                Instruction::Add(a, b)
+                | Instruction::Multiply(a, b)
+                | Instruction::Subtract(a, b)
+                | Instruction::Divide(a, b) => a < index && b < index,
+                Instruction::Negate(a) | Instruction::Math(_, a) => a < index,
             };
             if !valid {
                 return Err(EvalError(format!("invalid numerical instruction {index}")));
@@ -138,6 +182,9 @@ impl Kernel for ReferenceKernel {
                 Instruction::Add(a, b) => self.registers[a] + self.registers[b],
                 Instruction::Multiply(a, b) => self.registers[a] * self.registers[b],
                 Instruction::Negate(a) => -self.registers[a],
+                Instruction::Subtract(a, b) => self.registers[a] - self.registers[b],
+                Instruction::Divide(a, b) => self.registers[a] / self.registers[b],
+                Instruction::Math(function, a) => function.evaluate(self.registers[a]),
             };
         }
         for (output, &id) in outputs.iter_mut().zip(&self.program.outputs) {

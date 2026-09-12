@@ -3,8 +3,11 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::Serialize;
 
 use crate::ModelError;
-use crate::model::{Block, BlockKind, Model, Port, SCHEMA_VERSION, Settings};
+use crate::model::{
+    Block, BlockKind, FUNCTION_SCHEMA_VERSION, Model, Port, SCHEMA_VERSION, Settings,
+};
 use crate::numeric::{Instruction, MAX_VALUES, Program};
+use crate::{SourceBundle, m_function};
 
 const MAX_BLOCKS: usize = 10_000;
 const MAX_COMPONENTS: usize = 262_144;
@@ -73,7 +76,18 @@ struct Graph<'a> {
 /// # Errors
 /// Returns a diagnostic with the relevant block and port for invalid models.
 pub fn compile(model: &Model) -> Result<CompiledModel, ModelError> {
+    compile_with_sources(model, &SourceBundle::new())
+}
+
+/// Compile an immutable model and source snapshot without filesystem access.
+/// # Errors
+/// Returns model or source-located diagnostics for an invalid graph/function.
+pub fn compile_with_sources(
+    model: &Model,
+    sources: &SourceBundle,
+) -> Result<CompiledModel, ModelError> {
     validate_model(model)?;
+    m_function::validate_bundle(sources)?;
     let graph = build_graph(model)?;
     let mut continuous_initial = Vec::new();
     let mut discrete_initial = Vec::new();
@@ -100,6 +114,7 @@ pub fn compile(model: &Model) -> Result<CompiledModel, ModelError> {
         continuous_initial.len(),
         &continuous_offsets,
         &discrete_offsets,
+        sources,
     )?;
     let mut outputs = Vec::new();
     let mut origins = Vec::new();
@@ -168,12 +183,32 @@ struct GeneratedSignals {
     signals: Vec<Vec<usize>>,
 }
 
+fn check_source_work(graph: &Graph<'_>, sources: &SourceBundle) -> Result<(), ModelError> {
+    let parse_work: usize = graph
+        .blocks
+        .iter()
+        .filter_map(|block| match &block.kind {
+            BlockKind::MFunction { source, .. } => sources.get(source).map(String::len),
+            _ => None,
+        })
+        .sum();
+    if parse_work > 4 * 1024 * 1024 {
+        return Err(ModelError::new(
+            "model_limit",
+            "total function source lowering work exceeds 4 MiB; reduce repeated function instances or source size",
+        ));
+    }
+    Ok(())
+}
+
 fn lower_signals(
     graph: &Graph<'_>,
     continuous_count: usize,
     continuous_offsets: &[usize],
     discrete_offsets: &[usize],
+    sources: &SourceBundle,
 ) -> Result<GeneratedSignals, ModelError> {
+    check_source_work(graph, sources)?;
     let mut instructions = Vec::new();
     let mut signals: Vec<Vec<usize>> = vec![Vec::new(); graph.blocks.len()];
     let mut signal_components = 0;
@@ -258,6 +293,9 @@ fn lower_signals(
                     })
                     .collect()
             }
+            BlockKind::MFunction { .. } => {
+                m_function::lower(block, &input_signals, sources, &mut instructions)?
+            }
             BlockKind::Scope => Vec::new(),
         };
         signals[index] = signal;
@@ -283,6 +321,7 @@ fn check_signal_budget(
             signs.len() - 1 + signs.iter().filter(|&&s| s == -1).count(),
         ),
         BlockKind::Scope => (0, 0),
+        BlockKind::MFunction { output_width, .. } => (*output_width, 0),
     };
     if instructions.saturating_add(width.saturating_mul(operations_per_element)) > MAX_VALUES
         || stored.saturating_add(width) > MAX_VALUES
@@ -321,8 +360,9 @@ fn width_error(block: &Block, port: &str, expected: usize, actual: usize) -> Mod
     .at(&block.id, Some(port))
 }
 
+#[allow(clippy::too_many_lines)] // Keep the schema-wide resource and block checks together.
 fn validate_model(model: &Model) -> Result<(), ModelError> {
-    if model.schema_version != SCHEMA_VERSION {
+    if model.schema_version != SCHEMA_VERSION && model.schema_version != FUNCTION_SCHEMA_VERSION {
         return Err(ModelError::new(
             "schema_version",
             "unsupported model schema version",
@@ -393,6 +433,24 @@ fn validate_model(model: &Model) -> Result<(), ModelError> {
                         "Sum requires 1..64 signs, each 1 or -1",
                     )
                     .at(&block.id, None));
+                }
+                None
+            }
+            BlockKind::MFunction { parameters, .. } => {
+                if model.schema_version != FUNCTION_SCHEMA_VERSION {
+                    return Err(ModelError::new(
+                        "schema_version",
+                        "M Function requires model schema version 2",
+                    )
+                    .at(&block.id, None));
+                }
+                m_function::validate_block(block)?;
+                components += parameters.iter().map(|p| p.value.len()).sum::<usize>();
+                if components > MAX_COMPONENTS {
+                    return Err(ModelError::new(
+                        "model_limit",
+                        "too many parameter components",
+                    ));
                 }
                 None
             }

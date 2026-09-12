@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/openmat-sim", "crates/openmat-sim-llvm", "crates/openmat-sim-cli", "crates/openmat-opc", "crates/openmat-sim-slx"]
+members = ["crates/openmat-sim", "crates/openmat-sim-llvm", "crates/openmat-sim-cli", "crates/openmat-opc", "crates/openmat-sim-slx", "crates/openmat-sim-sundials"]
 
 [workspace.package]
 version = "0.1.0"

@@ -66,6 +66,7 @@ impl LlvmKernel {
             return Err(EvalError("LLVM returned a null LLJIT".into()));
         }
         let jit = Jit { handle, api };
+        bind_math(&jit)?;
         let source = emit_llvm(&program);
         // SAFETY: All handles are owned here. Parser consumes the copied buffer;
         // ThreadSafeModule takes module ownership and LLJIT takes that wrapper.
@@ -96,6 +97,14 @@ impl LlvmKernel {
             }
             (jit.api.set_triple)(module, (jit.api.get_triple)(handle));
             (jit.api.set_layout)(module, (jit.api.get_layout)(handle));
+            let options = (jit.api.pass_options)();
+            let optimized =
+                (jit.api.run_passes)(module, c"default<O2>".as_ptr(), ptr::null_mut(), options);
+            (jit.api.dispose_pass_options)(options);
+            if !optimized.is_null() {
+                (jit.api.dispose_module)(module);
+                return Err(jit.api.check(optimized).expect_err("non-null LLVM error"));
+            }
             let thread_safe_module = (jit.api.new_module)(module, context.handle);
             jit.api.check((jit.api.add_module)(
                 handle,
@@ -193,6 +202,59 @@ impl LlvmKernel {
             }
         }
         Ok(())
+    }
+}
+
+fn bind_math(jit: &Jit) -> Result<(), EvalError> {
+    use ffi::{EvaluatedSymbol, SymbolFlags, SymbolPair};
+    extern "C" fn sin(x: f64) -> f64 {
+        x.sin()
+    }
+    extern "C" fn cos(x: f64) -> f64 {
+        x.cos()
+    }
+    extern "C" fn exp(x: f64) -> f64 {
+        x.exp()
+    }
+    extern "C" fn sqrt(x: f64) -> f64 {
+        x.sqrt()
+    }
+    extern "C" fn abs(x: f64) -> f64 {
+        x.abs()
+    }
+    extern "C" fn tanh(x: f64) -> f64 {
+        x.tanh()
+    }
+    let functions: [(&CStr, extern "C" fn(f64) -> f64); 6] = [
+        (c"openmat_math_sin", sin),
+        (c"openmat_math_cos", cos),
+        (c"openmat_math_exp", exp),
+        (c"openmat_math_sqrt", sqrt),
+        (c"openmat_math_abs", abs),
+        (c"openmat_math_tanh", tanh),
+    ];
+    // SAFETY: Only these six immutable C ABI functions are visible to generated
+    // code. ORC consumes the interned names; it copies the temporary pair array.
+    unsafe {
+        let mut symbols: Vec<SymbolPair> = functions
+            .iter()
+            .map(|(name, function)| SymbolPair {
+                name: (jit.api.intern)(jit.handle, name.as_ptr()),
+                symbol: EvaluatedSymbol {
+                    address: *function as usize as u64,
+                    flags: SymbolFlags {
+                        generic: 5,
+                        target: 0,
+                    },
+                },
+            })
+            .collect();
+        let unit = (jit.api.absolute_symbols)(symbols.as_mut_ptr(), symbols.len());
+        let error = (jit.api.define)((jit.api.get_dylib)(jit.handle), unit);
+        if !error.is_null() {
+            (jit.api.dispose_unit)(unit);
+        }
+        jit.api.check(error)
     }
 }
 

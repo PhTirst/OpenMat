@@ -9,6 +9,22 @@ use openmat_sim::numeric::EvalError;
 pub type Handle = *mut c_void;
 pub type Entry = unsafe extern "C" fn(u32, *const f64, u64, *mut f64, u64) -> u32;
 
+#[repr(C)]
+pub struct SymbolFlags {
+    pub generic: u8,
+    pub target: u8,
+}
+#[repr(C)]
+pub struct EvaluatedSymbol {
+    pub address: u64,
+    pub flags: SymbolFlags,
+}
+#[repr(C)]
+pub struct SymbolPair {
+    pub name: Handle,
+    pub symbol: EvaluatedSymbol,
+}
+
 pub struct Api {
     pub get_version: unsafe extern "C" fn(*mut c_uint, *mut c_uint, *mut c_uint),
     pub new_context: unsafe extern "C" fn() -> Handle,
@@ -25,6 +41,13 @@ pub struct Api {
     pub get_dylib: unsafe extern "C" fn(Handle) -> Handle,
     pub add_module: unsafe extern "C" fn(Handle, Handle, Handle) -> Handle,
     pub lookup: unsafe extern "C" fn(Handle, *mut u64, *const c_char) -> Handle,
+    pub intern: unsafe extern "C" fn(Handle, *const c_char) -> Handle,
+    pub absolute_symbols: unsafe extern "C" fn(*mut SymbolPair, usize) -> Handle,
+    pub define: unsafe extern "C" fn(Handle, Handle) -> Handle,
+    pub dispose_unit: unsafe extern "C" fn(Handle),
+    pub pass_options: unsafe extern "C" fn() -> Handle,
+    pub dispose_pass_options: unsafe extern "C" fn(Handle),
+    pub run_passes: unsafe extern "C" fn(Handle, *const c_char, Handle, Handle) -> Handle,
     pub error_message: unsafe extern "C" fn(Handle) -> *mut c_char,
     pub dispose_error_message: unsafe extern "C" fn(*mut c_char),
     pub get_triple: unsafe extern "C" fn(Handle) -> *const c_char,
@@ -78,6 +101,13 @@ impl Api {
                 get_dylib: symbol!("LLVMOrcLLJITGetMainJITDylib"),
                 add_module: symbol!("LLVMOrcLLJITAddLLVMIRModule"),
                 lookup: symbol!("LLVMOrcLLJITLookup"),
+                intern: symbol!("LLVMOrcLLJITMangleAndIntern"),
+                absolute_symbols: symbol!("LLVMOrcAbsoluteSymbols"),
+                define: symbol!("LLVMOrcJITDylibDefine"),
+                dispose_unit: symbol!("LLVMOrcDisposeMaterializationUnit"),
+                pass_options: symbol!("LLVMCreatePassBuilderOptions"),
+                dispose_pass_options: symbol!("LLVMDisposePassBuilderOptions"),
+                run_passes: symbol!("LLVMRunPasses"),
                 error_message: symbol!("LLVMGetErrorMessage"),
                 dispose_error_message: symbol!("LLVMDisposeErrorMessage"),
                 get_triple: symbol!("LLVMOrcLLJITGetTripleString"),

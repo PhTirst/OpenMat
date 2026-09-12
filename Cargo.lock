@@ -1490,7 +1490,9 @@ dependencies = [
  "openmat-protocol",
  "openmat-runtime",
  "openmat-sim",
+ "openmat-sim-llvm",
  "openmat-sim-slx",
+ "openmat-sim-sundials",
  "serde",
  "serde_json",
  "tungstenite",
@@ -1500,6 +1502,10 @@ dependencies = [
 name = "openmat-sim"
 version = "0.1.0"
 dependencies = [
+ "openmat-hir",
+ "openmat-parser",
+ "openmat-source",
+ "openmat-syntax",
  "serde",
  "serde_json",
 ]
@@ -1524,6 +1530,17 @@ dependencies = [
  "serde",
  "serde_json",
  "zip",
+]
+
+[[package]]
+name = "openmat-sim-sundials"
+version = "0.1.0"
+dependencies = [
+ "libloading 0.8.9",
+ "openmat-sim",
+ "openmat-sim-llvm",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

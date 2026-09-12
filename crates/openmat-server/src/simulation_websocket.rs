@@ -7,9 +7,10 @@ use std::sync::mpsc::{self, Receiver, SyncSender, TrySendError};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
+use crate::simulation_execution::{self, Execution};
 use openmat_sim::model::Model;
-use openmat_sim::numeric::ReferenceKernel;
-use openmat_sim::{CompiledModel, Runner, compile};
+use openmat_sim::numeric::Kernel;
+use openmat_sim::{CompiledModel, Runner, SourceBundle, compile_with_sources};
 use openmat_sim_slx::ImportedSlx;
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -19,6 +20,7 @@ use tungstenite::protocol::{Message, WebSocket};
 use crate::ServerError;
 
 const PROTOCOL: &str = "openmat-simulation-v1";
+const PROTOCOL_V2: &str = "openmat-simulation-v2";
 const MAX_MESSAGE: usize = 8 * 1024 * 1024;
 const MAX_SLX: usize = 2 * 1024 * 1024;
 const MAX_SAMPLES: usize = 100_000;
@@ -41,10 +43,18 @@ enum Operation {
     Check {
         model: Model,
         revision: String,
+        #[serde(default)]
+        sources: Option<SourceBundle>,
+        #[serde(default)]
+        execution: Option<Execution>,
     },
     Run {
         model: Model,
         revision: String,
+        #[serde(default)]
+        sources: Option<SourceBundle>,
+        #[serde(default)]
+        execution: Option<Execution>,
     },
     #[serde(rename_all = "camelCase")]
     Cancel {
@@ -54,6 +64,12 @@ enum Operation {
         name: String,
         bytes: Vec<u8>,
     },
+}
+
+struct Snapshot {
+    model: Model,
+    sources: SourceBundle,
+    execution: Execution,
 }
 
 struct Job {
@@ -150,7 +166,20 @@ fn enqueue(
     }
 }
 
+#[cfg(test)]
 fn start_job(id: String, revision: String, model: Model) -> io::Result<Job> {
+    start_snapshot(
+        id,
+        revision,
+        Snapshot {
+            model,
+            sources: SourceBundle::new(),
+            execution: Execution::default(),
+        },
+    )
+}
+
+fn start_snapshot(id: String, revision: String, snapshot: Snapshot) -> io::Result<Job> {
     let cancel = Arc::new(AtomicBool::new(false));
     let (sender, events) = mpsc::sync_channel(8);
     let run_id = id.clone();
@@ -159,7 +188,7 @@ fn start_job(id: String, revision: String, model: Model) -> io::Result<Job> {
     let worker = thread::Builder::new()
         .name("openmat-simulation".into())
         .spawn(move || {
-            run_job(&run_id, &run_revision, &model, &sender, &cancellation);
+            run_job(&run_id, &run_revision, &snapshot, &sender, &cancellation);
         })?;
     Ok(Job {
         id,
@@ -176,12 +205,12 @@ fn start_job(id: String, revision: String, model: Model) -> io::Result<Job> {
 fn prepare_run(
     id: &str,
     revision: &str,
-    model: &Model,
+    snapshot: &Snapshot,
     sender: &SyncSender<Value>,
     cancel: &AtomicBool,
-) -> Option<CompiledModel> {
+) -> Option<Runner<Box<dyn Kernel>>> {
     let started = Instant::now();
-    let plan = match compile(model) {
+    let plan = match compile_with_sources(&snapshot.model, &snapshot.sources) {
         Ok(plan) => plan,
         Err(err) => {
             enqueue(sender, cancel, failure(id, json!(err.0)), true);
@@ -189,6 +218,16 @@ fn prepare_run(
         }
     };
     let mut result = summary(&plan);
+    let execution = snapshot.execution.summary();
+    result["backend"] = execution["backend"].clone();
+    result["solver"] = execution["solver"].clone();
+    let runner = match snapshot.execution.runner(plan) {
+        Ok(runner) => runner,
+        Err(err) => {
+            enqueue(sender, cancel, failure(id, json!(err)), true);
+            return None;
+        }
+    };
     result["runId"] = json!(id);
     result["revision"] = json!(revision);
     result["compileSeconds"] = json!(started.elapsed().as_secs_f64());
@@ -196,34 +235,26 @@ fn prepare_run(
     if !enqueue(sender, cancel, response(id, result), true) {
         return None;
     }
-    Some(plan)
+    Some(runner)
 }
 
 #[allow(clippy::too_many_lines)] // Keep streaming limits, cancellation and the single terminal event together.
 fn run_job(
     id: &str,
     revision: &str,
-    model: &Model,
+    snapshot: &Snapshot,
     sender: &SyncSender<Value>,
     cancel: &AtomicBool,
 ) {
     let started = Instant::now();
-    let Some(plan) = prepare_run(id, revision, model, sender, cancel) else {
+    let Some(mut runner) = prepare_run(id, revision, snapshot, sender, cancel) else {
         return;
     };
-    let kernel = ReferenceKernel::new(plan.program().clone());
     let mut sequence = 0_u64;
     let mut event = |name: &str, data: Value| {
         sequence += 1;
         json!({"protocol":PROTOCOL,"event":name,"runId":id,"revision":revision,
             "sequence":sequence,"data":data})
-    };
-    let mut runner = match Runner::new(plan, kernel) {
-        Ok(runner) => runner,
-        Err(err) => {
-            enqueue(sender, cancel, event("failed", json!({"error":err})), true);
-            return;
-        }
     };
     let mut frames = vec![runner.current_frame()];
     let mut samples = 1_usize;
@@ -307,7 +338,7 @@ fn run_job(
         event(
             name,
             json!({"time":runner.time(),"samples":samples,
-        "elapsedSeconds":started.elapsed().as_secs_f64(),"error":terminal_error}),
+        "elapsedSeconds":started.elapsed().as_secs_f64(),"solverStats":runner.solver_statistics(),"error":terminal_error}),
         ),
         true,
     );
@@ -329,9 +360,11 @@ fn import_slx(name: &str, bytes: &[u8]) -> Result<Value, Value> {
     })
 }
 
+#[allow(clippy::too_many_lines)] // Keep both protocol versions and connection-owned job dispatch together.
 fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
     let id = &request.id;
-    if request.protocol != PROTOCOL || id.is_empty() || id.len() > 128 {
+    let v2 = request.protocol == PROTOCOL_V2;
+    if (request.protocol != PROTOCOL && !v2) || id.is_empty() || id.len() > 128 {
         return Some(failure(
             if id.len() <= 128 { id } else { "" },
             error(
@@ -341,23 +374,66 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
         ));
     }
     Some(match request.operation {
-        Operation::Catalog => response(id, catalog()),
-        Operation::Check { model, revision } => {
+        Operation::Catalog => {
+            let mut result = catalog();
+            if v2 {
+                result["schemaVersion"] = json!(2);
+                result["execution"] = simulation_execution::capabilities();
+                result["blocks"].as_array_mut().expect("catalog array").push(json!({"type":"mFunction","label":"M Function","category":"Functions","icon":"mFunction","inputs":["u"],"outputs":["out"]}));
+            }
+            response(id, result)
+        }
+        Operation::Check {
+            model,
+            revision,
+            sources,
+            execution,
+        } => {
+            if !v2 && (sources.is_some() || execution.is_some() || model.schema_version != 1) {
+                return Some(failure(
+                    id,
+                    error(
+                        "protocol",
+                        "source snapshots and execution options require /simulation/v2",
+                    ),
+                ));
+            }
             if revision.len() > 128 {
                 return Some(failure(
                     id,
                     error("revision", "Revision exceeds 128 bytes."),
                 ));
             }
-            match compile(&model) {
-                Ok(plan) => response(
-                    id,
-                    json!({"revision":revision,"valid":true,"plan":summary(&plan)}),
-                ),
+            match compile_with_sources(&model, &sources.unwrap_or_default()) {
+                Ok(plan) => {
+                    let execution = execution.unwrap_or_default();
+                    if let Err(error) = execution.validate(&plan) {
+                        return Some(failure(id, json!(error)));
+                    }
+                    let mut result = summary(&plan);
+                    let options = execution.summary();
+                    result["backend"] = options["backend"].clone();
+                    result["solver"] = options["solver"].clone();
+                    response(id, json!({"revision":revision,"valid":true,"plan":result}))
+                }
                 Err(err) => failure(id, json!(err.0)),
             }
         }
-        Operation::Run { model, revision } => {
+        Operation::Run {
+            model,
+            revision,
+            sources,
+            execution,
+        } => {
+            if !v2 && (sources.is_some() || execution.is_some() || model.schema_version != 1) {
+                return Some(failure(
+                    id,
+                    error(
+                        "protocol",
+                        "source snapshots and execution options require /simulation/v2",
+                    ),
+                ));
+            }
             if job.is_some() {
                 failure(
                     id,
@@ -366,7 +442,15 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
             } else if revision.len() > 128 {
                 failure(id, error("revision", "Revision exceeds 128 bytes."))
             } else {
-                match start_job(id.clone(), revision, model) {
+                match start_snapshot(
+                    id.clone(),
+                    revision,
+                    Snapshot {
+                        model,
+                        sources: sources.unwrap_or_default(),
+                        execution: execution.unwrap_or_default(),
+                    },
+                ) {
                     Ok(next) => {
                         *job = Some(next);
                         return None;
@@ -393,8 +477,14 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
     })
 }
 
-fn send(socket: &mut WebSocket<TcpStream>, value: &Value) -> Result<(), ServerError> {
-    let text = serde_json::to_string(value).map_err(ServerError::Encode)?;
+fn send(
+    socket: &mut WebSocket<TcpStream>,
+    value: &Value,
+    protocol: &str,
+) -> Result<(), ServerError> {
+    let mut value = value.clone();
+    value["protocol"] = json!(protocol);
+    let text = serde_json::to_string(&value).map_err(ServerError::Encode)?;
     if text.len() > MAX_MESSAGE {
         return Err(ServerError::State("simulation output exceeds 8 MiB"));
     }
@@ -402,7 +492,8 @@ fn send(socket: &mut WebSocket<TcpStream>, value: &Value) -> Result<(), ServerEr
     Ok(())
 }
 
-pub(crate) fn serve(socket: &mut WebSocket<TcpStream>) -> Result<(), ServerError> {
+pub(crate) fn serve(socket: &mut WebSocket<TcpStream>, v2: bool) -> Result<(), ServerError> {
+    let protocol = if v2 { PROTOCOL_V2 } else { PROTOCOL };
     let mut job: Option<Job> = None;
     loop {
         if let Some(active) = &mut job {
@@ -412,7 +503,7 @@ pub(crate) fn serve(socket: &mut WebSocket<TcpStream>) -> Result<(), ServerError
                     break;
                 };
                 active.observe(&value);
-                send(socket, &value)?;
+                send(socket, &value, protocol)?;
             }
             if active.terminal {
                 job.take();
@@ -421,7 +512,7 @@ pub(crate) fn serve(socket: &mut WebSocket<TcpStream>) -> Result<(), ServerError
                 // channel without a terminal message means the worker failed.
                 if let Ok(value) = active.events.as_ref().expect("active receiver").try_recv() {
                     active.observe(&value);
-                    send(socket, &value)?;
+                    send(socket, &value, protocol)?;
                     if active.terminal {
                         job.take();
                     }
@@ -433,7 +524,7 @@ pub(crate) fn serve(socket: &mut WebSocket<TcpStream>) -> Result<(), ServerError
                     } else {
                         failure(&active.id, issue)
                     };
-                    send(socket, &value)?;
+                    send(socket, &value, protocol)?;
                     job.take();
                 }
             }
@@ -445,7 +536,11 @@ pub(crate) fn serve(socket: &mut WebSocket<TcpStream>) -> Result<(), ServerError
                     return Ok(());
                 }
                 let reply = match serde_json::from_str::<Request>(&text) {
-                    Ok(request) => handle(request, &mut job),
+                    Ok(request) if request.protocol == protocol => handle(request, &mut job),
+                    Ok(request) => Some(failure(
+                        &request.id,
+                        error("protocol", "protocol does not match the WebSocket endpoint"),
+                    )),
                     Err(err) => {
                         let id = serde_json::from_str::<Value>(&text)
                             .ok()
@@ -461,7 +556,7 @@ pub(crate) fn serve(socket: &mut WebSocket<TcpStream>) -> Result<(), ServerError
                     }
                 };
                 if let Some(value) = reply {
-                    send(socket, &value)?;
+                    send(socket, &value, protocol)?;
                 }
             }
             Ok(Message::Close(_)) => {

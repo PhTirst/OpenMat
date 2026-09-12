@@ -69,6 +69,102 @@ fn model() -> Value {
     .unwrap()
 }
 
+fn request_v2(socket: &mut Socket, id: &str, operation: &str, data: Value) {
+    let mut message =
+        json!({"protocol":"openmat-simulation-v2","requestId":id,"operation":operation});
+    let Value::Object(data) = data else {
+        panic!("request data must be an object")
+    };
+    message.as_object_mut().unwrap().extend(data);
+    socket.send(Message::text(message.to_string())).unwrap();
+}
+
+#[test]
+fn v2_compiles_source_snapshots_and_preserves_the_legacy_endpoint() {
+    let mut server = Server::start();
+    let mut legacy = server.connect();
+    server.url = server.url.replace("/simulation/v1", "/simulation/v2");
+    let mut socket = server.connect();
+    request_v2(&mut socket, "catalog-v2", "catalog", json!({}));
+    let catalog = read(&mut socket);
+    assert_eq!(catalog["protocol"], "openmat-simulation-v2");
+    assert_eq!(catalog["result"]["blocks"].as_array().unwrap().len(), 7);
+    let model: Value = serde_json::from_str(include_str!(
+        "../../../simulation/examples/pendulum.omsim.json"
+    ))
+    .unwrap();
+    request(
+        &mut legacy,
+        "reject",
+        "check",
+        json!({"model":model,"revision":"legacy"}),
+    );
+    assert_eq!(read(&mut legacy)["error"]["code"], "protocol");
+    request_v2(
+        &mut socket,
+        "bad-source",
+        "check",
+        json!({"model":model,"revision":"bad","sources":{"pendulum.m":"function dx = pendulum(x, p)\ndx = eval('x');\nend"}}),
+    );
+    let diagnostic = read(&mut socket);
+    assert_eq!(diagnostic["error"]["sourcePath"], "pendulum.m");
+    assert_eq!(diagnostic["error"]["line"], 2);
+    request_v2(
+        &mut socket,
+        "source-run",
+        "run",
+        json!({"model":model,"revision":"frozen","sources":{"pendulum.m":include_str!("../../../simulation/examples/pendulum.m")}}),
+    );
+    assert_eq!(read(&mut socket)["result"]["backend"], "reference");
+    loop {
+        let event = read(&mut socket);
+        assert_eq!(event["protocol"], "openmat-simulation-v2");
+        assert_eq!(event["revision"], "frozen");
+        if event["event"] == "finished" {
+            assert_eq!(event["data"]["time"], 10.0);
+            break;
+        }
+        assert_eq!(event["event"], "samples");
+    }
+}
+
+#[test]
+#[ignore = "requires configured LLVM and SUNDIALS runtimes"]
+fn v2_native_solver_selection_acknowledges_actual_execution_and_statistics() {
+    assert!(std::env::var_os("OPENMAT_SIM_LLVM_LIBRARY").is_some());
+    assert!(std::env::var_os("OPENMAT_SIM_SUNDIALS_DIRECTORY").is_some());
+    let mut server = Server::start();
+    server.url = server.url.replace("/simulation/v1", "/simulation/v2");
+    let mut socket = server.connect();
+    let model: Value = serde_json::from_str(include_str!(
+        "../../../simulation/examples/pendulum.omsim.json"
+    ))
+    .unwrap();
+    request_v2(
+        &mut socket,
+        "native",
+        "run",
+        json!({"model":model,"revision":"native","sources":{"pendulum.m":include_str!("../../../simulation/examples/pendulum.m")},"execution":{"backend":"llvm","solver":{"type":"cvode","method":"bdf","relativeTolerance":1e-7,"absoluteTolerance":1e-10}}}),
+    );
+    let ack = read(&mut socket);
+    assert_eq!(ack["ok"], true, "{ack}");
+    assert_eq!(ack["result"]["backend"], "llvm-orc");
+    assert_eq!(ack["result"]["solver"]["sundialsVersion"], "7.5.0");
+    loop {
+        let event = read(&mut socket);
+        if event["event"] == "finished" {
+            assert!(
+                event["data"]["solverStats"]["rhsEvaluations"]
+                    .as_u64()
+                    .unwrap()
+                    > 0
+            );
+            break;
+        }
+        assert_eq!(event["event"], "samples", "{event}");
+    }
+}
+
 #[test]
 fn same_listener_serves_catalog_check_run_and_invalid_model_diagnostics() {
     let server = Server::start();

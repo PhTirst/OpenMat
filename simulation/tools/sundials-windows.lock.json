@@ -1,0 +1,17 @@
+{
+  "runtime": "SUNDIALS 7.5.0, Windows x64 UCRT, double, int64, serial, non-MPI",
+  "packages": [
+    {
+      "file": "mingw-w64-ucrt-x86_64-sundials-7.5.0-2-any.pkg.tar.zst",
+      "url": "https://mirror.msys2.org/mingw/ucrt64/mingw-w64-ucrt-x86_64-sundials-7.5.0-2-any.pkg.tar.zst",
+      "sha256": "acc9d62bce339e49a552c159a069574e30a1a63bfc0bb29c21fd6ba4d7bee626",
+      "paths": ["ucrt64/bin/libsundials_core-7.dll", "ucrt64/bin/libsundials_cvode-7.dll", "ucrt64/bin/libsundials_nvecserial-7.dll", "ucrt64/bin/libsundials_sunmatrixdense-5.dll", "ucrt64/bin/libsundials_sunlinsoldense-5.dll", "ucrt64/include/sundials/sundials_config.h", "ucrt64/share/licenses"]
+    },
+    {
+      "file": "mingw-w64-ucrt-x86_64-libwinpthread-14.0.0.r353.g6df76fa52-2-any.pkg.tar.zst",
+      "url": "https://repo.msys2.org/mingw/ucrt64/mingw-w64-ucrt-x86_64-libwinpthread-14.0.0.r353.g6df76fa52-2-any.pkg.tar.zst",
+      "sha256": "ec1a46e63d424a90992a14c0996c0b5bb17370af6044380b590d05f725eeb43f",
+      "paths": ["ucrt64/bin/libwinpthread-1.dll", "ucrt64/share/licenses"]
+    }
+  ]
+}

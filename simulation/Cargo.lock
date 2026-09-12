@@ -71,6 +71,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
+name = "openmat-hir"
+version = "0.1.0"
+dependencies = [
+ "openmat-source",
+ "openmat-syntax",
+]
+
+[[package]]
 name = "openmat-opc"
 version = "0.1.0"
 dependencies = [
@@ -80,9 +88,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "openmat-parser"
+version = "0.1.0"
+dependencies = [
+ "openmat-source",
+ "openmat-syntax",
+]
+
+[[package]]
 name = "openmat-sim"
 version = "0.1.0"
 dependencies = [
+ "openmat-hir",
+ "openmat-parser",
+ "openmat-source",
+ "openmat-syntax",
  "serde",
  "serde_json",
 ]
@@ -94,6 +114,7 @@ dependencies = [
  "openmat-sim",
  "openmat-sim-llvm",
  "openmat-sim-slx",
+ "openmat-sim-sundials",
  "serde_json",
  "zip",
 ]
@@ -118,6 +139,28 @@ dependencies = [
  "serde",
  "serde_json",
  "zip",
+]
+
+[[package]]
+name = "openmat-sim-sundials"
+version = "0.1.0"
+dependencies = [
+ "libloading",
+ "openmat-sim",
+ "openmat-sim-llvm",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "openmat-source"
+version = "0.1.0"
+
+[[package]]
+name = "openmat-syntax"
+version = "0.1.0"
+dependencies = [
+ "openmat-source",
 ]
 
 [[package]]

@@ -244,12 +244,18 @@ where
         ))?;
         return run_workspace_connection(&mut socket, &service, protocol);
     }
-    if endpoint.get() == Some(Endpoint::Simulation) {
+    if matches!(
+        endpoint.get(),
+        Some(Endpoint::Simulation | Endpoint::SimulationV2)
+    ) {
         socket
             .get_mut()
             .set_read_timeout(Some(Duration::from_millis(10)))
             .map_err(ServerError::WebSocketIo)?;
-        return crate::simulation_websocket::serve(&mut socket);
+        return crate::simulation_websocket::serve(
+            &mut socket,
+            endpoint.get() == Some(Endpoint::SimulationV2),
+        );
     }
     if endpoint.get() == Some(Endpoint::Lsp) {
         socket
@@ -654,6 +660,7 @@ enum Endpoint {
     Kernel,
     Lsp,
     Simulation,
+    SimulationV2,
     Graphics(openmat_plot_protocol::GraphicsProtocol),
     Workspace(WorkspaceProtocol),
 }
@@ -1204,6 +1211,7 @@ fn validate_handshake(
         ("/kernel", None) => Endpoint::Kernel,
         ("/lsp", None) => Endpoint::Lsp,
         ("/simulation/v1", None) => Endpoint::Simulation,
+        ("/simulation/v2", None) => Endpoint::SimulationV2,
         ("/graphics/v1", None) => Endpoint::Graphics(openmat_plot_protocol::GraphicsProtocol::V1),
         ("/graphics/v2", None) => Endpoint::Graphics(openmat_plot_protocol::GraphicsProtocol::V2),
         ("/graphics/v3", None) => Endpoint::Graphics(openmat_plot_protocol::GraphicsProtocol::V3),
@@ -1220,7 +1228,7 @@ fn validate_handshake(
         _ => {
             return Err(handshake_rejection(
                 StatusCode::NOT_FOUND,
-                "WebSocket endpoints are /kernel, /lsp, /simulation/v1, /graphics/v1, /graphics/v2, /graphics/v3, /graphics/v4, and configured /workspace/v1, /workspace/v2, or /workspace/v3",
+                "WebSocket endpoints are /kernel, /lsp, /simulation/v1, /simulation/v2, /graphics/v1, /graphics/v2, /graphics/v3, /graphics/v4, and configured /workspace/v1, /workspace/v2, or /workspace/v3",
             ));
         }
     };

@@ -26,6 +26,7 @@ mod graphics_runtime;
 mod graphics_websocket;
 mod lsp_websocket;
 mod lsp_workspace;
+mod simulation_execution;
 mod simulation_websocket;
 mod websocket;
 mod workspace;

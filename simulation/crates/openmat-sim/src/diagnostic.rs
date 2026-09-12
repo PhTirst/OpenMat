@@ -11,19 +11,28 @@ pub struct Diagnostic {
     pub block: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub port: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub column: Option<usize>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-pub struct ModelError(pub Diagnostic);
+pub struct ModelError(pub Box<Diagnostic>);
 
 impl ModelError {
     pub(crate) fn new(code: &str, message: impl Into<String>) -> Self {
-        Self(Diagnostic {
+        Self(Box::new(Diagnostic {
             code: code.into(),
             message: message.into(),
             block: None,
             port: None,
-        })
+            source_path: None,
+            line: None,
+            column: None,
+        }))
     }
 
     pub(crate) fn at(mut self, block: &str, port: Option<&str>) -> Self {

@@ -49,11 +49,43 @@ pub fn emit_llvm(program: &Program) -> String {
             Instruction::Negate(a) => {
                 writeln!(ir, "  %v{index} = fneg double {}", operands[a]).unwrap();
             }
+            Instruction::Subtract(a, b) => {
+                writeln!(
+                    ir,
+                    "  %v{index} = fsub double {}, {}",
+                    operands[a], operands[b]
+                )
+                .unwrap();
+            }
+            Instruction::Divide(a, b) => {
+                writeln!(
+                    ir,
+                    "  %v{index} = fdiv double {}, {}",
+                    operands[a], operands[b]
+                )
+                .unwrap();
+            }
+            Instruction::Math(function, a) => {
+                writeln!(
+                    ir,
+                    "  %v{index} = call double @openmat_math_{}(double {})",
+                    function.name(),
+                    operands[a]
+                )
+                .unwrap();
+            }
         }
     }
     for (index, &value) in program.outputs().iter().enumerate() {
         writeln!(ir, "  %o{index} = getelementptr double, ptr %outputs, i64 {index}\n  store double {}, ptr %o{index}, align 8", operands[value]).unwrap();
     }
     ir.push_str("  ret i32 0\nbad_abi:\n  ret i32 1\nbad_length:\n  ret i32 2\nbad_pointer:\n  ret i32 3\n}\n");
+    for name in ["sin", "cos", "exp", "sqrt", "abs", "tanh"] {
+        writeln!(
+            ir,
+            "declare double @openmat_math_{name}(double) nounwind memory(none)"
+        )
+        .unwrap();
+    }
     ir
 }

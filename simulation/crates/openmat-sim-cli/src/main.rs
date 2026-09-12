@@ -5,14 +5,15 @@ use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
-use openmat_sim::model::Model;
+use openmat_sim::model::{BlockKind, Model};
 use openmat_sim::numeric::{Kernel, ReferenceKernel};
-use openmat_sim::{CollectionLimits, Runner, compile};
+use openmat_sim::{CollectionLimits, MAX_SOURCE_BYTES, Runner, SourceBundle, compile_with_sources};
 use openmat_sim_llvm::{LlvmKernel, emit_llvm};
 use openmat_sim_slx::ImportedSlx;
+use openmat_sim_sundials::{Cvode, Method, Options as CvodeOptions};
 use serde_json::{Value, json};
 
-const USAGE: &str = "OpenMat simulation\n\n  openmat-sim check MODEL.json|MODEL.slx\n  openmat-sim run MODEL.json|MODEL.slx [--backend reference|llvm] [--llvm-library PATH]\n                                    [--output RESULT.json] [--max-samples COUNT]\n  openmat-sim emit-llvm MODEL [--output KERNEL.ll]\n  openmat-sim inspect-slx MODEL.slx [--output DOCUMENT.json]\n  openmat-sim import-slx MODEL.slx [--output MODEL.json]\n\nSLX execution requires a supported R2022b model configuration.\nLLVM requires an explicit LLVM 22 library path or OPENMAT_SIM_LLVM_LIBRARY.\nOutput files are created without overwriting existing files.\n";
+const USAGE: &str = "OpenMat simulation\n\n  openmat-sim check MODEL.json|MODEL.slx\n  openmat-sim run MODEL.json|MODEL.slx [--backend reference|llvm] [--llvm-library PATH]\n                                    [--output RESULT.json] [--max-samples COUNT]\n                                    [--solver rk4|cvode-adams|cvode-bdf]\n                                    [--sundials-directory PATH] [--rtol VALUE] [--atol VALUE]\n  openmat-sim emit-llvm MODEL [--output KERNEL.ll]\n  openmat-sim inspect-slx MODEL.slx [--output DOCUMENT.json]\n  openmat-sim import-slx MODEL.slx [--output MODEL.json]\n\nSLX execution requires a supported R2022b model configuration.\nLLVM requires an explicit LLVM 22 library path or OPENMAT_SIM_LLVM_LIBRARY.\nOutput files are created without overwriting existing files.\n";
 
 struct Options {
     command: String,
@@ -21,6 +22,9 @@ struct Options {
     backend: String,
     llvm_library: Option<PathBuf>,
     max_samples: usize,
+    solver: String,
+    sundials_directory: Option<PathBuf>,
+    cvode: CvodeOptions,
 }
 
 fn main() {
@@ -55,6 +59,9 @@ fn parse_options(args: &[OsString]) -> Result<Options, Value> {
         backend: "reference".into(),
         llvm_library: std::env::var_os("OPENMAT_SIM_LLVM_LIBRARY").map(Into::into),
         max_samples: 100_000,
+        solver: "rk4".into(),
+        sundials_directory: std::env::var_os("OPENMAT_SIM_SUNDIALS_DIRECTORY").map(Into::into),
+        cvode: CvodeOptions::default(),
     };
     let mut index = 2;
     let mut seen = std::collections::BTreeSet::new();
@@ -78,6 +85,30 @@ fn parse_options(args: &[OsString]) -> Result<Options, Value> {
                     .into();
             }
             "--llvm-library" if command == "run" => options.llvm_library = Some(value.into()),
+            "--sundials-directory" if command == "run" => {
+                options.sundials_directory = Some(value.into());
+            }
+            "--solver" if command == "run" => {
+                options.solver = value
+                    .to_str()
+                    .filter(|s| ["rk4", "cvode-adams", "cvode-bdf"].contains(s))
+                    .ok_or_else(|| {
+                        failure("arguments", "solver must be rk4, cvode-adams or cvode-bdf")
+                    })?
+                    .into();
+            }
+            "--rtol" | "--atol" if command == "run" => {
+                let tolerance = value
+                    .to_str()
+                    .and_then(|s| s.parse::<f64>().ok())
+                    .filter(|v| v.is_finite() && *v > 0.)
+                    .ok_or_else(|| failure("arguments", "tolerance must be finite and positive"))?;
+                if name == "--rtol" {
+                    options.cvode.relative_tolerance = tolerance;
+                } else {
+                    options.cvode.absolute_tolerance = tolerance;
+                }
+            }
             "--max-samples" if command == "run" => {
                 options.max_samples = value
                     .to_str()
@@ -102,6 +133,16 @@ fn parse_options(args: &[OsString]) -> Result<Options, Value> {
             "--llvm-library requires --backend llvm",
         ));
     }
+    if options.solver == "rk4"
+        && ["--rtol", "--atol", "--sundials-directory"]
+            .iter()
+            .any(|name| seen.contains(name))
+    {
+        return Err(failure(
+            "arguments",
+            "SUNDIALS options require a CVODE solver",
+        ));
+    }
     Ok(options)
 }
 
@@ -112,7 +153,70 @@ fn read_model(path: &Path) -> Result<Model, Value> {
             .map_err(|issues| json!({"code": "slx_compatibility", "issues": issues}));
     }
     let bytes = read_bytes(path, 16 * 1024 * 1024)?;
-    serde_json::from_slice(&bytes).map_err(|e| failure("model_json", e.to_string()))
+    let raw: Value =
+        serde_json::from_slice(&bytes).map_err(|e| failure("model_json", e.to_string()))?;
+    let model = if raw.get("format").is_some() {
+        if raw["format"] != "openmat-simulation"
+            || !matches!(raw["schemaVersion"].as_u64(), Some(1 | 2))
+        {
+            return Err(failure("model_json", "unsupported authoring document"));
+        }
+        if raw["schemaVersion"] == 1 && raw["model"]["schemaVersion"] != 1 {
+            return Err(failure(
+                "model_json",
+                "schema-1 authoring documents require a schema-1 numerical model",
+            ));
+        }
+        raw["model"].clone()
+    } else {
+        raw
+    };
+    serde_json::from_value(model).map_err(|e| failure("model_json", e.to_string()))
+}
+
+#[allow(clippy::case_sensitive_file_extension_comparisons)] // Match portable source-bundle path semantics.
+fn read_sources(model: &Model, path: &Path) -> Result<SourceBundle, Value> {
+    let base = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or(Path::new("."))
+        .canonicalize()
+        .map_err(|e| failure("source_file", e.to_string()))?;
+    let mut sources = SourceBundle::new();
+    for block in &model.blocks {
+        let BlockKind::MFunction { source, .. } = &block.kind else {
+            continue;
+        };
+        if sources.contains_key(source) {
+            continue;
+        }
+        if sources.len() >= 64
+            || !source.ends_with(".m")
+            || source.contains(['\\', ':'])
+            || !source
+                .split('/')
+                .all(|p| !p.is_empty() && p != "." && p != "..")
+        {
+            return Err(failure(
+                "source_file",
+                "source requires a relative .m path; at most 64 files are supported",
+            ));
+        }
+        let file = base
+            .join(source)
+            .canonicalize()
+            .map_err(|e| failure("source_file", format!("{source}: {e}")))?;
+        if !file.starts_with(&base) {
+            return Err(failure(
+                "source_file",
+                "source resolves outside the model directory",
+            ));
+        }
+        let content = String::from_utf8(read_bytes(&file, MAX_SOURCE_BYTES as u64)?)
+            .map_err(|e| failure("source_file", e.to_string()))?;
+        sources.insert(source.clone(), content);
+    }
+    Ok(sources)
 }
 
 fn is_slx(path: &Path) -> bool {
@@ -161,7 +265,8 @@ fn execute(options: Options) -> Result<(), Value> {
         );
     }
     let model = read_model(&options.model)?;
-    let plan = compile(&model).map_err(|error| json!(error.0))?;
+    let sources = read_sources(&model, &options.model)?;
+    let plan = compile_with_sources(&model, &sources).map_err(|error| json!(error.0))?;
     if options.command == "check" {
         return write_output(None, &serde_json::to_string_pretty(&json!({
             "ok": true, "model": plan.name(), "continuousStates": plan.continuous_state_count(),
@@ -190,8 +295,25 @@ fn execute(options: Options) -> Result<(), Value> {
     } else {
         Box::new(ReferenceKernel::new(plan.program().clone()))
     };
+    let count = plan.continuous_state_count();
     let result = Runner::new(plan, kernel)
-        .and_then(|runner| {
+        .and_then(|mut runner| {
+            execution["solver"] = json!(options.solver);
+            if options.solver != "rk4" {
+                let directory = options.sundials_directory.as_deref().ok_or_else(|| {
+                    openmat_sim::RunError::new(
+                        "native_unavailable",
+                        "set --sundials-directory or OPENMAT_SIM_SUNDIALS_DIRECTORY",
+                    )
+                })?;
+                let mut cvode = options.cvode.clone();
+                cvode.method = if options.solver == "cvode-adams" {
+                    Method::Adams
+                } else {
+                    Method::Bdf
+                };
+                runner = runner.with_solver(Box::new(Cvode::new(directory, count, cvode)?))?;
+            }
             runner.collect(CollectionLimits {
                 max_samples: options.max_samples,
                 ..CollectionLimits::default()

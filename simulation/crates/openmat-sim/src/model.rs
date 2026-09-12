@@ -2,6 +2,7 @@
 use serde::{Deserialize, Serialize};
 
 pub const SCHEMA_VERSION: u32 = 1;
+pub const FUNCTION_SCHEMA_VERSION: u32 = 2;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -42,12 +43,44 @@ pub struct Position {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
 pub enum BlockKind {
-    Constant { value: Vec<f64> },
-    Sum { signs: Vec<i8> },
-    Gain { gain: Vec<f64> },
-    Integrator { initial: Vec<f64> },
-    UnitDelay { initial: Vec<f64> },
+    Constant {
+        value: Vec<f64>,
+    },
+    Sum {
+        signs: Vec<i8>,
+    },
+    Gain {
+        gain: Vec<f64>,
+    },
+    Integrator {
+        initial: Vec<f64>,
+    },
+    UnitDelay {
+        initial: Vec<f64>,
+    },
     Scope,
+    MFunction {
+        source: String,
+        entry: String,
+        inputs: Vec<FunctionInput>,
+        parameters: Vec<FunctionParameter>,
+        #[serde(rename = "outputWidth")]
+        output_width: usize,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FunctionInput {
+    pub name: String,
+    pub width: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FunctionParameter {
+    pub name: String,
+    pub value: Vec<f64>,
 }
 
 impl BlockKind {
@@ -55,12 +88,18 @@ impl BlockKind {
         match self {
             Self::Constant { .. } => Vec::new(),
             Self::Sum { signs } => (0..signs.len()).map(|i| format!("in{i}")).collect(),
+            Self::MFunction { inputs, .. } => {
+                inputs.iter().map(|input| input.name.clone()).collect()
+            }
             _ => vec!["in".into()],
         }
     }
 
     pub(crate) fn direct_feedthrough(&self) -> bool {
-        matches!(self, Self::Sum { .. } | Self::Gain { .. } | Self::Scope)
+        matches!(
+            self,
+            Self::Sum { .. } | Self::Gain { .. } | Self::Scope | Self::MFunction { .. }
+        )
     }
 }
 
