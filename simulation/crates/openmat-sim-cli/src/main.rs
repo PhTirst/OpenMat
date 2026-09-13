@@ -26,8 +26,8 @@ const USAGE: &str = r"OpenMat simulation
   openmat-sim import-slx MODEL.slx [--output MODEL.omsim]
 
 SLX options for every command:
-  --slx-profile legacy|control-v1|multirate-v1  (default: legacy)
-  --parameters FILE.m            (control-v1/multirate-v1; explicit constant assignments)
+  --slx-profile legacy|control-v1|multirate-v1|hybrid-v1  (default: legacy)
+  --parameters FILE.m            (control-v1/multirate-v1/hybrid-v1; explicit constant assignments)
 
 Control-v1 import exports a self-contained schema-4 authoring snapshot.
 SLX execution requires a supported R2022b model configuration.
@@ -104,11 +104,11 @@ fn parse_options(args: &[OsString]) -> Result<Options, Value> {
             "--slx-profile" => {
                 options.slx_profile = value
                     .to_str()
-                    .filter(|p| ["legacy", "control-v1", "multirate-v1"].contains(p))
+                    .filter(|p| ["legacy", "control-v1", "multirate-v1", "hybrid-v1"].contains(p))
                     .ok_or_else(|| {
                         failure(
                             "arguments",
-                            "SLX profile must be legacy, control-v1 or multirate-v1",
+                            "SLX profile must be legacy, control-v1, multirate-v1 or hybrid-v1",
                         )
                     })?
                     .into();
@@ -177,7 +177,7 @@ fn parse_options(args: &[OsString]) -> Result<Options, Value> {
     {
         return Err(failure(
             "arguments",
-            "--parameters requires an SLX model and --slx-profile control-v1 or multirate-v1",
+            "--parameters requires an SLX model and --slx-profile control-v1, multirate-v1 or hybrid-v1",
         ));
     }
     if options.solver == "rk4"
@@ -204,7 +204,7 @@ fn read_model(path: &Path) -> Result<Model, Value> {
         serde_json::from_slice(&bytes).map_err(|e| failure("model_json", e.to_string()))?;
     let model = if raw.get("format").is_some() {
         if raw["format"] != "openmat-simulation"
-            || !matches!(raw["schemaVersion"].as_u64(), Some(1..=5))
+            || !matches!(raw["schemaVersion"].as_u64(), Some(1..=6))
         {
             return Err(failure("model_json", "unsupported authoring document"));
         }
@@ -221,7 +221,7 @@ fn read_model(path: &Path) -> Result<Model, Value> {
             ));
         }
         if let Some(asset) = raw.get("slx")
-            && (!matches!(raw["schemaVersion"].as_u64(), Some(4 | 5))
+            && (!matches!(raw["schemaVersion"].as_u64(), Some(4..=6))
                 || asset["runnable"] != true
                 || !asset["parameters"].is_string()
                 || asset["parameters"] != asset["appliedParameters"])
@@ -246,7 +246,7 @@ fn read_sources(model: &Model, path: &Path) -> Result<SourceBundle, Value> {
             .map_err(|e| failure("model_json", e.to_string()))?;
         if let Some(value) = document.get("sources") {
             if document["format"] != "openmat-simulation"
-                || !matches!(document["schemaVersion"].as_u64(), Some(4 | 5))
+                || !matches!(document["schemaVersion"].as_u64(), Some(4..=6))
             {
                 return Err(failure(
                     "model_json",
@@ -352,7 +352,9 @@ fn execute(options: &Options) -> Result<(), Value> {
             })
             .transpose()?
             .unwrap_or_default();
-        let lowered = if options.slx_profile == "multirate-v1" {
+        let lowered = if options.slx_profile == "hybrid-v1" {
+            imported.lower_hybrid(&parameters)
+        } else if options.slx_profile == "multirate-v1" {
             imported.lower_multirate(&parameters)
         } else {
             imported.lower_control(&parameters)
@@ -379,7 +381,7 @@ fn execute(options: &Options) -> Result<(), Value> {
                 })
                 .collect();
             let document = json!({"format":"openmat-simulation","schemaVersion":result.model.schema_version,"model":result.model,"sources":result.sources,
-                "editor":{"labels":labels,"bends":{}},"slx":{"profile":options.slx_profile,"sampling":result.sampling,"name":name,"package":base64::engine::general_purpose::STANDARD.encode(&bytes),"parameters":parameters,"appliedParameters":parameters,"runnable":true,"issues":[],"document":imported.document()}});
+                "editor":{"labels":labels,"bends":{}},"slx":{"profile":options.slx_profile,"sampling":result.sampling,"eventPlan":result.event_plan,"name":name,"package":base64::engine::general_purpose::STANDARD.encode(&bytes),"parameters":parameters,"appliedParameters":parameters,"runnable":true,"issues":[],"document":imported.document()}});
             return write_output(
                 options.output.as_deref(),
                 &serde_json::to_string_pretty(&document)
@@ -414,7 +416,7 @@ fn execute(options: &Options) -> Result<(), Value> {
     if options.command == "check" {
         return write_output(None, &serde_json::to_string_pretty(&json!({
             "ok": true, "model": plan.name(), "continuousStates": plan.continuous_state_count(),
-            "discreteStates": plan.discrete_state_count(), "scopes": plan.scopes(), "sampling":plan.sampling(),
+            "discreteStates": plan.discrete_state_count(), "scopes": plan.scopes(), "sampling":plan.sampling(), "eventPlan":plan.events(),
             "executionOrder": plan.execution_order(), "numericalInstructions": plan.program().instructions().len(),
         })).map_err(|e| failure("result_json", e.to_string()))?);
     }

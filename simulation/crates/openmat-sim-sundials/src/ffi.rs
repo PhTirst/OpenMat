@@ -5,6 +5,7 @@ use std::ffi::{c_char, c_int, c_long, c_void};
 use std::path::Path;
 
 pub type Handle = *mut c_void;
+pub type RootFn = unsafe extern "C" fn(f64, Handle, *mut f64, Handle) -> c_int;
 pub type Rhs = unsafe extern "C" fn(f64, Handle, Handle, Handle) -> c_int;
 
 pub struct Api {
@@ -21,6 +22,8 @@ pub struct Api {
     pub create: unsafe extern "C" fn(c_int, Handle) -> Handle,
     pub free: unsafe extern "C" fn(*mut Handle),
     pub init: unsafe extern "C" fn(Handle, Rhs, f64, Handle) -> c_int,
+    pub root_init: unsafe extern "C" fn(Handle, c_int, RootFn) -> c_int,
+    pub root_info: unsafe extern "C" fn(Handle, *mut c_int) -> c_int,
     pub reinit: unsafe extern "C" fn(Handle, f64, Handle) -> c_int,
     pub tolerances: unsafe extern "C" fn(Handle, f64, f64) -> c_int,
     pub set_linear: unsafe extern "C" fn(Handle, Handle, Handle) -> c_int,
@@ -143,6 +146,8 @@ impl Api {
                 free: symbol!(4, "CVodeFree"),
                 init: symbol!(4, "CVodeInit"),
                 reinit: symbol!(4, "CVodeReInit"),
+                root_init: symbol!(4, "CVodeRootInit"),
+                root_info: symbol!(4, "CVodeGetRootInfo"),
                 tolerances: symbol!(4, "CVodeSStolerances"),
                 set_linear: symbol!(4, "CVodeSetLinearSolver"),
                 set_user: symbol!(4, "CVodeSetUserData"),

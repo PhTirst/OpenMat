@@ -10,6 +10,7 @@ pub(crate) struct Node<'a> {
 
 pub(crate) enum Kind {
     Legacy(RuntimeBlock),
+    Hybrid(BlockKind),
     Subsystem,
     Inport(usize),
     Outport(usize),
@@ -47,6 +48,15 @@ impl Node<'_> {
         )
     }
     pub fn input_name(&self, port: usize) -> String {
+        if let Kind::Hybrid(kind) = &self.kind {
+            return if matches!(kind, BlockKind::Control { .. }) {
+                format!("in{port}")
+            } else if port == 0 {
+                "in".into()
+            } else {
+                "reset".into()
+            };
+        }
         if matches!(self.kind, Kind::Product(_) | Kind::Mux(_)) || self.source.block_type == "Sum" {
             format!("in{port}")
         } else {
@@ -66,15 +76,36 @@ pub(crate) fn prepare<'a>(
     document: &'a Document,
     p: &Parameters,
 ) -> Result<Vec<Node<'a>>, Vec<Issue>> {
+    prepare_hybrid(document, p, &std::collections::BTreeMap::new())
+}
+pub(crate) fn prepare_hybrid<'a>(
+    document: &'a Document,
+    p: &Parameters,
+    kinds: &std::collections::BTreeMap<String, BlockKind>,
+) -> Result<Vec<Node<'a>>, Vec<Issue>> {
     let mut result = Vec::new();
     let mut issues = Vec::new();
     for system in &document.systems {
         for block in &system.blocks {
-            let next =
-                prepare_block(block, document, p, system.parent_block.is_none()).and_then(|node| {
-                    check(block, &node)?;
-                    Ok(node)
-                });
+            let next = (if let Some(kind) = kinds.get(&block.sid) {
+                let inputs = if let BlockKind::Control { operation, .. } = kind {
+                    operation.input_count()
+                } else {
+                    2
+                };
+                Ok(Node {
+                    source: block,
+                    kind: Kind::Hybrid(kind.clone()),
+                    inputs,
+                    outputs: 1,
+                })
+            } else {
+                prepare_block(block, document, p, system.parent_block.is_none())
+            })
+            .and_then(|node| {
+                check(block, &node)?;
+                Ok(node)
+            });
             match next {
                 Ok(node) => result.push(node),
                 Err(e) => issues.push(e.at(block, None)),

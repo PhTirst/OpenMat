@@ -286,7 +286,11 @@ pub(super) fn resolve(
         }
     }
     for i in 0..nodes.len() {
-        if matches!(nodes[i].block.kind, BlockKind::DiscreteIntegrator { .. }) {
+        if matches!(
+            nodes[i].block.kind,
+            BlockKind::DiscreteIntegrator { .. }
+                | BlockKind::ResetIntegrator { discrete: true, .. }
+        ) {
             if let SampleTime::Discrete { period } = rates[i] {
                 nodes[i].sampling_period = Some(period);
             }

@@ -5,7 +5,7 @@
 param(
     [string]$MatlabPath = 'matlab',
     [string]$OutputDirectory,
-    [ValidateSet('legacy', 'control', 'multirate')][string]$Profile = 'legacy',
+    [ValidateSet('legacy', 'control', 'multirate', 'hybrid')][string]$Profile = 'legacy',
     [ValidateRange(30, 3600)][int]$TimeoutSeconds = 600
 )
 
@@ -32,6 +32,7 @@ try {
     $oracleEntry = switch ($Profile) {
         'control' { 'slx_control_oracle' }
         'multirate' { 'slx_multirate_oracle' }
+        'hybrid' { 'slx_hybrid_oracle' }
         default { 'slx_oracle' }
     }
     $oracleCommand = '"addpath(getenv(''OPENMAT_SLX_TOOL_DIR'')); ' + $oracleEntry + '(getenv(''OPENMAT_SLX_ORACLE_DIR''))"'

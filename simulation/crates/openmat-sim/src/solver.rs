@@ -5,6 +5,12 @@ use std::sync::atomic::AtomicBool;
 
 pub type OdeRhs<'a> = dyn FnMut(f64, &[f64], &mut [f64]) -> Result<(), RunError> + 'a;
 
+pub struct OdeEvents<'a, 'b> {
+    pub count: usize,
+    pub evaluate: &'a mut OdeRhs<'b>,
+    pub found: &'a mut [i32],
+}
+
 pub struct OdeStep<'a> {
     pub time: f64,
     pub boundary: f64,
@@ -32,5 +38,22 @@ pub trait ContinuousSolver {
     /// # Errors
     /// On failure the scheduler discards the candidate and terminates the run.
     fn advance(&mut self, step: OdeStep<'_>, rhs: &mut OdeRhs<'_>) -> Result<f64, RunError>;
+    /// Advance with pure continuous event functions and return crossing directions.
+    /// # Errors
+    /// Solvers without rootfinding reject a nonempty event request.
+    fn advance_with_events(
+        &mut self,
+        step: OdeStep<'_>,
+        rhs: &mut OdeRhs<'_>,
+        events: OdeEvents<'_, '_>,
+    ) -> Result<f64, RunError> {
+        if events.count != 0 {
+            return Err(RunError::new(
+                "solver_events",
+                "selected solver does not support continuous event location",
+            ));
+        }
+        self.advance(step, rhs)
+    }
     fn statistics(&self) -> SolverStats;
 }

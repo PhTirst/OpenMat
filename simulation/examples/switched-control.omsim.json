@@ -1,0 +1,286 @@
+{
+  "format": "openmat-simulation",
+  "schemaVersion": 6,
+  "model": {
+    "schemaVersion": 6,
+    "name": "Switched feedback",
+    "settings": {
+      "startTime": 0,
+      "stopTime": 4,
+      "maxStep": 0.01
+    },
+    "blocks": [
+      {
+        "id": "reference",
+        "kind": {
+          "type": "constant",
+          "value": [
+            1
+          ]
+        },
+        "position": {
+          "x": 20,
+          "y": 100
+        }
+      },
+      {
+        "id": "error",
+        "kind": {
+          "type": "sum",
+          "signs": [
+            1,
+            -1
+          ]
+        },
+        "position": {
+          "x": 240,
+          "y": 100
+        }
+      },
+      {
+        "id": "proportional",
+        "kind": {
+          "type": "gain",
+          "gain": [
+            3
+          ]
+        },
+        "position": {
+          "x": 465,
+          "y": 20
+        }
+      },
+      {
+        "id": "plant",
+        "kind": {
+          "type": "integrator",
+          "initial": [
+            0
+          ]
+        },
+        "position": {
+          "x": 1410,
+          "y": 100
+        }
+      },
+      {
+        "id": "derivative",
+        "kind": {
+          "type": "sum",
+          "signs": [
+            1,
+            -1
+          ]
+        },
+        "position": {
+          "x": 1200,
+          "y": 100
+        }
+      },
+      {
+        "id": "response",
+        "kind": {
+          "type": "scope"
+        },
+        "position": {
+          "x": 1635,
+          "y": 100
+        }
+      },
+      {
+        "id": "effort",
+        "kind": {
+          "type": "scope"
+        },
+        "position": {
+          "x": 1180,
+          "y": 460
+        }
+      },
+      {
+        "id": "slow",
+        "kind": {
+          "type": "gain",
+          "gain": [
+            0.7
+          ]
+        },
+        "position": {
+          "x": 465,
+          "y": 350
+        }
+      },
+      {
+        "id": "mode",
+        "kind": {
+          "type": "step",
+          "time": 2,
+          "before": [
+            0
+          ],
+          "after": [
+            1
+          ]
+        },
+        "position": {
+          "x": 695,
+          "y": 180
+        }
+      },
+      {
+        "id": "actuator",
+        "kind": {
+          "type": "control",
+          "operation": {
+            "type": "switch",
+            "criterion": "greaterEqual",
+            "threshold": 0.5
+          },
+          "zeroCrossing": true
+        },
+        "position": {
+          "x": 965,
+          "y": 100
+        }
+      }
+    ],
+    "connections": [
+      {
+        "from": {
+          "block": "reference",
+          "port": "out"
+        },
+        "to": {
+          "block": "error",
+          "port": "in0"
+        }
+      },
+      {
+        "from": {
+          "block": "plant",
+          "port": "out"
+        },
+        "to": {
+          "block": "error",
+          "port": "in1"
+        }
+      },
+      {
+        "from": {
+          "block": "error",
+          "port": "out"
+        },
+        "to": {
+          "block": "proportional",
+          "port": "in"
+        }
+      },
+      {
+        "from": {
+          "block": "actuator",
+          "port": "out"
+        },
+        "to": {
+          "block": "derivative",
+          "port": "in0"
+        }
+      },
+      {
+        "from": {
+          "block": "plant",
+          "port": "out"
+        },
+        "to": {
+          "block": "derivative",
+          "port": "in1"
+        }
+      },
+      {
+        "from": {
+          "block": "derivative",
+          "port": "out"
+        },
+        "to": {
+          "block": "plant",
+          "port": "in"
+        }
+      },
+      {
+        "from": {
+          "block": "plant",
+          "port": "out"
+        },
+        "to": {
+          "block": "response",
+          "port": "in"
+        }
+      },
+      {
+        "from": {
+          "block": "actuator",
+          "port": "out"
+        },
+        "to": {
+          "block": "effort",
+          "port": "in"
+        }
+      },
+      {
+        "from": {
+          "block": "error",
+          "port": "out"
+        },
+        "to": {
+          "block": "slow",
+          "port": "in"
+        }
+      },
+      {
+        "from": {
+          "block": "proportional",
+          "port": "out"
+        },
+        "to": {
+          "block": "actuator",
+          "port": "in0"
+        }
+      },
+      {
+        "from": {
+          "block": "mode",
+          "port": "out"
+        },
+        "to": {
+          "block": "actuator",
+          "port": "in1"
+        }
+      },
+      {
+        "from": {
+          "block": "slow",
+          "port": "out"
+        },
+        "to": {
+          "block": "actuator",
+          "port": "in2"
+        }
+      }
+    ]
+  },
+  "editor": {
+    "labels": {
+      "reference": "目标 1",
+      "error": "跟踪误差",
+      "proportional": "比例增益 3",
+      "plant": "一阶对象状态",
+      "derivative": "u − x",
+      "response": "对象响应",
+      "effort": "控制量",
+      "slow": "低增益 0.7",
+      "mode": "2 s 切换模式",
+      "actuator": "增益模式选择"
+    },
+    "bends": {}
+  },
+  "sources": {}
+}

@@ -1,0 +1,237 @@
+{
+  "format": "openmat-simulation",
+  "schemaVersion": 6,
+  "model": {
+    "schemaVersion": 6,
+    "name": "Periodic edge reset",
+    "settings": {
+      "startTime": 0,
+      "stopTime": 4,
+      "maxStep": 0.01
+    },
+    "blocks": [
+      {
+        "id": "drive",
+        "kind": {
+          "type": "constant",
+          "value": [
+            1
+          ]
+        },
+        "position": {
+          "x": 20,
+          "y": 80
+        }
+      },
+      {
+        "id": "trigger",
+        "kind": {
+          "type": "mFunction",
+          "source": "periodic-trigger.m",
+          "entry": "periodic_trigger",
+          "inputs": [
+            {
+              "name": "t",
+              "width": 1
+            }
+          ],
+          "outputWidth": 1,
+          "parameters": []
+        },
+        "position": {
+          "x": 20,
+          "y": 260
+        }
+      },
+      {
+        "id": "state",
+        "kind": {
+          "type": "resetIntegrator",
+          "initial": [
+            0
+          ],
+          "gain": 1,
+          "discrete": false,
+          "reset": "rising"
+        },
+        "position": {
+          "x": 295,
+          "y": 80
+        }
+      },
+      {
+        "id": "discrete",
+        "kind": {
+          "type": "resetIntegrator",
+          "initial": [
+            0
+          ],
+          "gain": 1,
+          "discrete": true,
+          "reset": "rising"
+        },
+        "position": {
+          "x": 295,
+          "y": 340
+        }
+      },
+      {
+        "id": "continuousScope",
+        "kind": {
+          "type": "scope"
+        },
+        "position": {
+          "x": 580,
+          "y": 80
+        }
+      },
+      {
+        "id": "discreteScope",
+        "kind": {
+          "type": "scope"
+        },
+        "position": {
+          "x": 580,
+          "y": 340
+        }
+      },
+      {
+        "id": "triggerScope",
+        "kind": {
+          "type": "scope"
+        },
+        "position": {
+          "x": 580,
+          "y": 560
+        }
+      },
+      {
+        "id": "clock",
+        "kind": {
+          "type": "integrator",
+          "initial": [
+            0
+          ]
+        },
+        "position": {
+          "x": -220,
+          "y": 260
+        }
+      }
+    ],
+    "connections": [
+      {
+        "from": {
+          "block": "drive",
+          "port": "out"
+        },
+        "to": {
+          "block": "state",
+          "port": "in"
+        }
+      },
+      {
+        "from": {
+          "block": "trigger",
+          "port": "out"
+        },
+        "to": {
+          "block": "state",
+          "port": "reset"
+        }
+      },
+      {
+        "from": {
+          "block": "drive",
+          "port": "out"
+        },
+        "to": {
+          "block": "discrete",
+          "port": "in"
+        }
+      },
+      {
+        "from": {
+          "block": "trigger",
+          "port": "out"
+        },
+        "to": {
+          "block": "discrete",
+          "port": "reset"
+        }
+      },
+      {
+        "from": {
+          "block": "state",
+          "port": "out"
+        },
+        "to": {
+          "block": "continuousScope",
+          "port": "in"
+        }
+      },
+      {
+        "from": {
+          "block": "discrete",
+          "port": "out"
+        },
+        "to": {
+          "block": "discreteScope",
+          "port": "in"
+        }
+      },
+      {
+        "from": {
+          "block": "trigger",
+          "port": "out"
+        },
+        "to": {
+          "block": "triggerScope",
+          "port": "in"
+        }
+      },
+      {
+        "from": {
+          "block": "drive",
+          "port": "out"
+        },
+        "to": {
+          "block": "clock",
+          "port": "in"
+        }
+      },
+      {
+        "from": {
+          "block": "clock",
+          "port": "out"
+        },
+        "to": {
+          "block": "trigger",
+          "port": "t"
+        }
+      }
+    ],
+    "sampleTimes": {
+      "discrete": {
+        "kind": "discrete",
+        "period": 0.05
+      }
+    }
+  },
+  "editor": {
+    "labels": {
+      "drive": "积分速率 1",
+      "trigger": "周期触发 sin(2πt − 0.4)",
+      "state": "连续复位积分",
+      "discrete": "50 ms 离散复位积分",
+      "continuousScope": "连续积分轨迹",
+      "discreteScope": "离散积分轨迹",
+      "triggerScope": "复位信号",
+      "clock": "仿真时钟"
+    },
+    "bends": {}
+  },
+  "sources": {
+    "periodic-trigger.m": "function y = periodic_trigger(t)\n    y = sin(6.283185307179586 * t - 0.4);\nend\n"
+  }
+}

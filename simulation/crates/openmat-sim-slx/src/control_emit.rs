@@ -133,6 +133,13 @@ fn emit_block(
     let mut init = None;
     let mut derivatives = None;
     let output = match &node.kind {
+        Kind::Hybrid(kind) => {
+            let mut kind = kind.clone();
+            if let BlockKind::ResetIntegrator { initial, .. } = &mut kind {
+                *initial = expand(initial.clone(), width.outputs[0])?;
+            }
+            return Ok(Block { id, position, kind });
+        }
         Kind::Legacy(block) => {
             let mut block = block.clone();
             if let BlockKind::Integrator { initial } | BlockKind::UnitDelay { initial } =

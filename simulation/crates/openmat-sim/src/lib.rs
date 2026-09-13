@@ -6,6 +6,7 @@ pub mod component;
 mod component_compiler;
 mod diagnostic;
 mod engine;
+pub mod hybrid;
 mod m_function;
 pub mod model;
 pub mod numeric;

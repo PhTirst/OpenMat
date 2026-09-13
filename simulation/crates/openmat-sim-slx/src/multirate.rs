@@ -1,4 +1,5 @@
 //! Versioned multirate lowering; normalization never mutates the source document.
+mod hybrid;
 mod normalize;
 use crate::{
     ControlModel, ImportedSlx, Issue, Parameters, compatibility, control_blocks, control_emit,
@@ -15,22 +16,45 @@ impl ImportedSlx {
     /// # Errors
     /// Reports unsupported rates, block configurations, dependencies and numerical graphs.
     pub fn lower_multirate(&self, parameter_text: &str) -> Result<ControlModel, Vec<Issue>> {
-        self.multirate_inner(parameter_text).map_err(|issues| {
-            let paths = self.block_paths();
-            issues
-                .into_iter()
-                .map(|mut issue| {
-                    if let Some(path) = issue.block.as_ref().and_then(|sid| paths.get(sid)) {
-                        issue.message = format!("{path}: {}", issue.message);
-                    }
-                    issue
-                })
-                .collect()
-        })
+        self.multirate_inner(parameter_text, false)
+            .map_err(|issues| {
+                let paths = self.block_paths();
+                issues
+                    .into_iter()
+                    .map(|mut issue| {
+                        if let Some(path) = issue.block.as_ref().and_then(|sid| paths.get(sid)) {
+                            issue.message = format!("{path}: {}", issue.message);
+                        }
+                        issue
+                    })
+                    .collect()
+            })
     }
 
+    /// Lower nonlinear controls and bounded external reset semantics.
+    /// # Errors
+    /// Reject unsupported hybrid parameters, types, rates and dependencies.
+    pub fn lower_hybrid(&self, parameter_text: &str) -> Result<ControlModel, Vec<Issue>> {
+        self.multirate_inner(parameter_text, true)
+            .map_err(|issues| {
+                let paths = self.block_paths();
+                issues
+                    .into_iter()
+                    .map(|mut issue| {
+                        if let Some(path) = issue.block.as_ref().and_then(|sid| paths.get(sid)) {
+                            issue.message = format!("{path}: {}", issue.message);
+                        }
+                        issue
+                    })
+                    .collect()
+            })
+    }
     #[allow(clippy::too_many_lines)]
-    fn multirate_inner(&self, parameter_text: &str) -> Result<ControlModel, Vec<Issue>> {
+    fn multirate_inner(
+        &self,
+        parameter_text: &str,
+        hybrid: bool,
+    ) -> Result<ControlModel, Vec<Issue>> {
         let mut issues: Vec<_> = compatibility::global_checks(&self.document, &self.package)
             .into_iter()
             .filter(|i| i.code != "subsystem")
@@ -61,8 +85,21 @@ impl ImportedSlx {
         let settings = lower::settings(&properties).map_err(|e| vec![e])?;
         let mut normalized = self.document.clone();
         let mut adaptations = BTreeMap::new();
+        let mut native = BTreeMap::new();
         for system in &mut normalized.systems {
             for block in &mut system.blocks {
+                if hybrid {
+                    match hybrid::adapt(block, &parameters) {
+                        Ok(Some(kind)) => {
+                            native.insert(block.sid.clone(), kind);
+                        }
+                        Ok(None) => {}
+                        Err(error) => {
+                            issues.push(error.at(block, None));
+                            continue;
+                        }
+                    }
+                }
                 match normalize::block(block, &parameters) {
                     Ok(adaptation) => {
                         adaptations.insert(
@@ -77,13 +114,13 @@ impl ImportedSlx {
         if !issues.is_empty() {
             return Err(issues);
         }
-        let nodes = control_blocks::prepare(&normalized, &parameters)?;
+        let nodes = control_blocks::prepare_hybrid(&normalized, &parameters, &native)?;
         let edges = control_graph::connections(&normalized, &nodes).map_err(|e| vec![e])?;
         let widths = control_graph::widths(&nodes, &edges).map_err(|e| vec![e])?;
         let (mut model, mut sources) =
             control_emit::emit(&self.document.name, settings, &nodes, &edges, &widths)
                 .map_err(|e| vec![e])?;
-        model.schema_version = 5;
+        model.schema_version = if hybrid { 6 } else { 5 };
         for block in &mut model.blocks {
             let adapter = &adaptations[&block.id];
             if let Some(rate) = adapter.rate {
@@ -179,6 +216,9 @@ impl ImportedSlx {
             }
             vec![issue]
         })?;
+        if hybrid {
+            hybrid::check_types(&self.document, &model, &plan).map_err(|e| vec![e])?;
+        }
         if lower::value(&properties, "SolverName", "") == "FixedStepDiscrete"
             && plan.continuous_state_count() > 0
         {
@@ -193,6 +233,7 @@ impl ImportedSlx {
             parameters,
             block_paths: self.block_paths(),
             sampling: plan.sampling().cloned(),
+            event_plan: plan.events().cloned(),
         })
     }
 }

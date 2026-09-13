@@ -6,6 +6,7 @@ use crate::model::{Block, BlockKind, FunctionInput, Model, Port};
 use crate::numeric::{Comparison, Instruction, Kernel, MAX_VALUES, Program, ReferenceKernel};
 use crate::static_function::{self, Signature};
 use crate::{CompiledModel, ModelError, ScopeInfo, SourceBundle, m_function};
+mod hybrid;
 mod rates;
 
 #[derive(Clone, Copy)]
@@ -207,6 +208,17 @@ pub(crate) fn compile(model: &Model, sources: &SourceBundle) -> Result<CompiledM
         .iter()
         .map(|&i| nodes[i].block.id.clone())
         .collect();
+    let events = if model.schema_version >= 6 {
+        Some(hybrid::events(
+            &nodes,
+            sampling.as_ref(),
+            x.len(),
+            q.len(),
+            input_count,
+        )?)
+    } else {
+        None
+    };
     let flow_program = program(input_count, flow.instructions, outputs)?;
     let mut update = Emitter::new(&nodes, x.len(), input_count);
     update.sampling = sampling.as_ref();
@@ -287,6 +299,7 @@ pub(crate) fn compile(model: &Model, sources: &SourceBundle) -> Result<CompiledM
         execution_order,
         time_events,
         sampling,
+        events,
     })
 }
 
@@ -329,8 +342,13 @@ fn node<'a>(
             BlockKind::Step { before, .. } => before.len(),
             BlockKind::Integrator { initial }
             | BlockKind::UnitDelay { initial }
-            | BlockKind::DiscreteIntegrator { initial, .. } => initial.len(),
+            | BlockKind::DiscreteIntegrator { initial, .. }
+            | BlockKind::ResetIntegrator { initial, .. } => initial.len(),
             BlockKind::MFunction { output_width, .. } => *output_width,
+            BlockKind::Control {
+                operation: crate::hybrid::ControlOp::MinMax { inputs: 1, .. },
+                ..
+            } => 1,
             _ => 0,
         };
         let outputs = if matches!(block.kind, BlockKind::Scope) {
@@ -425,8 +443,20 @@ fn infer_widths(nodes: &mut [Node<'_>]) -> Result<(), ModelError> {
         let mut changed = false;
         for i in 0..nodes.len() {
             if nodes[i].outputs.first().is_some_and(|p| p.width == 0) {
-                let driver = nodes[i].drivers[0];
-                let width = nodes[driver.block].outputs[driver.port].width;
+                let widths: Vec<_> = nodes[i]
+                    .drivers
+                    .iter()
+                    .map(|d| nodes[d.block].outputs[d.port].width)
+                    .collect();
+                let width = if matches!(nodes[i].block.kind, BlockKind::Control { .. }) {
+                    if widths.contains(&0) {
+                        0
+                    } else {
+                        *widths.iter().max().unwrap_or(&0)
+                    }
+                } else {
+                    widths[0]
+                };
                 if width > 0 {
                     nodes[i].outputs[0].width = width;
                     changed = true;
@@ -458,7 +488,25 @@ fn infer_widths(nodes: &mut [Node<'_>]) -> Result<(), ModelError> {
             } else {
                 actual
             };
-            if actual != expected {
+            let control = matches!(nodes[i].block.kind, BlockKind::Control { .. });
+            let expected = if matches!(
+                nodes[i].block.kind,
+                BlockKind::Control {
+                    operation: crate::hybrid::ControlOp::MinMax { inputs: 1, .. },
+                    ..
+                }
+            ) {
+                actual
+            } else {
+                expected
+            };
+            let expected =
+                if j == 1 && matches!(nodes[i].block.kind, BlockKind::ResetIntegrator { .. }) {
+                    1
+                } else {
+                    expected
+                };
+            if actual != expected && !(control && actual == 1) {
                 return Err(ModelError::new(
                     "signal_width",
                     format!("expected width {expected}, found {actual}"),
@@ -577,7 +625,17 @@ fn lower_builtin(node: &mut Node<'_>, sources: &SourceBundle) -> Result<(), Mode
     node.update = None;
     node.scope = None;
     match &node.block.kind {
-        BlockKind::Integrator { initial } => node.x.clone_from(initial),
+        BlockKind::Integrator { initial }
+        | BlockKind::ResetIntegrator {
+            initial,
+            discrete: false,
+            ..
+        } => node.x.clone_from(initial),
+        BlockKind::ResetIntegrator {
+            initial,
+            discrete: true,
+            ..
+        } => node.q.clone_from(initial),
         BlockKind::UnitDelay { initial } | BlockKind::DiscreteIntegrator { initial, .. } => {
             node.q.clone_from(initial);
         }
@@ -617,6 +675,40 @@ fn lower_builtin(node: &mut Node<'_>, sources: &SourceBundle) -> Result<(), Mode
         id
     };
     let output = match &node.block.kind {
+        BlockKind::Control { operation, .. } => {
+            hybrid::lower(operation, node.outputs[0].width, &inputs, &mut ops)
+                .map_err(|e| e.at(&node.block.id, None))?
+        }
+        BlockKind::ResetIntegrator { gain, discrete, .. } => {
+            let scale = push(
+                &mut ops,
+                Instruction::Constant(
+                    gain * if *discrete {
+                        node.sampling_period.unwrap_or(0.0)
+                    } else {
+                        1.0
+                    },
+                ),
+            );
+            let values: Vec<_> = inputs[0]
+                .iter()
+                .enumerate()
+                .map(|(i, &u)| {
+                    let v = push(&mut ops, Instruction::Multiply(scale, u));
+                    if *discrete {
+                        push(&mut ops, Instruction::Add(1 + i, v))
+                    } else {
+                        v
+                    }
+                })
+                .collect();
+            if *discrete {
+                node.update = Some(program(count, ops.clone(), values)?);
+            } else {
+                node.derivatives = Some(program(count, ops.clone(), values)?);
+            }
+            (1..start).collect()
+        }
         BlockKind::Step {
             time,
             before,

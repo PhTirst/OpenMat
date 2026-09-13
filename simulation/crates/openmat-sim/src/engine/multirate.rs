@@ -45,6 +45,16 @@ impl<K: Kernel> Runner<K> {
         self.sample_hit = !state.hits.is_empty();
         self.evaluate_current(&AtomicBool::new(false))?;
         self.capture_observations();
+        if let Some(events) = &mut self.events {
+            events.evaluate(
+                self.time,
+                &self.continuous,
+                &self.held,
+                &self.sampling.as_ref().expect("sampling").extra,
+                &AtomicBool::new(false),
+            )?;
+            events.initialize();
+        }
         Ok(())
     }
 
@@ -67,6 +77,9 @@ impl<K: Kernel> Runner<K> {
             .iter()
             .zip(&current.next_ticks)
             .map(|(clock, &tick)| {
+                if self.plan.events.is_some() {
+                    return Ok(clock.period * tick as f64);
+                }
                 clock
                     .ticks
                     .checked_mul(tick)
@@ -87,6 +100,7 @@ impl<K: Kernel> Runner<K> {
         };
         let boundary = settings.stop_time.min(hit).min(event);
         let mut next = ((current.base_tick + 1) as f64 * settings.max_step).min(boundary);
+        let mut root_directions = vec![0; self.plan.events.as_ref().map_or(0, |e| e.events.len())];
         if let Some(solver) = self.solver.as_mut() {
             let scratch = &mut self.scratch;
             let kernel = &mut self.kernel;
@@ -111,20 +125,44 @@ impl<K: Kernel> Runner<K> {
                 derivatives.copy_from_slice(&scratch.outputs[..state.len()]);
                 Ok(())
             };
-            next = solver.advance(
-                OdeStep {
-                    time: self.time,
-                    boundary,
-                    max_step: settings.max_step,
-                    state: &self.continuous,
-                    candidate: &mut self.trial,
-                    cancel,
-                    reinitialize: self.sample_hit
-                        || self.event_hit
-                        || self.time.to_bits() == settings.start_time.to_bits(),
-                },
-                &mut rhs,
-            )?;
+            let step = OdeStep {
+                time: self.time,
+                boundary,
+                max_step: settings.max_step,
+                state: &self.continuous,
+                candidate: &mut self.trial,
+                cancel,
+                reinitialize: self.sample_hit
+                    || self.event_hit
+                    || self.time.to_bits() == settings.start_time.to_bits(),
+            };
+            if let Some(events) = &mut self.events
+                && !events.located.is_empty()
+            {
+                let located = events.located.clone();
+                let mut found = vec![0; located.len()];
+                let mut roots = |time: f64, state: &[f64], values: &mut [f64]| {
+                    events.evaluate(time, state, held, extra, cancel)?;
+                    for (out, &index) in values.iter_mut().zip(&located) {
+                        *out = events.scratch.outputs[index];
+                    }
+                    Ok(())
+                };
+                next = solver.advance_with_events(
+                    step,
+                    &mut rhs,
+                    crate::solver::OdeEvents {
+                        count: located.len(),
+                        evaluate: &mut roots,
+                        found: &mut found,
+                    },
+                )?;
+                for (&index, &direction) in located.iter().zip(&found) {
+                    root_directions[index] = direction;
+                }
+            } else {
+                next = solver.advance(step, &mut rhs)?;
+            }
             if next > boundary && !near(next, boundary)
                 || next > self.time + settings.max_step
                     && !near(next, self.time + settings.max_step)
@@ -191,6 +229,65 @@ impl<K: Kernel> Runner<K> {
                 }
             }
         }
+        let mut event_candidate = self.events.as_ref().map(super::hybrid::EventCandidate::new);
+        if let (Some(events), Some(candidate), Some(plan)) =
+            (&mut self.events, &mut event_candidate, &self.plan.events)
+        {
+            let periods: Vec<_> = candidate_sampling
+                .hits
+                .iter()
+                .map(|&id| sampling.clocks[id].period)
+                .collect();
+            for iteration in 0..17 {
+                if iteration == 16 {
+                    return Err(RunError::new(
+                        "event_iteration",
+                        "event cascade exceeded 16 reset rounds",
+                    ));
+                }
+                events.evaluate(
+                    next,
+                    &self.trial,
+                    &candidate_state,
+                    &candidate_sampling.extra,
+                    cancel,
+                )?;
+                let reset = candidate.apply(
+                    plan,
+                    &events.scratch.outputs,
+                    &mut self.trial,
+                    &mut candidate_state,
+                    &periods,
+                    &root_directions,
+                    iteration == 0,
+                )?;
+                root_directions.fill(0);
+                if !reset {
+                    break;
+                }
+                if !candidate_sampling.hits.is_empty()
+                    && let Some(kernel) = &mut self.update_kernel
+                {
+                    self.update_scratch.evaluate_with_extra(
+                        kernel,
+                        &self.plan.update_origins,
+                        next,
+                        &self.trial,
+                        &candidate_state,
+                        &candidate_sampling.extra,
+                        cancel,
+                    )?;
+                    candidate_sampling.extra[..sampling.cache_count]
+                        .copy_from_slice(&self.update_scratch.outputs[..sampling.cache_count]);
+                    for (i, &clock) in sampling.state_clocks.iter().enumerate() {
+                        if candidate_sampling.hits.contains(&clock) {
+                            candidate_pending[i] =
+                                self.update_scratch.outputs[sampling.cache_count + i];
+                        }
+                    }
+                }
+            }
+        }
         self.scratch.evaluate_with_extra(
             &mut self.kernel,
             &self.plan.origins,
@@ -200,13 +297,30 @@ impl<K: Kernel> Runner<K> {
             &candidate_sampling.extra,
             cancel,
         )?;
+        if let (Some(events), Some(candidate)) = (&self.events, &event_candidate)
+            && events.total_records + candidate.records.len() > 100_000
+        {
+            return Err(RunError::new(
+                "event_limit",
+                "event records exceeded 100000 per run",
+            ));
+        }
         // No externally observable mutation precedes successful candidate validation.
         self.continuous.copy_from_slice(&self.trial);
         self.held = candidate_state;
         self.pending = candidate_pending;
         self.time = next;
         self.sample_hit = !candidate_sampling.hits.is_empty();
-        self.event_hit = event_hit;
+        self.event_hit = event_hit
+            || event_candidate
+                .as_ref()
+                .is_some_and(|e| !e.records.is_empty());
+        if let (Some(events), Some(candidate)) = (&mut self.events, event_candidate) {
+            events.total_records += candidate.records.len();
+            events.signs = candidate.signs;
+            events.zero_edges = candidate.zero_edges;
+            events.records = candidate.records;
+        }
         self.sampling = Some(candidate_sampling);
         self.capture_observations();
         Ok(Some(self.current_frame()))

@@ -7,6 +7,7 @@ use crate::model::Port;
 use crate::numeric::Kernel;
 use crate::solver::{ContinuousSolver, OdeStep, SolverStats};
 use crate::{CompiledModel, ScopeInfo};
+mod hybrid;
 mod multirate;
 
 #[derive(Clone, Debug, Serialize)]
@@ -17,6 +18,8 @@ pub struct Frame {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub sample_hits: Vec<usize>,
     pub values: Vec<f64>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub events: Vec<crate::hybrid::EventRecord>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -28,6 +31,8 @@ pub struct SimulationResult {
     pub frames: Vec<Frame>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sampling: Option<crate::sampling::SamplingPlan>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub event_plan: Option<crate::hybrid::EventPlan>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -162,6 +167,7 @@ pub struct Runner<K> {
     failed: bool,
     solver: Option<Box<dyn ContinuousSolver>>,
     sampling: Option<multirate::SampledState>,
+    events: Option<hybrid::EventState>,
 }
 
 impl<K: Kernel> Runner<K> {
@@ -224,6 +230,7 @@ impl<K: Kernel> Runner<K> {
             failed: false,
             solver: None,
             sampling: plan.sampling.as_ref().map(multirate::SampledState::new),
+            events: plan.events.as_ref().map(hybrid::EventState::new),
             plan,
             kernel,
             update_kernel,
@@ -300,6 +307,10 @@ impl<K: Kernel> Runner<K> {
                 .as_ref()
                 .map_or_else(Vec::new, |s| s.hits.clone()),
             values: self.observations.clone(),
+            events: self
+                .events
+                .as_ref()
+                .map_or_else(Vec::new, |e| e.records.clone()),
         }
     }
 
@@ -567,7 +578,14 @@ impl<K: Kernel> Runner<K> {
             }
         }
         Ok(SimulationResult {
-            schema_version: if self.plan.sampling.is_some() { 2 } else { 1 },
+            schema_version: if self.plan.events.is_some() {
+                3
+            } else if self.plan.sampling.is_some() {
+                2
+            } else {
+                1
+            },
+            event_plan: self.plan.events,
             sampling: self.plan.sampling,
             model: self.plan.name,
             scopes: self.plan.scopes,

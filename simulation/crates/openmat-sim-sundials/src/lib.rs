@@ -3,7 +3,7 @@ mod ffi;
 
 use ffi::{Api, Handle, check};
 use openmat_sim::RunError;
-use openmat_sim::solver::{ContinuousSolver, OdeRhs, OdeStep, SolverStats};
+use openmat_sim::solver::{ContinuousSolver, OdeEvents, OdeRhs, OdeStep, SolverStats};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use std::panic::{AssertUnwindSafe, catch_unwind};
@@ -48,6 +48,7 @@ pub struct Cvode {
     width: usize,
     options: Options,
     initialized: bool,
+    root_count: usize,
     stats: SolverStats,
     _thread_bound: PhantomData<Rc<()>>,
 }
@@ -79,6 +80,7 @@ impl Cvode {
             width,
             options,
             initialized: false,
+            root_count: 0,
             stats: SolverStats::default(),
             _thread_bound: PhantomData,
         };
@@ -132,8 +134,26 @@ impl Cvode {
     }
 }
 
-impl ContinuousSolver for Cvode {
-    fn advance(&mut self, step: OdeStep<'_>, rhs: &mut OdeRhs<'_>) -> Result<f64, RunError> {
+impl Cvode {
+    #[allow(clippy::too_many_lines, clippy::needless_pass_by_value)] // Keep borrowed callback attachment, native advance, and detachment in one audited transaction.
+    fn advance_events(
+        &mut self,
+        step: OdeStep<'_>,
+        rhs: &mut OdeRhs<'_>,
+        mut events: Option<OdeEvents<'_, '_>>,
+    ) -> Result<f64, RunError> {
+        if events
+            .as_ref()
+            .is_some_and(|e| e.count > 256 || e.count != e.found.len())
+        {
+            return Err(RunError::new(
+                "solver_events",
+                "invalid CVODE event buffers",
+            ));
+        }
+        if let Some(e) = &mut events {
+            e.found.fill(0);
+        }
         if step.state.len() != self.width
             || step.candidate.len() != self.width
             || !step.time.is_finite()
@@ -187,6 +207,18 @@ impl ContinuousSolver for Cvode {
                     )?;
                 }
             }
+            let root_count = events.as_ref().map_or(0, |e| e.count);
+            if root_count != self.root_count {
+                check(
+                    (self.api.root_init)(
+                        self.memory,
+                        i32::try_from(root_count).expect("bounded roots"),
+                        root_callback,
+                    ),
+                    "configure root functions",
+                )?;
+                self.root_count = root_count;
+            }
             check(
                 (self.api.max_step)(self.memory, step.max_step),
                 "set maximum step",
@@ -197,6 +229,8 @@ impl ContinuousSolver for Cvode {
             )?;
             let mut bridge = Bridge {
                 rhs,
+                roots: events.as_mut().map(|e| &mut *e.evaluate),
+                root_count,
                 data: self.api.vector_data,
                 width: self.width,
                 error: None,
@@ -217,6 +251,15 @@ impl ContinuousSolver for Cvode {
                 return Err(error);
             }
             check(detach, "detach RHS")?;
+            if status == 2
+                && let Some(e) = &mut events
+            {
+                check(
+                    (self.api.root_info)(self.memory, e.found.as_mut_ptr()),
+                    "read root directions",
+                )?;
+            }
+
             check(status, "advance CVODE")?;
             if step.cancel.load(Ordering::Relaxed) {
                 return Err(RunError::new("cancelled", "simulation was cancelled"));
@@ -227,7 +270,19 @@ impl ContinuousSolver for Cvode {
             Ok(time)
         }
     }
-
+}
+impl ContinuousSolver for Cvode {
+    fn advance(&mut self, step: OdeStep<'_>, rhs: &mut OdeRhs<'_>) -> Result<f64, RunError> {
+        self.advance_events(step, rhs, None)
+    }
+    fn advance_with_events(
+        &mut self,
+        step: OdeStep<'_>,
+        rhs: &mut OdeRhs<'_>,
+        events: OdeEvents<'_, '_>,
+    ) -> Result<f64, RunError> {
+        self.advance_events(step, rhs, Some(events))
+    }
     fn statistics(&self) -> SolverStats {
         let mut stats = self.stats.clone();
         let (failures, iterations) = self.native_counts();
@@ -237,8 +292,10 @@ impl ContinuousSolver for Cvode {
     }
 }
 
-struct Bridge<'a, 'b> {
+struct Bridge<'a, 'b, 'c> {
     rhs: &'a mut OdeRhs<'b>,
+    roots: Option<&'a mut OdeRhs<'c>>,
+    root_count: usize,
     data: unsafe extern "C" fn(Handle) -> *mut f64,
     width: usize,
     error: Option<RunError>,
@@ -252,7 +309,7 @@ unsafe extern "C" fn callback(time: f64, state: Handle, derivative: Handle, user
     }
     // SAFETY: CVode receives this pointer only for the duration of advance. It
     // calls synchronously on this thread with distinct compatible serial vectors.
-    let bridge = unsafe { &mut *user.cast::<Bridge<'_, '_>>() };
+    let bridge = unsafe { &mut *user.cast::<Bridge<'_, '_, '_>>() };
     if bridge.error.is_some() {
         return -1;
     }
@@ -288,6 +345,57 @@ unsafe extern "C" fn callback(time: f64, state: Handle, derivative: Handle, user
             bridge.error = Some(RunError::new(
                 "rhs_panic",
                 "RHS panicked; no Rust unwind crossed the C boundary",
+            ));
+            -1
+        }
+    }
+}
+
+unsafe extern "C" fn root_callback(
+    time: f64,
+    state: Handle,
+    values: *mut f64,
+    user: Handle,
+) -> i32 {
+    // SAFETY: Attached synchronous bridge; CVODE provides count output doubles.
+    let bridge = unsafe { &mut *user.cast::<Bridge<'_, '_, '_>>() };
+    let outcome = catch_unwind(AssertUnwindSafe(|| {
+        if bridge.cancel.load(Ordering::Relaxed) {
+            return Err(RunError::new("cancelled", "simulation was cancelled"));
+        }
+        unsafe {
+            let state = (bridge.data)(state);
+            require(state.cast(), "root state")?;
+            require(values.cast(), "root values")?;
+            let values = std::slice::from_raw_parts_mut(values, bridge.root_count);
+            let roots = bridge
+                .roots
+                .as_mut()
+                .ok_or_else(|| RunError::new("solver_events", "root callback missing"))?;
+            roots(
+                time,
+                std::slice::from_raw_parts(state, bridge.width),
+                values,
+            )?;
+            if values.iter().any(|v| !v.is_finite()) {
+                return Err(RunError::new(
+                    "non_finite_event",
+                    "root function produced a non-finite value",
+                ));
+            }
+        }
+        Ok(())
+    }));
+    match outcome {
+        Ok(Ok(())) => 0,
+        Ok(Err(e)) => {
+            bridge.error = Some(e);
+            -1
+        }
+        Err(_) => {
+            bridge.error = Some(RunError::new(
+                "event_panic",
+                "event callback panicked; no unwind crossed C",
             ));
             -1
         }

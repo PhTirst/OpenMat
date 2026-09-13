@@ -23,6 +23,7 @@ const PROTOCOL: &str = "openmat-simulation-v1";
 const PROTOCOL_V2: &str = "openmat-simulation-v2";
 const PROTOCOL_V3: &str = "openmat-simulation-v3";
 const PROTOCOL_V4: &str = "openmat-simulation-v4";
+const PROTOCOL_V6: &str = "openmat-simulation-v6";
 const PROTOCOL_V5: &str = "openmat-simulation-v5";
 const MAX_MESSAGE: usize = 8 * 1024 * 1024;
 const MAX_SLX: usize = 2 * 1024 * 1024;
@@ -68,6 +69,12 @@ enum Operation {
         bytes: Vec<u8>,
     },
     ImportSlxControl {
+        name: String,
+        bytes: Vec<u8>,
+        #[serde(default)]
+        parameters: String,
+    },
+    ImportSlxHybrid {
         name: String,
         bytes: Vec<u8>,
         #[serde(default)]
@@ -147,6 +154,9 @@ fn summary(plan: &CompiledModel) -> Value {
         "executionOrder": plan.execution_order(), "backend": "reference"});
     if let Some(sampling) = plan.sampling() {
         value["sampling"] = json!(sampling);
+    }
+    if let Some(events) = plan.events() {
+        value["eventPlan"] = json!(events);
     }
     value
 }
@@ -380,14 +390,14 @@ fn import_slx(name: &str, bytes: &[u8]) -> Result<Value, Value> {
 }
 
 fn import_slx_control(name: &str, bytes: &[u8], parameters: &str) -> Result<Value, Value> {
-    import_slx_profile(name, bytes, parameters, false)
+    import_slx_profile(name, bytes, parameters, 4)
 }
 
 fn import_slx_profile(
     name: &str,
     bytes: &[u8],
     parameters: &str,
-    multirate: bool,
+    version: u32,
 ) -> Result<Value, Value> {
     if bytes.len() > MAX_SLX
         || name.len() > 1024
@@ -399,12 +409,16 @@ fn import_slx_profile(
         ));
     }
     let imported = ImportedSlx::read(bytes, name).map_err(|issue| json!(issue))?;
-    let profile = if multirate {
+    let profile = if version == 6 {
+        "hybrid-v1"
+    } else if version == 5 {
         "multirate-v1"
     } else {
         "control-v1"
     };
-    let lowered = if multirate {
+    let lowered = if version == 6 {
+        imported.lower_hybrid(parameters)
+    } else if version == 5 {
         imported.lower_multirate(parameters)
     } else {
         imported.lower_control(parameters)
@@ -412,6 +426,9 @@ fn import_slx_profile(
     Ok(match lowered {
         Ok(result) => {
             let mut value = json!({"runnable":true,"profile":profile,"model":result.model,"sources":result.sources,"parameters":result.parameters,"blockPaths":result.block_paths,"document":imported.document(),"issues":[]});
+            if let Some(events) = result.event_plan {
+                value["eventPlan"] = json!(events);
+            }
             if let Some(sampling) = result.sampling {
                 value["sampling"] = json!(sampling);
             }
@@ -426,7 +443,8 @@ fn import_slx_profile(
 #[allow(clippy::too_many_lines)] // Keep both protocol versions and connection-owned job dispatch together.
 fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
     let id = &request.id;
-    let v5 = request.protocol == PROTOCOL_V5;
+    let v6 = request.protocol == PROTOCOL_V6;
+    let v5 = request.protocol == PROTOCOL_V5 || v6;
     let v4 = request.protocol == PROTOCOL_V4 || v5;
     let v3 = request.protocol == PROTOCOL_V3 || v4;
     let v2 = request.protocol == PROTOCOL_V2 || v3;
@@ -463,6 +481,13 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
                     json!({"type":"rateTransition","label":"Rate Transition","category":"Discrete","icon":"rateTransition","inputs":["in"],"outputs":["out"],"parameter":"initial","default":[0]})
                 ]);
             }
+            if v6 {
+                result["schemaVersion"] = json!(6);
+                result["blocks"].as_array_mut().expect("catalog").extend([
+                    json!({"type":"control","label":"Control","category":"Control","icon":"control","inputs":["in0"],"outputs":["out"]}),
+                    json!({"type":"resetIntegrator","label":"Reset Integrator","category":"Control","icon":"resetIntegrator","inputs":["in","reset"],"outputs":["out"],"parameter":"initial","default":[0]})
+                ]);
+            }
             response(id, result)
         }
         Operation::Check {
@@ -471,6 +496,12 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
             sources,
             execution,
         } => {
+            if !v6 && model.schema_version >= 6 {
+                return Some(failure(
+                    id,
+                    error("protocol", "hybrid models require /simulation/v6"),
+                ));
+            }
             if !v5 && model.schema_version >= 5 {
                 return Some(failure(
                     id,
@@ -525,6 +556,12 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
             sources,
             execution,
         } => {
+            if !v6 && model.schema_version >= 6 {
+                return Some(failure(
+                    id,
+                    error("protocol", "hybrid models require /simulation/v6"),
+                ));
+            }
             if !v5 && model.schema_version >= 5 {
                 return Some(failure(
                     id,
@@ -614,6 +651,28 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
                 }
             }
         }
+        Operation::ImportSlxHybrid {
+            name,
+            bytes,
+            parameters,
+        } => {
+            if !v6 {
+                failure(
+                    id,
+                    error("protocol", "hybrid-v1 import requires /simulation/v6"),
+                )
+            } else if job.is_some() {
+                failure(
+                    id,
+                    error("busy", "Stop the active run before importing a model."),
+                )
+            } else {
+                match import_slx_profile(&name, &bytes, &parameters, 6) {
+                    Ok(value) => response(id, value),
+                    Err(err) => failure(id, err),
+                }
+            }
+        }
         Operation::ImportSlxMultirate {
             name,
             bytes,
@@ -630,7 +689,7 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
                     error("busy", "Stop the active run before importing a model."),
                 )
             } else {
-                match import_slx_profile(&name, &bytes, &parameters, true) {
+                match import_slx_profile(&name, &bytes, &parameters, 5) {
                     Ok(value) => response(id, value),
                     Err(err) => failure(id, err),
                 }
@@ -657,6 +716,7 @@ fn send(
 pub(crate) fn serve(socket: &mut WebSocket<TcpStream>, version: u32) -> Result<(), ServerError> {
     let protocol = match version {
         5 => PROTOCOL_V5,
+        6 => PROTOCOL_V6,
         4 => PROTOCOL_V4,
         3 => PROTOCOL_V3,
         2 => PROTOCOL_V2,
@@ -820,6 +880,41 @@ mod tests {
                 .iter()
                 .any(|b| b["type"] == "component")
         );
+    }
+
+    #[test]
+    fn hybrid_protocol_exposes_events_and_rejects_older_routes() {
+        let document: Value = serde_json::from_str(include_str!(
+            "../../../simulation/examples/saturated-pi.omsim.json"
+        ))
+        .unwrap();
+        for protocol in [
+            PROTOCOL,
+            PROTOCOL_V2,
+            PROTOCOL_V3,
+            PROTOCOL_V4,
+            PROTOCOL_V5,
+            PROTOCOL_V6,
+        ] {
+            let request = serde_json::from_value(json!({"protocol":protocol,"requestId":"hybrid","operation":"check","model":document["model"],"revision":"1"})).unwrap();
+            let response = handle(request, &mut None).unwrap();
+            if protocol == PROTOCOL_V6 {
+                assert_eq!(response["ok"], true);
+                assert_eq!(
+                    response["result"]["plan"]["eventPlan"]["events"]
+                        .as_array()
+                        .unwrap()
+                        .len(),
+                    2
+                );
+                assert_eq!(
+                    response["result"]["plan"]["eventPlan"]["signals"]["actuator"],
+                    "double"
+                );
+            } else {
+                assert_eq!(response["error"]["code"], "protocol");
+            }
+        }
     }
 
     fn model() -> Model {

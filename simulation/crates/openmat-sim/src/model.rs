@@ -8,6 +8,7 @@ pub const FUNCTION_SCHEMA_VERSION: u32 = 2;
 pub const COMPONENT_SCHEMA_VERSION: u32 = 3;
 pub const CONTROL_SCHEMA_VERSION: u32 = 4;
 pub const MULTIRATE_SCHEMA_VERSION: u32 = 5;
+pub const HYBRID_SCHEMA_VERSION: u32 = 6;
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
@@ -61,6 +62,17 @@ pub struct Position {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
 pub enum BlockKind {
+    Control {
+        operation: crate::hybrid::ControlOp,
+        #[serde(rename = "zeroCrossing")]
+        zero_crossing: bool,
+    },
+    ResetIntegrator {
+        initial: Vec<f64>,
+        gain: f64,
+        discrete: bool,
+        reset: crate::hybrid::ResetMode,
+    },
     ZeroOrderHold,
     DiscreteIntegrator {
         initial: Vec<f64>,
@@ -123,6 +135,10 @@ pub struct FunctionParameter {
 impl BlockKind {
     pub(crate) fn inputs(&self) -> Vec<String> {
         match self {
+            Self::Control { operation, .. } => (0..operation.input_count())
+                .map(|i| format!("in{i}"))
+                .collect(),
+            Self::ResetIntegrator { .. } => vec!["in".into(), "reset".into()],
             Self::Constant { .. } | Self::Step { .. } => Vec::new(),
             Self::Sum { signs } => (0..signs.len()).map(|i| format!("in{i}")).collect(),
             Self::MFunction { inputs, .. } => {
@@ -135,7 +151,12 @@ impl BlockKind {
     pub(crate) fn direct_feedthrough(&self) -> bool {
         matches!(
             self,
-            Self::Sum { .. } | Self::Gain { .. } | Self::Scope | Self::MFunction { .. }
+            Self::Sum { .. }
+                | Self::Gain { .. }
+                | Self::Scope
+                | Self::MFunction { .. }
+                | Self::Control { .. }
+                | Self::ResetIntegrator { .. }
         )
     }
 }

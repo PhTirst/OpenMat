@@ -23,6 +23,9 @@ Schema 5 and the `multirate-v1` SLX profile add
 [synchronous multirate simulation](docs/multirate.md), including sample-time
 inference, discrete control blocks, rate transitions, and Scope sampling diagnostics.
 
+Schema 6 and `hybrid-v1` add [nonlinear controls and reset events](docs/hybrid-control.md),
+including CVODE root location and self-contained interactive examples.
+
 The editor and streaming service are described by
 [RFC 0012](../docs/rfcs/0012-simulation-editor-v0.md). The editor opens the raw
 `.omsim.json` models below and saves `.omsim` authoring documents containing the
@@ -51,6 +54,9 @@ serialized buffer layout does not change m-language one-based indexing.
 | [sampled-feedback](examples/sampled-feedback.omsim.json) | `x' = 1 - q`; q is the preceding sample of x | At the five hits, x = [0, .1, .2, .29, .37], q = [0, 0, .1, .2, .29] |
 | [custom-delay](examples/custom-delay.omsim.json) | Stateful m UnitDelay | Initial output at zero; sampled input appears one period later |
 | [mass-spring-damper](examples/mass-spring-damper.omsim.json) | Two continuous states with matrix RHS | Separate position and velocity traces |
+| [saturated-pi](examples/saturated-pi.omsim.json) | Native Saturation with back-calculation anti-windup | Limited actuator and plant response |
+| [switched-control](examples/switched-control.omsim.json) | Switch selects feedback gains at 2 seconds | Piecewise closed-loop response |
+| [periodic-reset](examples/periodic-reset.omsim.json) | Continuous and 50 ms discrete reset integrators | Event-marked sawtooth trajectories |
 | [pi-control](examples/pi-control.omsim.json) | Sampled PI driving a continuous plant | Held command, saturation and continuous response |
 
 The first model can be read as:

@@ -5,7 +5,7 @@ use serde::Serialize;
 use crate::ModelError;
 use crate::model::{
     Block, BlockKind, COMPONENT_SCHEMA_VERSION, CONTROL_SCHEMA_VERSION, FUNCTION_SCHEMA_VERSION,
-    MULTIRATE_SCHEMA_VERSION, Model, Port, SCHEMA_VERSION, Settings,
+    HYBRID_SCHEMA_VERSION, MULTIRATE_SCHEMA_VERSION, Model, Port, SCHEMA_VERSION, Settings,
 };
 use crate::numeric::{Instruction, MAX_VALUES, Program};
 use crate::{SourceBundle, m_function};
@@ -39,6 +39,7 @@ pub struct CompiledModel {
     pub(crate) execution_order: Vec<String>,
     pub(crate) time_events: Vec<f64>,
     pub(crate) sampling: Option<crate::sampling::SamplingPlan>,
+    pub(crate) events: Option<crate::hybrid::EventPlan>,
 }
 
 impl CompiledModel {
@@ -73,6 +74,10 @@ impl CompiledModel {
     #[must_use]
     pub fn execution_order(&self) -> &[String] {
         &self.execution_order
+    }
+    #[must_use]
+    pub fn events(&self) -> Option<&crate::hybrid::EventPlan> {
+        self.events.as_ref()
     }
     #[must_use]
     pub fn sampling(&self) -> Option<&crate::sampling::SamplingPlan> {
@@ -189,6 +194,7 @@ pub fn compile_with_sources(
         update_origins: Vec::new(),
         time_events: Vec::new(),
         sampling: None,
+        events: None,
         continuous_initial,
         discrete_initial,
         scopes,
@@ -321,7 +327,9 @@ fn lower_signals(
                 m_function::lower(block, &input_signals, sources, &mut instructions)?
             }
             BlockKind::Scope => Vec::new(),
-            BlockKind::Component { .. }
+            BlockKind::Control { .. }
+            | BlockKind::ResetIntegrator { .. }
+            | BlockKind::Component { .. }
             | BlockKind::Step { .. }
             | BlockKind::ZeroOrderHold
             | BlockKind::RateTransition { .. }
@@ -353,7 +361,9 @@ fn check_signal_budget(
         ),
         BlockKind::Scope => (0, 0),
         BlockKind::MFunction { output_width, .. } => (*output_width, 0),
-        BlockKind::Component { .. }
+        BlockKind::Control { .. }
+        | BlockKind::ResetIntegrator { .. }
+        | BlockKind::Component { .. }
         | BlockKind::Step { .. }
         | BlockKind::ZeroOrderHold
         | BlockKind::RateTransition { .. }
@@ -406,6 +416,7 @@ fn validate_model(model: &Model) -> Result<(), ModelError> {
         COMPONENT_SCHEMA_VERSION,
         CONTROL_SCHEMA_VERSION,
         MULTIRATE_SCHEMA_VERSION,
+        HYBRID_SCHEMA_VERSION,
     ]
     .contains(&model.schema_version)
     {
@@ -468,6 +479,27 @@ fn validate_model(model: &Model) -> Result<(), ModelError> {
             );
         }
         let values = match &block.kind {
+            BlockKind::Control { operation, .. } => {
+                if model.schema_version < 6 {
+                    return Err(ModelError::new(
+                        "schema_version",
+                        "control operations require schema 6",
+                    )
+                    .at(&block.id, None));
+                }
+                operation.validate().map_err(|e| e.at(&block.id, None))?;
+                None
+            }
+            BlockKind::ResetIntegrator { initial, gain, .. } => {
+                if model.schema_version < 6 || !gain.is_finite() {
+                    return Err(ModelError::new(
+                        "reset_integrator",
+                        "reset integrators require schema 6 and a finite gain",
+                    )
+                    .at(&block.id, None));
+                }
+                Some(initial)
+            }
             BlockKind::DiscreteIntegrator { initial, gain } => {
                 if model.schema_version < MULTIRATE_SCHEMA_VERSION || !gain.is_finite() {
                     return Err(ModelError::new(

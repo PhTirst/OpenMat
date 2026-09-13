@@ -1,0 +1,381 @@
+{
+  "format": "openmat-simulation",
+  "schemaVersion": 6,
+  "model": {
+    "schemaVersion": 6,
+    "name": "Saturated PI with anti-windup",
+    "settings": {
+      "startTime": 0,
+      "stopTime": 4,
+      "maxStep": 0.01
+    },
+    "blocks": [
+      {
+        "id": "reference",
+        "kind": {
+          "type": "constant",
+          "value": [
+            1
+          ]
+        },
+        "position": {
+          "x": 20,
+          "y": 100
+        }
+      },
+      {
+        "id": "error",
+        "kind": {
+          "type": "sum",
+          "signs": [
+            1,
+            -1
+          ]
+        },
+        "position": {
+          "x": 240,
+          "y": 100
+        }
+      },
+      {
+        "id": "proportional",
+        "kind": {
+          "type": "gain",
+          "gain": [
+            3
+          ]
+        },
+        "position": {
+          "x": 465,
+          "y": 20
+        }
+      },
+      {
+        "id": "plant",
+        "kind": {
+          "type": "integrator",
+          "initial": [
+            0
+          ]
+        },
+        "position": {
+          "x": 1410,
+          "y": 100
+        }
+      },
+      {
+        "id": "derivative",
+        "kind": {
+          "type": "sum",
+          "signs": [
+            1,
+            -1
+          ]
+        },
+        "position": {
+          "x": 1200,
+          "y": 100
+        }
+      },
+      {
+        "id": "response",
+        "kind": {
+          "type": "scope"
+        },
+        "position": {
+          "x": 1635,
+          "y": 100
+        }
+      },
+      {
+        "id": "effort",
+        "kind": {
+          "type": "scope"
+        },
+        "position": {
+          "x": 1180,
+          "y": 460
+        }
+      },
+      {
+        "id": "ki",
+        "kind": {
+          "type": "gain",
+          "gain": [
+            1.5
+          ]
+        },
+        "position": {
+          "x": 465,
+          "y": 220
+        }
+      },
+      {
+        "id": "integral_input",
+        "kind": {
+          "type": "sum",
+          "signs": [
+            1,
+            1
+          ]
+        },
+        "position": {
+          "x": 685,
+          "y": 220
+        }
+      },
+      {
+        "id": "integral",
+        "kind": {
+          "type": "integrator",
+          "initial": [
+            0
+          ]
+        },
+        "position": {
+          "x": 905,
+          "y": 220
+        }
+      },
+      {
+        "id": "raw",
+        "kind": {
+          "type": "sum",
+          "signs": [
+            1,
+            1
+          ]
+        },
+        "position": {
+          "x": 690,
+          "y": 20
+        }
+      },
+      {
+        "id": "actuator",
+        "kind": {
+          "type": "control",
+          "operation": {
+            "type": "saturation",
+            "lower": [
+              -0.8
+            ],
+            "upper": [
+              0.8
+            ]
+          },
+          "zeroCrossing": true
+        },
+        "position": {
+          "x": 965,
+          "y": 20
+        }
+      },
+      {
+        "id": "back_calculation",
+        "kind": {
+          "type": "sum",
+          "signs": [
+            1,
+            -1
+          ]
+        },
+        "position": {
+          "x": 685,
+          "y": 440
+        }
+      }
+    ],
+    "connections": [
+      {
+        "from": {
+          "block": "reference",
+          "port": "out"
+        },
+        "to": {
+          "block": "error",
+          "port": "in0"
+        }
+      },
+      {
+        "from": {
+          "block": "plant",
+          "port": "out"
+        },
+        "to": {
+          "block": "error",
+          "port": "in1"
+        }
+      },
+      {
+        "from": {
+          "block": "error",
+          "port": "out"
+        },
+        "to": {
+          "block": "proportional",
+          "port": "in"
+        }
+      },
+      {
+        "from": {
+          "block": "actuator",
+          "port": "out"
+        },
+        "to": {
+          "block": "derivative",
+          "port": "in0"
+        }
+      },
+      {
+        "from": {
+          "block": "plant",
+          "port": "out"
+        },
+        "to": {
+          "block": "derivative",
+          "port": "in1"
+        }
+      },
+      {
+        "from": {
+          "block": "derivative",
+          "port": "out"
+        },
+        "to": {
+          "block": "plant",
+          "port": "in"
+        }
+      },
+      {
+        "from": {
+          "block": "plant",
+          "port": "out"
+        },
+        "to": {
+          "block": "response",
+          "port": "in"
+        }
+      },
+      {
+        "from": {
+          "block": "actuator",
+          "port": "out"
+        },
+        "to": {
+          "block": "effort",
+          "port": "in"
+        }
+      },
+      {
+        "from": {
+          "block": "error",
+          "port": "out"
+        },
+        "to": {
+          "block": "ki",
+          "port": "in"
+        }
+      },
+      {
+        "from": {
+          "block": "ki",
+          "port": "out"
+        },
+        "to": {
+          "block": "integral_input",
+          "port": "in0"
+        }
+      },
+      {
+        "from": {
+          "block": "back_calculation",
+          "port": "out"
+        },
+        "to": {
+          "block": "integral_input",
+          "port": "in1"
+        }
+      },
+      {
+        "from": {
+          "block": "integral_input",
+          "port": "out"
+        },
+        "to": {
+          "block": "integral",
+          "port": "in"
+        }
+      },
+      {
+        "from": {
+          "block": "integral",
+          "port": "out"
+        },
+        "to": {
+          "block": "raw",
+          "port": "in1"
+        }
+      },
+      {
+        "from": {
+          "block": "proportional",
+          "port": "out"
+        },
+        "to": {
+          "block": "raw",
+          "port": "in0"
+        }
+      },
+      {
+        "from": {
+          "block": "raw",
+          "port": "out"
+        },
+        "to": {
+          "block": "actuator",
+          "port": "in0"
+        }
+      },
+      {
+        "from": {
+          "block": "actuator",
+          "port": "out"
+        },
+        "to": {
+          "block": "back_calculation",
+          "port": "in0"
+        }
+      },
+      {
+        "from": {
+          "block": "raw",
+          "port": "out"
+        },
+        "to": {
+          "block": "back_calculation",
+          "port": "in1"
+        }
+      }
+    ]
+  },
+  "editor": {
+    "labels": {
+      "reference": "目标 1",
+      "error": "跟踪误差",
+      "proportional": "比例增益 3",
+      "plant": "一阶对象状态",
+      "derivative": "u − x",
+      "response": "对象响应",
+      "effort": "控制量",
+      "ki": "积分增益 1.5",
+      "integral_input": "误差 + 抗饱和反馈",
+      "integral": "积分状态",
+      "raw": "PI 原始输出",
+      "actuator": "执行器限幅 ±0.8",
+      "back_calculation": "抗积分饱和：u − raw"
+    },
+    "bends": {}
+  },
+  "sources": {}
+}

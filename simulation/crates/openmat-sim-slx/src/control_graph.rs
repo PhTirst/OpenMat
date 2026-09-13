@@ -336,6 +336,13 @@ pub(crate) fn widths(nodes: &[Node<'_>], edges: &[Edge]) -> Result<Vec<Widths>, 
 
 fn constraints(node: &Node<'_>, p: &Widths, u: &mut Union) -> Result<(), Issue> {
     match &node.kind {
+        Kind::Hybrid(BlockKind::ResetIntegrator { initial, .. }) => {
+            u.join(p.inputs[0], p.outputs[0])?;
+            u.set(p.inputs[1], 1)?;
+            if initial.len() > 1 {
+                u.set(p.outputs[0], initial.len())?;
+            }
+        }
         Kind::Legacy(b) => {
             let out = p.outputs.first().copied();
             if let Some(out) = out {
@@ -453,7 +460,11 @@ fn propagate(node: &Node<'_>, p: &Widths, u: &mut Union) -> Result<bool, Issue> 
                 }
             }
         }
-        Kind::Product(_) => {
+        Kind::Hybrid(BlockKind::Control {
+            operation: openmat_sim::hybrid::ControlOp::MinMax { inputs: 1, .. },
+            ..
+        }) => return u.set(p.outputs[0], 1),
+        Kind::Product(_) | Kind::Hybrid(BlockKind::Control { .. }) => {
             let inputs: Option<Vec<_>> = p.inputs.iter().map(|&i| u.get(i)).collect();
             if let Some(widths) = inputs {
                 let width = *widths.iter().max().unwrap();
