@@ -5,9 +5,11 @@ It uses the native Rust simulation engine with optional LLVM and CVODE. Browser 
 the editor and theme; native file dialogs stay behind the desktop platform
 adapter. No computation runs in React or in a browser m-language VM.
 
-The latest milestone adds [Enabled and Triggered subsystems](../../simulation/docs/conditional-subsystems.md),
-with conditional control handles, editable execution policies, event-marked Scope
-records and two runnable examples. It uses model schema 8 and `/simulation/v8`.
+The latest milestone adds [common block symbols and parameter forms](../../simulation/docs/block-authoring-compatibility.md),
+model-scoped m expressions, and internal Enable/Trigger and Outport editing.
+It uses authoring document schema 9 and `/simulation/v9`; the numerical model
+remains schema 1–8. [Conditional subsystem semantics](../../simulation/docs/conditional-subsystems.md)
+and event-marked Scope records remain available.
 
 ## Open and run
 
@@ -34,7 +36,7 @@ arrow keys when focused. Light and dark colors follow the workbench setting.
 Drag a block from the library to the graph, or click a library item.
 Connect a named output handle to a named input handle. An output can branch to
 multiple consumers; an input accepts one connection. Select a block to edit its
-name and numerical parameters. Double-clicking a block focuses its parameter;
+name and parameters. Double-clicking a common block opens its parameter dialog;
 double-clicking Scope opens the result pane.
 
 | Block | Parameter and behavior |
@@ -49,8 +51,11 @@ double-clicking Scope opens the result pane.
 | M Function | Pure m function with declared inputs, parameters and output width |
 | Component | Reusable m component with named ports, public parameters and private continuous/discrete states |
 
-Every block has its own icon. Parameters accept numerical literals; they do not
-evaluate m-language expressions, workspace variables or callbacks. The inspector
+Every block has its own icon. Common parameters accept bounded m expressions
+using the model's **模型参数** definitions; these do not access the interactive
+workspace or invoke arbitrary callbacks. Apply parameter drafts before running
+or saving. See the [parameter guide](../../simulation/docs/block-authoring-compatibility.md)
+for supported fields and offline literal editing. The inspector
 also edits start time, stop time, maximum step and the shared discrete sample
 period. RK4 is available without extra dependencies. Configured hosts also offer
 LLVM and CVODE Adams/BDF. The **非线性摆 · m 函数** example, source editor,
@@ -89,8 +94,8 @@ walkthrough, matrix controls, data interpolation and current limits.
 | F2 | Rename a selected block |
 | Space+drag, middle-drag | Pan the graph |
 
-Ordinary input text editing retains its own shortcuts. Run and save finish an
-active inspector edit first. **检查模型** uses native validation; diagnostics
+Ordinary input text editing retains its own shortcuts. Common parameter forms
+require **应用参数** or **还原编辑** before run/save. **检查模型** uses native validation; diagnostics
 identify the block/port when available. Direct-feedthrough algebraic loops,
 missing connections and mismatched widths are errors.
 
@@ -117,7 +122,7 @@ not a replacement for a saved file. Scope data is not included in the cache.
 
 ## SLX compatibility
 
-Open or import an `.slx` file to select the `control-v1` OPC/SLX profile.
+Open or import an `.slx` file to use the current `conditional-v1` OPC/SLX profile.
 The original-structure view has an explicit m parameter area, a system tree,
 subsystem navigation and an inspector. Double-click a virtual subsystem to enter
 it; use the breadcrumb/system tree or **返回上层** to navigate. Missing variables
@@ -125,16 +130,16 @@ can be supplied in the parameter area or read from an assignment-only .m file.
 Press **应用参数并检查** before running. Pending parameters or compatibility
 errors disable run/check; unsupported blocks never become dummy executable blocks.
 
-The profile adds ordinary nested virtual subsystems, routing, elementwise math,
-continuous Sine/Step, State-Space and proper Transfer Fcn. It still rejects
-inherited/multiple rates, executable callbacks, masks, library links, MATLAB
-S-functions, model references, Stateflow and nonvirtual/conditional subsystems.
+The profile includes ordinary nested virtual subsystems, routing, elementwise math,
+continuous Sine/Step, State-Space, proper Transfer Fcn, supported discrete rates
+and bounded conditional execution. Masks, arbitrary executable callbacks, model
+references, Stateflow, Simscape and general MATLAB S-functions remain unsupported.
 See [the SLX guide](../../simulation/docs/slx-import.md) for precise limits.
 
-**查看 / 编辑数值模型** opens the flattened numerical snapshot for independent
+**查看 / 编辑数值模型** opens the editable numerical snapshot for independent
 edits. The original source hierarchy remains separate, and a visible notice warns
-that reapplying source parameters replaces those edits. Saving creates a schema-4
-.omsim containing the original package, hierarchy, parameter text and immutable
+that reapplying source parameters replaces those edits and parameter bindings.
+Saving creates a versioned .omsim containing the original package, hierarchy, parameter text and immutable
 generated .m sources. It reopens and runs without a temporary source directory.
 Generated callbacks are readable in the source panel, but changes use SLX
 parameters; separate component-library export is unavailable for these generated
@@ -143,7 +148,7 @@ uploads are limited to 2 MiB and parameter text to 64 KiB.
 
 ## Runs and results
 
-`/simulation/v8` (with legacy `/simulation/v1` through `/simulation/v7`) shares the native server's existing configured port. A separate
+`/simulation/v9` (with legacy `/simulation/v1` through `/simulation/v8`) shares the native server's existing configured port. A separate
 WebSocket carries catalog/check/run/cancel/import requests; no extra server
 listener is started. Each connection owns one job. Disconnect cancels its job;
 a different connection cannot cancel it. The native worker evaluates an immutable
@@ -165,8 +170,9 @@ does not add multi-user authentication or resource quotas.
 The editor and CLI support pure m function blocks, stateful m components with
 fixed-size matrices and static loops, optional LLVM numerical execution, and
 optional CVODE Adams/BDF integration. This does not
-add JIT to ordinary m-language execution. Zero crossings, DAE/algebraic solving,
-multiple sample rates, general signal buses, executable subsystems, full
+add JIT to ordinary m-language execution. Supported sampled rates, hybrid control
+events and bounded conditional subsystems are available. DAE/algebraic solving,
+general signal buses, unrestricted executable subsystems, full
 MATLAB S-function compatibility and C generation remain future work. OpenMat's
 own initialize/outputs/derivatives/update interface is implemented for components.
 

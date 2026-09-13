@@ -140,46 +140,45 @@ describe("conditional authoring", () => {
             ),
         ).toBe(true);
     });
-    it("applies state and output settings together, validates values, and follows undo", () => {
+    it("keeps the parent mode editor while directing control and output settings to their owners", () => {
         const kind = {
             type: "subsystem" as const,
             inputs: 1,
             outputs: 1,
             execution: defaultConditional("enabled", 1),
         };
+        kind.execution.outputs[0] = { initial: [2, 3], whenDisabled: "reset" };
         const change = vi.fn(),
-            error = vi.fn();
+            enter = vi.fn();
         const view = render(
             <ConditionalInspector
                 kind={kind}
                 disabled={false}
                 onChange={change}
-                onError={error}
-                onEnter={vi.fn()}
+                onError={vi.fn()}
+                onEnter={enter}
             />,
         );
-        fireEvent.change(screen.getByLabelText("重新启用时的内部状态"), {
-            target: { value: "reset" },
-        });
-        fireEvent.change(screen.getByLabelText("输出 1 初值"), {
-            target: { value: "[2 3]" },
-        });
-        fireEvent.change(screen.getByLabelText("输出 1 停用方式"), {
-            target: { value: "reset" },
+        expect(screen.queryByLabelText("输出 1 初值")).not.toBeInTheDocument();
+        fireEvent.click(screen.getByText("进入子系统"));
+        expect(enter).toHaveBeenCalledOnce();
+        fireEvent.change(screen.getByLabelText("子系统执行方式"), {
+            target: { value: "triggered" },
         });
         fireEvent.click(screen.getByText("应用执行设置"));
         const next = change.mock.calls[0]![0];
         expect(next.execution).toMatchObject({
-            statesWhenEnabling: "reset",
-            outputs: [{ initial: [2, 3], whenDisabled: "reset" }],
+            type: "triggered",
+            edge: "rising",
+            outputs: [{ initial: [2, 3], whenDisabled: "held" }],
         });
         view.rerender(
             <ConditionalInspector
                 kind={next}
                 disabled={false}
                 onChange={change}
-                onError={error}
-                onEnter={vi.fn()}
+                onError={vi.fn()}
+                onEnter={enter}
             />,
         );
         view.rerender(
@@ -187,19 +186,11 @@ describe("conditional authoring", () => {
                 kind={kind}
                 disabled={false}
                 onChange={change}
-                onError={error}
-                onEnter={vi.fn()}
+                onError={vi.fn()}
+                onEnter={enter}
             />,
         );
-        expect(screen.getByLabelText("重新启用时的内部状态")).toHaveValue(
-            "held",
-        );
-        fireEvent.change(screen.getByLabelText("控制采样周期"), {
-            target: { value: "-1" },
-        });
-        fireEvent.click(screen.getByText("应用执行设置"));
-        expect(change).toHaveBeenCalledTimes(1);
-        expect(error).toHaveBeenCalledOnce();
+        expect(screen.getByLabelText("子系统执行方式")).toHaveValue("enabled");
     });
     it("rejects ambiguous output policies and unknown execution events", () => {
         expect(() =>

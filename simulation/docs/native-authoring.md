@@ -76,9 +76,10 @@ nonzero internal initial conditions. These blocks are continuous; discrete
 transfer functions and matrix-valued signals are not introduced here. Mux/Product
 outputs and the entire Demux input are limited to 4096 elements.
 
-Matrix entry accepts finite literals such as `[-1 0; 0 -2]`. Change all affected
+Matrix entry accepts finite literals such as `[-1 0; 0 -2]` and bounded model
+parameter expressions such as `-K*eye(2)`. Change all affected
 matrices before pressing **应用参数**; incompatible dimensions leave the previous
-block intact. The fields do not evaluate arbitrary m expressions. Standard
+block intact. The fields do not execute arbitrary scripts or read the interactive workspace. Standard
 blocks lower directly to numerical IR, alongside the existing bounded m component
 subset; the ordinary m VM continues using bytecode.
 
@@ -117,7 +118,9 @@ live bidirectional binding. The selected result retains its original run snapsho
 even if the model is subsequently edited; the editor indicates stale results.
 
 This milestone introduced `/simulation/v7` on the configured native listener.
-The current editor uses `/simulation/v8` for [conditional execution](conditional-subsystems.md).
+The current editor uses `/simulation/v9` for [common parameter authoring](block-authoring-compatibility.md)
+and [conditional execution](conditional-subsystems.md). Parameter bindings use
+authoring document schema 9 while numerical models retain their feature version.
 Earlier routes reject schema 7; v7 also accepts schemas 1–6 with their existing rules.
 Older OpenMat versions cannot open schema-7 authoring documents. Original SLX
 packages keep their separate import/parameter workflow and are not rewritten.

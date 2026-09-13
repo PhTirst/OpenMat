@@ -139,11 +139,12 @@ export function renumberBoundaries(doc: ModelDocument) {
     });
 }
 function upgrade(doc: ModelDocument) {
-    doc.schemaVersion = doc.model.schemaVersion = Math.max(
-        doc.schemaVersion,
+    doc.model.schemaVersion = Math.max(
         doc.model.schemaVersion,
         7,
-    ) as ModelDocument["schemaVersion"];
+    ) as ModelDocument["model"]["schemaVersion"];
+    if (doc.schemaVersion < doc.model.schemaVersion)
+        doc.schemaVersion = doc.model.schemaVersion;
 }
 const key = (p: Port) => JSON.stringify(p);
 const wire = (from: Port, to: Port): Connection => ({

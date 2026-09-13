@@ -66,10 +66,10 @@ export const STANDARD_PRESETS: {
             type: "standard",
             operation: {
                 type: "stateSpace",
-                a: [[-1]],
+                a: [[1]],
                 b: [[1]],
                 c: [[1]],
-                d: [[0]],
+                d: [[1]],
                 initial: [0],
             },
         },

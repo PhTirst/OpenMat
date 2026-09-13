@@ -1,4 +1,5 @@
 import experimentControl from "../../../../simulation/examples/experiment-control.omsim.json";
+import parameterControl from "../../../../simulation/examples/parameter-control.omsim.json";
 import enabledControl from "../../../../simulation/examples/enabled-control.omsim.json";
 import triggeredCounter from "../../../../simulation/examples/triggered-counter.omsim.json";
 import saturatedPi from "../../../../simulation/examples/saturated-pi.omsim.json";
@@ -56,6 +57,7 @@ export function initializeComponentExample(
 }
 export const PENDULUM_SOURCE = pendulumSource;
 export type Example =
+    | "parameterControl"
     | "feedback"
     | "vector"
     | "counter"
@@ -72,6 +74,8 @@ export type Example =
     | "triggeredCounter"
     | "periodicReset";
 export function example(name: Example): ModelDocument {
+    if (name === "parameterControl")
+        return parseDocument(JSON.stringify(parameterControl));
     if (name === "enabledControl")
         return parseDocument(JSON.stringify(enabledControl));
     if (name === "triggeredCounter")

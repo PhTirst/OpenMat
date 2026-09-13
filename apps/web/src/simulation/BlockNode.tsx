@@ -22,6 +22,7 @@ import {
 import type { ControlOperation } from "./hybrid";
 import type { StandardOperation } from "./authoring";
 import type { ComponentDefinition, ComponentIcon } from "./components";
+import { BlockGlyph, glyphSize } from "./BlockGlyph";
 
 export function BlockIcon({
     type,
@@ -250,6 +251,8 @@ export function BlockIcon({
     );
 }
 export type BlockNodeData = {
+    control?: boolean;
+    parameterExpressions?: Record<string, string> | undefined;
     block: Block;
     label: string;
     invalid?: boolean;
@@ -263,90 +266,84 @@ export const BlockNode = memo(function BlockNode({
     data,
     selected,
 }: NodeProps<FlowBlock>) {
-    const namedPorts =
-        data.block.kind.type === "subsystem" ||
-        data.block.kind.type === "resetIntegrator" ||
-        (data.block.kind.type === "control" &&
-            data.block.kind.operation.type === "switch");
-    const p = ports(data.block, data.component ? [data.component] : undefined);
+    const k = data.block.kind;
+    const p = data.control
+        ? { inputs: [], outputs: [] }
+        : ports(data.block, data.component ? [data.component] : undefined);
+    const controls = p.inputs.filter((name) =>
+        ["enable", "trigger", "reset"].includes(name),
+    );
+    const inputs = p.inputs.filter((name) => !controls.includes(name));
+    const { width, height } = data.control
+        ? { width: 66, height: 42 }
+        : glyphSize(k, inputs.length, p.outputs.length);
     const updateNodeInternals = useUpdateNodeInternals();
-    const portLayout = `${data.block.kind.type}/${p.inputs.join(",")}/${p.outputs.join(",")}`;
+    const layout = `${width}/${height}/${p.inputs.join(",")}/${p.outputs.join(",")}`;
     useLayoutEffect(() => {
         updateNodeInternals(id);
-    }, [id, portLayout, updateNodeInternals]);
+    }, [id, layout, updateNodeInternals]);
+    const value =
+        k.type === "gain"
+            ? (data.parameterExpressions?.Gain ?? parameterText(data.block))
+            : k.type === "constant"
+              ? (data.parameterExpressions?.Value ?? parameterText(data.block))
+              : (data.detail ?? parameterText(data.block));
     return (
         <div
-            className={`sim-block ${data.component ? "sim-component-block" : ""} ${namedPorts ? "sim-hybrid-port-block" : ""} ${selected ? "is-selected" : ""} ${data.invalid ? "is-invalid" : ""}`}
-            style={{
-                minHeight: data.component
-                    ? Math.max(p.inputs.length, p.outputs.length) * 28 + 82
-                    : namedPorts
-                      ? 116 + Math.max(p.inputs.length, p.outputs.length) * 24
-                      : Math.max(
-                            92,
-                            Math.max(p.inputs.length, p.outputs.length) * 28 +
-                                36,
-                        ),
-            }}
+            className={`sim-block sim-symbol-block ${data.control ? "sim-control-port-block" : ""} ${selected ? "is-selected" : ""} ${data.invalid ? "is-invalid" : ""}`}
+            style={{ width, height }}
         >
-            <div className="sim-block-title">
-                <BlockIcon
-                    type={data.component?.icon ?? kindIcon(data.block.kind)}
-                />
-                <span title={data.label}>{data.label}</span>
+            <BlockGlyph
+                kind={k}
+                width={width}
+                height={height}
+                value={value}
+                control={Boolean(data.control)}
+                icon={
+                    k.type === "control" || data.component ? (
+                        <BlockIcon type={data.component?.icon ?? kindIcon(k)} />
+                    ) : undefined
+                }
+            />
+            <div className="sim-symbol-name" title={data.label}>
+                {data.label}
             </div>
-            {data.component ? (
-                <div className="sim-block-kind sim-component-states">
-                    {data.component.continuousStates} 连续 ·{" "}
-                    {data.component.discreteStates} 离散
-                </div>
-            ) : (
-                <>
-                    <div
-                        className="sim-block-value"
-                        title={data.detail ?? parameterText(data.block)}
-                    >
-                        {data.detail ?? parameterText(data.block)}
-                    </div>
-                    <div className="sim-block-kind">{data.block.kind.type}</div>
-                </>
-            )}
-            {p.inputs.map((name, i) => (
+            {inputs.map((name, i) => (
                 <Handle
                     key={name}
                     type="target"
                     position={Position.Left}
                     id={name}
                     isConnectable={!data.readonly}
-                    style={{
-                        top: namedPorts
-                            ? 60 + i * 24
-                            : data.component
-                              ? 60 + i * 28
-                              : `${((i + 1) / (p.inputs.length + 1)) * 100}%`,
-                    }}
-                    className={
-                        name === "enable" || name === "trigger"
-                            ? "sim-conditional-handle"
-                            : undefined
-                    }
+                    style={{ top: `${((i + 1) * 100) / (inputs.length + 1)}%` }}
                     title={`${data.label}.${name} · 输入`}
                     aria-label={`${data.label} 输入 ${name}`}
                 >
-                    <span className="sim-port-name input">
-                        {data.block.kind.type === "sum"
-                            ? data.block.kind.signs[i] === 1
-                                ? "+"
-                                : "−"
-                            : data.block.kind.type === "resetIntegrator" ||
-                                data.block.kind.type === "subsystem"
-                              ? name
-                              : data.block.kind.type === "control" &&
-                                  data.block.kind.operation.type === "switch"
-                                ? `u${i + 1}`
-                                : data.component
-                                  ? name
-                                  : ""}
+                    {(k.type === "subsystem" || data.component) && (
+                        <span className="sim-port-name input">{name}</span>
+                    )}
+                </Handle>
+            ))}
+            {controls.map((name, i) => (
+                <Handle
+                    key={name}
+                    type="target"
+                    position={Position.Top}
+                    id={name}
+                    isConnectable={!data.readonly}
+                    style={{
+                        left: `${((i + 1) * 100) / (controls.length + 1)}%`,
+                    }}
+                    className="sim-conditional-handle"
+                    title={`${data.label}.${name} · 输入`}
+                    aria-label={`${data.label} 输入 ${name}`}
+                >
+                    <span className="sim-control-port-symbol">
+                        {name === "enable"
+                            ? "✓"
+                            : name === "trigger"
+                              ? "↗"
+                              : "↺"}
                     </span>
                 </Handle>
             ))}
@@ -358,17 +355,12 @@ export const BlockNode = memo(function BlockNode({
                     id={name}
                     isConnectable={!data.readonly}
                     style={{
-                        top: namedPorts
-                            ? 60 + i * 24
-                            : data.component
-                              ? 60 + i * 28
-                              : `${((i + 1) / (p.outputs.length + 1)) * 100}%`,
+                        top: `${((i + 1) * 100) / (p.outputs.length + 1)}%`,
                     }}
                     title={`${data.label}.${name} · 输出`}
                     aria-label={`${data.label} 输出 ${name}`}
                 >
-                    {(data.component ||
-                        data.block.kind.type === "subsystem") && (
+                    {(k.type === "subsystem" || data.component) && (
                         <span className="sim-port-name output">{name}</span>
                     )}
                 </Handle>
@@ -376,7 +368,6 @@ export const BlockNode = memo(function BlockNode({
         </div>
     );
 });
-
 export type SignalEdgeData = {
     bend?: Point | undefined;
     commitBend?: (id: string, point: Point) => void;
@@ -408,9 +399,11 @@ export const OrthogonalEdge = memo(function OrthogonalEdge(
               }
             : { x: (sx + tx) / 2, y: (sy + ty) / 2 });
     const path =
-        custom || back
-            ? `M ${sx} ${sy} H ${sx + 25} V ${bend.y} H ${bend.x} V ${ty} H ${tx}`
-            : `M ${sx} ${sy} H ${bend.x} V ${ty} H ${tx}`;
+        props.targetPosition === Position.Top
+            ? `M ${sx} ${sy} H ${custom ? bend.x : sx + 24} V ${Math.min(sy, ty) - 28} H ${tx} V ${ty}`
+            : custom || back
+              ? `M ${sx} ${sy} H ${sx + 25} V ${bend.y} H ${bend.x} V ${ty} H ${tx}`
+              : `M ${sx} ${sy} H ${bend.x} V ${ty} H ${tx}`;
     return (
         <>
             <BaseEdge

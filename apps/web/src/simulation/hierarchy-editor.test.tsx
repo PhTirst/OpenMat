@@ -9,15 +9,26 @@ import { createRef } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
 import ModelEditor from "./ModelEditor";
 import { example } from "./examples";
-import { parseDocument, serializeDocument } from "./model";
+import {
+    fromModel,
+    parseDocument,
+    serializeDocument,
+    type Model,
+} from "./model";
+import type { AuthoringParameters } from "./block-parameters";
+import { applyLiteralParameters } from "./literal-parameters";
 import { MockWorkspaceClient } from "../workspace/mock-workspace-client";
 import { PendingOperations } from "../platform/pending-operations";
 import type { ModelEditorSession } from "./session";
 
-const native = vi.hoisted(() => ({ run: vi.fn(), check: vi.fn() }));
+const native = vi.hoisted(() => ({
+    run: vi.fn(),
+    check: vi.fn(),
+    resolve: vi.fn(),
+}));
 vi.mock("./use-simulation-run", async (original) => {
     const state = {
-        client: { current: {} },
+        client: { current: { resolveParameters: native.resolve } },
         connected: true,
         connectionError: null,
         reconnect: vi.fn(),
@@ -49,6 +60,14 @@ vi.mock("./ScopePanel", () => ({ ScopePanel: () => <div>Scope</div> }));
 beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
+    native.resolve.mockImplementation(
+        async (model: Model, parameters: AuthoringParameters) => {
+            let doc = fromModel(model);
+            for (const [id, fields] of Object.entries(parameters.bindings))
+                doc = applyLiteralParameters(doc, id, fields);
+            return { model: doc.model, values: {} };
+        },
+    );
 });
 
 it("groups feedback, edits inside, undoes, saves, reopens and runs the nested document", async () => {
@@ -99,9 +118,20 @@ it("groups feedback, edits inside, undoes, saves, reopens and runs the nested do
         screen.getByRole("navigation", { name: "当前子系统" }),
     ).toHaveTextContent("Subsystem");
     fireEvent.click(screen.getByRole("treeitem", { name: /State/ }));
-    const parameter = screen.getByRole("textbox", { name: "方块参数" });
+    const parameter = screen.getByRole("textbox", { name: "初始条件" });
     fireEvent.change(parameter, { target: { value: "0.5" } });
-    fireEvent.blur(parameter);
+    // A separate name edit must not clear the unapplied parameter guard.
+    fireEvent.change(screen.getByLabelText("方块名称"), {
+        target: { value: "Renamed state" },
+    });
+    await act(async () => {
+        expect(await session.current!.save()).toBe(false);
+        fireEvent.click(screen.getByRole("button", { name: /▶ 运行/ }));
+    });
+    expect(native.run).not.toHaveBeenCalled();
+    await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "应用参数" }));
+    });
     fireEvent.click(screen.getByRole("button", { name: "返回上层" }));
     // Undo is available while browsing any level; it restores the state parameter.
     fireEvent.keyDown(window, { key: "z", ctrlKey: true });
@@ -173,11 +203,17 @@ it("changes conditional execution, restores its control wire with undo, saves an
     fireEvent.click(screen.getByText("应用执行设置"));
     expect(screen.queryByLabelText("触发边沿")).not.toBeInTheDocument();
     fireEvent.keyDown(window, { key: "z", ctrlKey: true });
-    expect(await screen.findByLabelText("触发边沿")).toHaveValue("rising");
-    fireEvent.change(screen.getByLabelText("触发边沿"), {
+    fireEvent.doubleClick(
+        screen.getByRole("treeitem", { name: /上升沿触发计数器/ }),
+    );
+    fireEvent.click(await screen.findByRole("treeitem", { name: "Trigger" }));
+    expect(await screen.findByLabelText("触发类型")).toHaveValue("rising");
+    fireEvent.change(screen.getByLabelText("触发类型"), {
         target: { value: "either" },
     });
-    fireEvent.click(screen.getByText("应用执行设置"));
+    await act(async () => {
+        fireEvent.click(screen.getByText("应用参数"));
+    });
     await act(async () => {
         expect(await session.current!.save()).toBe(true);
     });
@@ -193,10 +229,11 @@ it("changes conditional execution, restores its control wire with undo, saves an
     ).toBe(true);
     view.unmount();
     view = mount();
-    fireEvent.click(
+    fireEvent.doubleClick(
         await screen.findByRole("treeitem", { name: /上升沿触发计数器/ }),
     );
-    expect(screen.getByLabelText("触发边沿")).toHaveValue("either");
+    fireEvent.click(await screen.findByRole("treeitem", { name: "Trigger" }));
+    expect(screen.getByLabelText("触发类型")).toHaveValue("either");
     fireEvent.click(screen.getByRole("button", { name: /▶ 运行/ }));
     await waitFor(() => expect(native.run).toHaveBeenCalledOnce());
     expect(native.run.mock.calls[0]?.[0]).toEqual(document.model);

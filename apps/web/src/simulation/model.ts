@@ -1,4 +1,10 @@
 import {
+    validateParameters,
+    pruneParameterBindings,
+    controlOwnerId,
+    type AuthoringParameters,
+} from "./block-parameters";
+import {
     STANDARD_PRESETS,
     STANDARD_LABELS,
     authoringPorts,
@@ -218,12 +224,14 @@ export interface Model {
 }
 export interface ModelDocument {
     format: "openmat-simulation";
-    schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+    schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+    parameters?: AuthoringParameters;
     sources?: Record<string, string>;
     slx?: SlxAsset;
     execution?: ExecutionOptions;
     model: Model;
     editor: {
+        controlPositions?: Record<string, Point>;
         labels: Record<string, string>;
         bends: Record<string, Point>;
         viewport?: Point & { zoom: number };
@@ -340,7 +348,7 @@ export const DEFINITIONS: readonly BlockDefinition[] = [
         inputs: ["in0", "in1"],
         outputs: ["out"],
         parameter: "signs",
-        default: [1, -1],
+        default: [1, 1],
     },
     {
         type: "gain",
@@ -414,6 +422,18 @@ export const definition = (type: BlockType): BlockDefinition =>
 export const isBlockType = (value: string): value is BlockType =>
     DEFINITIONS.some((item) => item.type === value);
 export const PALETTE_DEFINITIONS: readonly BlockDefinition[] = [
+    ...(["enablePort", "triggerPort"] as const).map((preset) => ({
+        type: "subsystem" as const,
+        preset,
+        icon:
+            preset === "enablePort"
+                ? ("enabled" as const)
+                : ("triggered" as const),
+        label: preset === "enablePort" ? "Enable" : "Trigger",
+        category: "条件执行",
+        inputs: [],
+        outputs: [],
+    })),
     ...DEFINITIONS.filter(
         (d) =>
             d.type !== "control" &&
@@ -542,7 +562,7 @@ export function kind(type: BlockType): BlockKind {
         case "constant":
             return { type, value: [1] };
         case "sum":
-            return { type, signs: [1, -1] };
+            return { type, signs: [1, 1] };
         case "gain":
             return { type, gain: [1] };
         case "integrator":
@@ -562,16 +582,21 @@ export const edgeId = (edge: Connection): string =>
         .map(encodeURIComponent)
         .join("|");
 export const label = (doc: ModelDocument, block: Block): string =>
-    Object.hasOwn(doc.editor.labels, block.id)
-        ? doc.editor.labels[block.id]!
-        : (componentFor(doc.model, block)?.name ??
-          (block.kind.type === "standard"
-              ? STANDARD_LABELS[block.kind.operation.type]
-              : block.kind.type === "control"
-                ? CONTROL_LABELS[block.kind.operation.type]
-                : block.kind.type === "resetIntegrator" && block.kind.discrete
-                  ? "Reset Discrete Integrator"
-                  : definition(block.kind.type).label));
+    controlOwnerId(block.id)
+        ? block.kind.type === "subsystem" &&
+          block.kind.execution?.type === "triggered"
+            ? "Trigger"
+            : "Enable"
+        : Object.hasOwn(doc.editor.labels, block.id)
+          ? doc.editor.labels[block.id]!
+          : (componentFor(doc.model, block)?.name ??
+            (block.kind.type === "standard"
+                ? STANDARD_LABELS[block.kind.operation.type]
+                : block.kind.type === "control"
+                  ? CONTROL_LABELS[block.kind.operation.type]
+                  : block.kind.type === "resetIntegrator" && block.kind.discrete
+                    ? "Reset Discrete Integrator"
+                    : definition(block.kind.type).label));
 export function parameterText(block: Block): string {
     const data = block.kind;
     if (data.type === "standard") return STANDARD_LABELS[data.operation.type];
@@ -912,6 +937,7 @@ export function parseDocument(source: string): ModelDocument {
             "execution",
             "sources",
             "slx",
+            "parameters",
         ],
         "模型文件",
     );
@@ -924,7 +950,8 @@ export function parseDocument(source: string): ModelDocument {
             raw.schemaVersion !== 5 &&
             raw.schemaVersion !== 6 &&
             raw.schemaVersion !== 7 &&
-            raw.schemaVersion !== 8)
+            raw.schemaVersion !== 8 &&
+            raw.schemaVersion !== 9)
     )
         throw new Error("不支持的编辑器文件格式或版本。");
     const doc = fromModel(parseModel(raw.model));
@@ -935,7 +962,8 @@ export function parseDocument(source: string): ModelDocument {
             raw.schemaVersion !== 5 &&
             raw.schemaVersion !== 6 &&
             raw.schemaVersion !== 7 &&
-            raw.schemaVersion !== 8
+            raw.schemaVersion !== 8 &&
+            raw.schemaVersion !== 9
         )
             throw new Error("内嵌源码和 SLX 层级需要文件版本 4。");
         if (raw.sources !== undefined)
@@ -944,6 +972,11 @@ export function parseDocument(source: string): ModelDocument {
     }
     if (doc.schemaVersion < doc.model.schemaVersion)
         throw new Error("文件版本不能早于模型版本。");
+    if (raw.parameters !== undefined) {
+        if (raw.schemaVersion !== 9)
+            throw new Error("模型参数表达式需要文件版本 9。");
+        doc.parameters = validateParameters(raw.parameters, doc.model);
+    }
     if (
         raw.schemaVersion === 1 &&
         (doc.model.schemaVersion !== 1 || raw.execution !== undefined)
@@ -952,7 +985,30 @@ export function parseDocument(source: string): ModelDocument {
     if (raw.execution !== undefined)
         doc.execution = parseExecution(raw.execution);
     const editor = object(raw.editor, "编辑器数据");
-    keys(editor, ["labels", "bends", "viewport"], "编辑器数据");
+    keys(
+        editor,
+        ["labels", "bends", "viewport", "controlPositions"],
+        "编辑器数据",
+    );
+    if (editor.controlPositions !== undefined) {
+        if (raw.schemaVersion !== 9)
+            throw new Error("控制端口布局需要文件版本 9。");
+        doc.editor.controlPositions = Object.fromEntries(
+            Object.entries(object(editor.controlPositions, "控制端口布局")).map(
+                ([id, value]) => {
+                    const owner = doc.model.blocks.find((b) => b.id === id);
+                    if (
+                        owner?.kind.type !== "subsystem" ||
+                        !owner.kind.execution
+                    )
+                        throw new Error(
+                            "控制端口布局引用了不存在的条件子系统。",
+                        );
+                    return [id, point(value)];
+                },
+            ),
+        );
+    }
     const ids = new Set(doc.model.blocks.map((block) => block.id));
     for (const [id, name] of Object.entries(
         object(editor.labels, "方块名称"),
@@ -986,8 +1042,20 @@ export function removeSelection(
     nodes: ReadonlySet<string>,
     edges: ReadonlySet<string>,
 ): ModelDocument {
-    nodes = descendants(doc.model.blocks, nodes);
     const next = structuredClone(doc);
+    for (const id of nodes) {
+        const ownerId = controlOwnerId(id);
+        const owner = next.model.blocks.find((b) => b.id === ownerId);
+        if (owner?.kind.type === "subsystem") {
+            delete owner.kind.execution;
+            next.model.connections = next.model.connections.filter(
+                (e) =>
+                    e.to.block !== ownerId ||
+                    !["enable", "trigger"].includes(e.to.port),
+            );
+        }
+    }
+    nodes = descendants(doc.model.blocks, nodes);
     next.model.blocks = next.model.blocks.filter(
         (block) => !nodes.has(block.id),
     );
@@ -1005,12 +1073,21 @@ export function removeSelection(
     const kept = new Set(next.model.connections.map(edgeId));
     for (const id of Object.keys(next.editor.bends))
         if (!kept.has(id)) delete next.editor.bends[id];
+    pruneParameterBindings(next);
     return next;
 }
 export function copySelection(
     doc: ModelDocument,
     selected: ReadonlySet<string>,
 ): ModelDocument {
+    if (
+        [...selected].some(
+            (id) => controlOwnerId(id) && !selected.has(controlOwnerId(id)!),
+        )
+    )
+        throw new Error(
+            "Enable / Trigger 随所属子系统一起复制。请复制父子系统。",
+        );
     selected = descendants(doc.model.blocks, selected);
     const fragment = structuredClone(doc);
     fragment.model.blocks = fragment.model.blocks.filter((block) =>
@@ -1046,6 +1123,7 @@ export function copySelection(
             ),
         );
     }
+    pruneParameterBindings(fragment);
     return fragment;
 }
 export function pasteFragment(
@@ -1059,6 +1137,43 @@ export function pasteFragment(
         remap = new Map(
             fragment.model.blocks.map((block) => [block.id, idFactory()]),
         );
+    if (
+        fragment.parameters &&
+        Object.keys(fragment.parameters.bindings).length
+    ) {
+        if (
+            next.parameters?.source.trim() &&
+            fragment.parameters.source.trim() &&
+            next.parameters.source !== fragment.parameters.source
+        )
+            throw new Error("粘贴模型的参数定义不同，请先统一两份模型参数。");
+        next.schemaVersion = 9;
+        next.parameters ??= {
+            source: fragment.parameters.source,
+            bindings: {},
+        };
+        if (!next.parameters.source.trim())
+            next.parameters.source = fragment.parameters.source;
+        for (const [id, fields] of Object.entries(
+            fragment.parameters.bindings,
+        )) {
+            const mapped = remap.get(id);
+            if (mapped)
+                next.parameters.bindings[mapped] = structuredClone(fields);
+        }
+    }
+    if (fragment.editor.controlPositions) {
+        next.schemaVersion = 9;
+        next.editor.controlPositions ??= {};
+        for (const [id, position] of Object.entries(
+            fragment.editor.controlPositions,
+        )) {
+            const mapped = remap.get(id);
+            if (mapped)
+                next.editor.controlPositions[mapped] =
+                    structuredClone(position);
+        }
+    }
     if (next.model.schemaVersion < fragment.model.schemaVersion)
         next.model.schemaVersion = fragment.model.schemaVersion;
     if (next.schemaVersion < next.model.schemaVersion)

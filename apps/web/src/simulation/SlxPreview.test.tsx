@@ -66,7 +66,7 @@ describe("SLX inspection", () => {
             screen.getByRole("button", { name: "Response (TransferFcn)" }),
         );
         expect(screen.getByText("Numerator")).toBeInTheDocument();
-        expect(screen.getByText("[1]")).toBeInTheDocument();
+        expect(screen.getByText("[1]", { selector: "dd" })).toBeInTheDocument();
         expect(
             screen.getByText("simulink/systems/system_1.xml"),
         ).toBeInTheDocument();

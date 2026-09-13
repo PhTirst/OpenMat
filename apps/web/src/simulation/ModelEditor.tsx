@@ -5,6 +5,19 @@ import {
 } from "./authoring";
 import { defaultConditional } from "./conditional";
 import { AuthoringInspector } from "./AuthoringInspector";
+import { BlockParameterForm, ModelParameters } from "./BlockParameterForm";
+import {
+    blockDescriptor,
+    controlBlock,
+    controlNodeId,
+    controlOwnerId,
+    parameterFields,
+    pruneParameterBindings,
+    setControlPosition,
+    validateParameters,
+    adoptSlxParameters,
+} from "./block-parameters";
+import { applyLiteralParameters } from "./literal-parameters";
 import {
     groupBlocks,
     ungroupBlock,
@@ -60,6 +73,7 @@ import { ScopePanel } from "./ScopePanel";
 import type { SlxImport } from "./client";
 import { decodeSlx, encodeSlx, type SlxAsset } from "./slx-authoring";
 import SlxParameters from "./SlxParameters";
+import { SlxParameterInspector } from "./SlxParameterInspector";
 import SlxTree from "./SlxTree";
 import { SimulationError, type SimulationDiagnostic } from "./client";
 import type { DesignerSourceWorkspace } from "../documents/designer-source-workspace";
@@ -117,6 +131,7 @@ import {
     numericLiteral,
     parameterText,
     parseDocument,
+    parseModel,
     pasteFragment,
     ports,
     redo,
@@ -305,6 +320,11 @@ function Editor(props: Props) {
     const [error, setError] = useState<string | null>(null),
         [notice, setNotice] = useState<string | null>(null);
     const invalidParameter = useRef(false);
+    const unappliedParameters = useRef(false);
+    const parameterPending = useCallback((pending: boolean) => {
+        unappliedParameters.current = pending;
+    }, []);
+    const [parameterDialog, setParameterDialog] = useState<string | null>(null);
     const [fileBusy, setFileBusy] = useState(false),
         busyRef = useRef(false);
     busyRef.current = fileBusy;
@@ -319,10 +339,11 @@ function Editor(props: Props) {
         )
             ? system
             : undefined;
-    const visibleBlocks = useMemo(
-        () => doc.model.blocks.filter((b) => b.parent === parent),
-        [doc.model.blocks, parent],
-    );
+    const visibleBlocks = useMemo(() => {
+        const blocks = doc.model.blocks.filter((b) => b.parent === parent);
+        const control = controlBlock(doc, parent);
+        return control ? [control, ...blocks] : blocks;
+    }, [doc.model.blocks, doc.editor.controlPositions, parent]);
     const visibleIds = useMemo(
         () => new Set(visibleBlocks.map((b) => b.id)),
         [visibleBlocks],
@@ -452,8 +473,16 @@ function Editor(props: Props) {
                     ]),
                 ),
                 execution: doc.execution ?? DEFAULT_EXECUTION,
+                ...(doc.parameters ? { parameters: doc.parameters } : {}),
             }),
-        [doc.model, doc.execution, doc.sources, file, props.sourceWorkspace],
+        [
+            doc.model,
+            doc.execution,
+            doc.sources,
+            doc.parameters,
+            file,
+            props.sourceWorkspace,
+        ],
     );
     const operable = !preview && !fileBusy;
     const editable = operable && !structure;
@@ -463,6 +492,7 @@ function Editor(props: Props) {
         [],
     );
     const edit = useCallback((next: ModelDocument, regenerated = false) => {
+        pruneParameterBindings(next);
         let version = next.model.schemaVersion;
         if (
             next.model.blocks.some(
@@ -473,7 +503,10 @@ function Editor(props: Props) {
                     ),
             )
         )
-            version = Math.max(version, 7) as ModelDocument["schemaVersion"];
+            version = Math.max(
+                version,
+                7,
+            ) as ModelDocument["model"]["schemaVersion"];
         if (
             next.model.blocks.some(
                 (b) => b.kind.type === "subsystem" && b.kind.execution,
@@ -487,7 +520,10 @@ function Editor(props: Props) {
                     b.kind.type === "resetIntegrator",
             )
         )
-            version = Math.max(version, 6) as ModelDocument["schemaVersion"];
+            version = Math.max(
+                version,
+                6,
+            ) as ModelDocument["model"]["schemaVersion"];
         if (
             next.model.sampleTimes ||
             next.model.blocks.some((b) =>
@@ -523,8 +559,10 @@ function Editor(props: Props) {
         if (
             !regenerated &&
             next.slx &&
-            numericalSource(next.model) !==
-                numericalSource(docRef.current.model)
+            (numericalSource(next.model) !==
+                numericalSource(docRef.current.model) ||
+                JSON.stringify(next.parameters) !==
+                    JSON.stringify(docRef.current.parameters))
         )
             next.slx.snapshotEdited = true;
         invalidParameter.current = false;
@@ -537,6 +575,68 @@ function Editor(props: Props) {
             const next = structuredClone(docRef.current);
             mutate(next);
             edit(next);
+        },
+        [edit],
+    );
+    const applyBlockParameters = useCallback(
+        async (
+            id: string | null,
+            fields: Record<string, string>,
+            source?: string,
+        ) => {
+            const before = docRef.current;
+            if (busyRef.current || runRef.current.busy)
+                throw new Error("请等待当前操作完成。");
+            const parameters = structuredClone(
+                before.parameters ?? { source: "", bindings: {} },
+            );
+            if (source !== undefined) parameters.source = source;
+            if (id)
+                parameters.bindings[id] = {
+                    ...parameters.bindings[id],
+                    ...fields,
+                };
+            validateParameters(parameters, before.model);
+            busyRef.current = true;
+            setFileBusy(true);
+            try {
+                let next = structuredClone(before);
+                const connection = runRef.current.client.current;
+                if (runRef.current.connected && connection) {
+                    const resolved = await connection.resolveParameters(
+                        before.model,
+                        parameters,
+                    );
+                    next.model = resolved.model;
+                } else {
+                    if (!id || source !== undefined)
+                        throw new Error("模型参数求值需要连接原生仿真服务。");
+                    next = applyLiteralParameters(before, id, fields);
+                }
+                if (!alive.current || docRef.current !== before)
+                    throw new Error("模型已改变，请重新应用本次参数编辑。");
+                const valid = new Map(
+                    next.model.blocks.map((b) => [
+                        b.id,
+                        ports(b, next.model.components),
+                    ]),
+                );
+                next.model.connections = next.model.connections.filter(
+                    (e) =>
+                        valid
+                            .get(e.from.block)
+                            ?.outputs.includes(e.from.port) &&
+                        valid.get(e.to.block)?.inputs.includes(e.to.port),
+                );
+                cleanBends(next);
+                next.model = parseModel(next.model);
+                next.schemaVersion = 9;
+                next.parameters = parameters;
+                edit(next);
+            } finally {
+                busyRef.current = false;
+                if (alive.current) setFileBusy(false);
+            }
         },
         [edit],
     );
@@ -580,6 +680,8 @@ function Editor(props: Props) {
                 position: block.position ?? { x: 0, y: 0 },
                 selected: selected.includes(block.id),
                 data: {
+                    control: Boolean(controlOwnerId(block.id)),
+                    parameterExpressions: doc.parameters?.bindings[block.id],
                     block,
                     component: componentFor(doc.model, block),
                     label: label(doc, block),
@@ -594,6 +696,7 @@ function Editor(props: Props) {
         visibleBlocks,
         doc.model.components,
         doc.editor.labels,
+        doc.parameters,
         selected,
         run.diagnostics,
     ]);
@@ -612,6 +715,7 @@ function Editor(props: Props) {
             setHistory({ past: [], present: next, future: [] });
             docRef.current = next;
             invalidParameter.current = false;
+            setParameterDialog(null);
             setSaved(savedContent ?? serializeDocument(next));
             setFile(location);
             setSelected([]);
@@ -768,6 +872,10 @@ function Editor(props: Props) {
     const save = useCallback(
         async (saveAs = false): Promise<boolean> => {
             if (preview || busyRef.current) return false;
+            if (invalidParameter.current || unappliedParameters.current) {
+                report(new Error("请先应用或还原正在编辑的参数，再保存模型。"));
+                return false;
+            }
             if (!saveAs && file) return saveToWorkspace(file.path);
             if (
                 !platform.files ||
@@ -941,6 +1049,7 @@ function Editor(props: Props) {
                     );
                     if (node) next.editor.labels[node.id] = block.name;
                 }
+            adoptSlxParameters(next);
             replace(next);
             runRef.current.setDiagnostics(result.issues);
             if (!result.runnable) setPane("diagnostics");
@@ -992,6 +1101,7 @@ function Editor(props: Props) {
                     b.position = oldPositions.get(b.id) ?? positions[i]!;
                 });
                 next.model = imported.model;
+                delete next.parameters;
                 next.sources = result.sources ?? {};
                 next.editor = imported.editor;
                 for (const system of result.document.systems)
@@ -1002,6 +1112,7 @@ function Editor(props: Props) {
                     }
                 next.slx.appliedParameters = asset.parameters;
                 delete next.slx.snapshotEdited;
+                adoptSlxParameters(next);
             }
             edit(next, true);
             runRef.current.reset();
@@ -1160,6 +1271,32 @@ function Editor(props: Props) {
                     x: (bounds?.left ?? 300) + (bounds?.width ?? 600) / 2 - 80,
                     y: (bounds?.top ?? 100) + (bounds?.height ?? 400) / 2 - 45,
                 });
+            if (preset === "enablePort" || preset === "triggerPort") {
+                const owner = docRef.current.model.blocks.find(
+                    (b) => b.id === parent,
+                );
+                if (owner?.kind.type !== "subsystem") {
+                    setError("请先进入一个子系统，再添加 Enable 或 Trigger。");
+                    return;
+                }
+                if (owner.kind.execution) {
+                    setError("此子系统已有控制端口，可选择它修改参数。");
+                    return;
+                }
+                change((next) => {
+                    const target = next.model.blocks.find(
+                        (b) => b.id === owner.id,
+                    )!;
+                    if (target.kind.type !== "subsystem") return;
+                    target.kind.execution = defaultConditional(
+                        preset === "enablePort" ? "enabled" : "triggered",
+                        target.kind.outputs,
+                    );
+                    setControlPosition(next, owner.id, at);
+                });
+                setSelected([controlNodeId(owner.id)]);
+                return;
+            }
             const id = uid();
             const blockKind = structuredClone(
                 STANDARD_PRESETS.find((p) => p.id === preset)?.kind ??
@@ -1501,10 +1638,16 @@ function Editor(props: Props) {
         }
     };
     const copy = useCallback((ids = selectedRef.current) => {
-        clipboard.current = copySelection(docRef.current, new Set(ids));
+        try {
+            clipboard.current = copySelection(docRef.current, new Set(ids));
+        } catch (e) {
+            setError(e instanceof Error ? e.message : String(e));
+            return false;
+        }
         pasteCount.current = 0;
         setNotice(`已复制 ${ids.length} 个方块及内部连线。`);
         setMenu(null);
+        return true;
     }, []);
     const paste = useCallback(() => {
         if (!clipboard.current || !editable) return;
@@ -1652,12 +1795,11 @@ function Editor(props: Props) {
                 setError("请先在左侧应用 SLX 参数并通过兼容性检查。");
                 return;
             }
-            if (
-                invalidParameter.current ||
-                busyRef.current ||
-                runRef.current.busy
-            )
+            if (invalidParameter.current || unappliedParameters.current) {
+                setError("请先应用或还原正在编辑的参数，再检查或运行模型。");
                 return;
+            }
+            if (busyRef.current || runRef.current.busy) return;
             const snapshot = structuredClone(docRef.current);
             busyRef.current = true;
             setFileBusy(true);
@@ -1674,6 +1816,9 @@ function Editor(props: Props) {
                 const bundle = {
                     sources: sourceBundle(files),
                     execution: snapshot.execution ?? DEFAULT_EXECUTION,
+                    ...(snapshot.parameters
+                        ? { parameters: snapshot.parameters }
+                        : {}),
                 };
                 if (!alive.current) return;
                 if (check) await runRef.current.check(snapshot.model, bundle);
@@ -1741,6 +1886,18 @@ function Editor(props: Props) {
     useEffect(() => {
         if (!visible) return;
         const keyboard = (event: KeyboardEvent) => {
+            if (parameterDialog) {
+                if (event.key === "Escape") {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    setParameterDialog(null);
+                }
+                if (event.key === "F5") {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                }
+                return;
+            }
             if (event.key === "F5") {
                 event.preventDefault();
                 event.stopImmediatePropagation();
@@ -1831,6 +1988,7 @@ function Editor(props: Props) {
         paste,
         pendingAction,
         componentDraft,
+        parameterDialog,
         preview,
         runModel,
         save,
@@ -1872,6 +2030,9 @@ function Editor(props: Props) {
                         );
                         if (block && move.position)
                             block.position = move.position;
+                        const owner = controlOwnerId(move.id);
+                        if (owner && move.position)
+                            setControlPosition(next, owner, move.position);
                     }
                 });
             const selections = changes.filter((item) => item.type === "select");
@@ -1920,6 +2081,10 @@ function Editor(props: Props) {
     const onNodeDoubleClick = useCallback(
         (_event: unknown, node: FlowBlock) => {
             setSelected([node.id]);
+            if (node.data.control) {
+                setParameterDialog(node.id);
+                return;
+            }
             if (node.data.block.kind.type === "subsystem") {
                 navigateSystem(node.id);
                 return;
@@ -1930,6 +2095,8 @@ function Editor(props: Props) {
                 node.data.block.kind.type === "component"
             )
                 void openFunction(node.data.block);
+            else if (blockDescriptor(node.data.block))
+                setParameterDialog(node.id);
             else
                 requestAnimationFrame(() =>
                     shell.current
@@ -2014,8 +2181,7 @@ function Editor(props: Props) {
                         {
                             label: "复制并粘贴",
                             run: () => {
-                                copy();
-                                paste();
+                                if (copy()) paste();
                             },
                         },
                         {
@@ -2110,8 +2276,18 @@ function Editor(props: Props) {
             ];
     const chosen =
         selected.length === 1
-            ? doc.model.blocks.find((block) => block.id === selected[0])
+            ? visibleBlocks.find((block) => block.id === selected[0])
             : undefined;
+    const chosenControl = chosen && controlOwnerId(chosen.id);
+    const commonChosen =
+        chosen &&
+        !chosenControl &&
+        chosen.kind.type !== "subsystem" &&
+        Boolean(blockDescriptor(chosen));
+    const dialogOwner = parameterDialog
+        ? (controlOwnerId(parameterDialog) ?? parameterDialog)
+        : undefined;
+    const dialogBlock = doc.model.blocks.find((b) => b.id === dialogOwner);
     const chosenEdge =
         selectedEdges.length === 1
             ? doc.model.connections.find(
@@ -2355,6 +2531,12 @@ function Editor(props: Props) {
                         {slxView ? "查看 / 编辑数值模型" : "查看原始 SLX 层级"}
                     </button>
                 )}
+                <button
+                    disabled={!editable || run.busy}
+                    onClick={() => setParameterDialog("@model")}
+                >
+                    模型参数
+                </button>
                 <select
                     aria-label="打开示例"
                     value=""
@@ -2412,6 +2594,9 @@ function Editor(props: Props) {
                         示例模型…
                     </option>
                     <option value="feedback">一阶反馈系统</option>
+                    <option value="parameterControl">
+                        模型参数 · A − Kx 反馈
+                    </option>
                     <option value="vector">两个时间常数</option>
                     <option value="counter">离散计数器</option>
                     <option value="pendulum">非线性摆 · m 函数</option>
@@ -2690,9 +2875,18 @@ function Editor(props: Props) {
                                                 setSelectedEdges([]);
                                             }}
                                             onDoubleClick={() =>
-                                                block.kind.type === "subsystem"
-                                                    ? navigateSystem(block.id)
-                                                    : focusBlock(block.id)
+                                                controlOwnerId(block.id)
+                                                    ? setParameterDialog(
+                                                          block.id,
+                                                      )
+                                                    : block.kind.type ===
+                                                        "subsystem"
+                                                      ? navigateSystem(block.id)
+                                                      : blockDescriptor(block)
+                                                        ? setParameterDialog(
+                                                              block.id,
+                                                          )
+                                                        : focusBlock(block.id)
                                             }
                                             onContextMenu={(event) =>
                                                 showMenu(event, {
@@ -3080,16 +3274,9 @@ function Editor(props: Props) {
                                                 : undefined,
                                         )}
                                     </p>
-                                    <dl className="sim-slx-original-parameters">
-                                        {Object.entries(
-                                            originalBlock.properties,
-                                        ).map(([name, value]) => (
-                                            <div key={name}>
-                                                <dt>{name}</dt>
-                                                <dd>{value}</dd>
-                                            </div>
-                                        ))}
-                                    </dl>
+                                    <SlxParameterInspector
+                                        block={originalBlock}
+                                    />
                                 </>
                             )}
                             {structure.issues
@@ -3110,6 +3297,44 @@ function Editor(props: Props) {
                                         {issue.message}
                                     </p>
                                 ))}
+                        </>
+                    ) : chosenControl ? (
+                        <>
+                            <div className="sim-inspector-heading">
+                                <strong>
+                                    {chosen?.kind.type === "subsystem" &&
+                                    chosen.kind.execution?.type === "triggered"
+                                        ? "Trigger"
+                                        : "Enable"}
+                                </strong>
+                            </div>
+                            <p className="sim-help">
+                                控制所属子系统的执行。输出初值与禁用策略在各
+                                Outport 上设置。
+                            </p>
+                            {!parameterDialog && (
+                                <BlockParameterForm
+                                    key={chosenControl}
+                                    doc={doc}
+                                    block={doc.model.blocks.find(
+                                        (b) => b.id === chosenControl,
+                                    )!}
+                                    disabled={!editable || run.busy}
+                                    onPending={parameterPending}
+                                    onApply={(fields) =>
+                                        applyBlockParameters(
+                                            chosenControl,
+                                            fields,
+                                        )
+                                    }
+                                />
+                            )}
+                            <button
+                                disabled={!editable || run.busy}
+                                onClick={() => deleteSelected()}
+                            >
+                                删除控制端口
+                            </button>
                         </>
                     ) : chosen ? (
                         <>
@@ -3198,12 +3423,21 @@ function Editor(props: Props) {
                                     )
                                 );
                             })()}
-                            {[
-                                "standard",
-                                "subsystem",
-                                "inport",
-                                "outport",
-                            ].includes(chosen.kind.type) && (
+                            {commonChosen && !parameterDialog && (
+                                <BlockParameterForm
+                                    key={chosen.id}
+                                    doc={doc}
+                                    block={chosen}
+                                    disabled={!editable || run.busy}
+                                    onPending={parameterPending}
+                                    onApply={(fields) =>
+                                        applyBlockParameters(chosen.id, fields)
+                                    }
+                                />
+                            )}
+                            {["subsystem", "inport"].includes(
+                                chosen.kind.type,
+                            ) && (
                                 <AuthoringInspector
                                     key={chosen.id}
                                     kind={chosen.kind as AuthoringKind}
@@ -3239,107 +3473,119 @@ function Editor(props: Props) {
                                     }
                                 />
                             )}
-                            <HybridInspector
-                                kind={chosen.kind}
-                                disabled={!editable}
-                                onError={setError}
-                                onChange={(value) =>
-                                    change((next) => {
-                                        const b = next.model.blocks.find(
-                                            (b) => b.id === chosen.id,
-                                        )!;
-                                        b.kind = value;
-                                        if (value.type === "resetIntegrator") {
-                                            if (value.discrete) {
-                                                next.model.sampleTimes ??= {};
-                                                if (
-                                                    next.model.sampleTimes[
-                                                        chosen.id
-                                                    ]?.kind !== "discrete"
-                                                )
-                                                    next.model.sampleTimes[
-                                                        chosen.id
-                                                    ] = {
-                                                        kind: "discrete",
-                                                        period:
-                                                            next.model.settings
-                                                                .sampleTime ??
-                                                            next.model.settings
-                                                                .maxStep,
-                                                    };
-                                            } else if (next.model.sampleTimes)
-                                                delete next.model.sampleTimes[
-                                                    chosen.id
-                                                ];
-                                        }
-                                        const valid = ports(
-                                            b,
-                                            next.model.components,
-                                        ).inputs;
-                                        next.model.connections =
-                                            next.model.connections.filter(
-                                                (e) =>
-                                                    e.to.block !== b.id ||
-                                                    valid.includes(e.to.port),
-                                            );
-                                    })
-                                }
-                            />
-                            {!(
-                                chosen.kind.type === "subsystem" ||
-                                (chosen.parent &&
-                                    (chosen.kind.type === "inport" ||
-                                        chosen.kind.type === "outport"))
-                            ) && (
-                                <SamplingInspector
-                                    key={`sampling-${chosen.id}`}
-                                    model={doc.model}
-                                    block={chosen}
-                                    resolved={
-                                        (run.checkedSampling?.source ===
-                                        numerical
-                                            ? run.checkedSampling.plan
-                                            : run.info &&
-                                                run.source.current === numerical
-                                              ? run.info.sampling
-                                              : doc.slx?.runnable &&
-                                                  !doc.slx.snapshotEdited &&
-                                                  doc.slx.parameters ===
-                                                      doc.slx.appliedParameters
-                                                ? doc.slx.sampling
-                                                : undefined
-                                        )?.blocks[chosen.id]
-                                    }
+                            {!commonChosen && (
+                                <HybridInspector
+                                    kind={chosen.kind}
+                                    disabled={!editable}
                                     onError={setError}
-                                    onChange={(rate) =>
+                                    onChange={(value) =>
                                         change((next) => {
-                                            next.model.sampleTimes ??= {};
-                                            if (rate)
-                                                Object.defineProperty(
-                                                    next.model.sampleTimes,
-                                                    chosen.id,
-                                                    {
-                                                        value: rate,
-                                                        enumerable: true,
-                                                        writable: true,
-                                                        configurable: true,
-                                                    },
-                                                );
-                                            else
-                                                delete next.model.sampleTimes[
-                                                    chosen.id
-                                                ];
-                                        })
-                                    }
-                                    onKindChange={(value) =>
-                                        change((next) => {
-                                            next.model.blocks.find(
+                                            const b = next.model.blocks.find(
                                                 (b) => b.id === chosen.id,
-                                            )!.kind = value;
+                                            )!;
+                                            b.kind = value;
+                                            if (
+                                                value.type === "resetIntegrator"
+                                            ) {
+                                                if (value.discrete) {
+                                                    next.model.sampleTimes ??=
+                                                        {};
+                                                    if (
+                                                        next.model.sampleTimes[
+                                                            chosen.id
+                                                        ]?.kind !== "discrete"
+                                                    )
+                                                        next.model.sampleTimes[
+                                                            chosen.id
+                                                        ] = {
+                                                            kind: "discrete",
+                                                            period:
+                                                                next.model
+                                                                    .settings
+                                                                    .sampleTime ??
+                                                                next.model
+                                                                    .settings
+                                                                    .maxStep,
+                                                        };
+                                                } else if (
+                                                    next.model.sampleTimes
+                                                )
+                                                    delete next.model
+                                                        .sampleTimes[chosen.id];
+                                            }
+                                            const valid = ports(
+                                                b,
+                                                next.model.components,
+                                            ).inputs;
+                                            next.model.connections =
+                                                next.model.connections.filter(
+                                                    (e) =>
+                                                        e.to.block !== b.id ||
+                                                        valid.includes(
+                                                            e.to.port,
+                                                        ),
+                                                );
                                         })
                                     }
                                 />
                             )}
+                            {!commonChosen &&
+                                !(
+                                    chosen.kind.type === "subsystem" ||
+                                    (chosen.parent &&
+                                        (chosen.kind.type === "inport" ||
+                                            chosen.kind.type === "outport"))
+                                ) && (
+                                    <SamplingInspector
+                                        key={`sampling-${chosen.id}`}
+                                        model={doc.model}
+                                        block={chosen}
+                                        resolved={
+                                            (run.checkedSampling?.source ===
+                                            numerical
+                                                ? run.checkedSampling.plan
+                                                : run.info &&
+                                                    run.source.current ===
+                                                        numerical
+                                                  ? run.info.sampling
+                                                  : doc.slx?.runnable &&
+                                                      !doc.slx.snapshotEdited &&
+                                                      doc.slx.parameters ===
+                                                          doc.slx
+                                                              .appliedParameters
+                                                    ? doc.slx.sampling
+                                                    : undefined
+                                            )?.blocks[chosen.id]
+                                        }
+                                        onError={setError}
+                                        onChange={(rate) =>
+                                            change((next) => {
+                                                next.model.sampleTimes ??= {};
+                                                if (rate)
+                                                    Object.defineProperty(
+                                                        next.model.sampleTimes,
+                                                        chosen.id,
+                                                        {
+                                                            value: rate,
+                                                            enumerable: true,
+                                                            writable: true,
+                                                            configurable: true,
+                                                        },
+                                                    );
+                                                else
+                                                    delete next.model
+                                                        .sampleTimes[chosen.id];
+                                            })
+                                        }
+                                        onKindChange={(value) =>
+                                            change((next) => {
+                                                next.model.blocks.find(
+                                                    (b) => b.id === chosen.id,
+                                                )!.kind = value;
+                                            })
+                                        }
+                                    />
+                                )}
                             {chosen.kind.type === "mFunction" && (
                                 <FunctionInspector
                                     value={chosen.kind}
@@ -3568,12 +3814,13 @@ function Editor(props: Props) {
                                         }}
                                     />
                                 )}
-                            {![
-                                "standard",
-                                "subsystem",
-                                "inport",
-                                "outport",
-                            ].includes(chosen.kind.type) &&
+                            {!commonChosen &&
+                                ![
+                                    "standard",
+                                    "subsystem",
+                                    "inport",
+                                    "outport",
+                                ].includes(chosen.kind.type) &&
                                 chosen.kind.type !== "control" &&
                                 chosen.kind.type !== "resetIntegrator" &&
                                 chosen.kind.type !== "zeroOrderHold" &&
@@ -3803,6 +4050,83 @@ function Editor(props: Props) {
                     }}
                 />
             )}
+            {parameterDialog &&
+                (parameterDialog === "@model" || dialogBlock) && (
+                    <div className="sim-modal-backdrop">
+                        <div
+                            className="sim-parameter-dialog"
+                            role="dialog"
+                            aria-modal="true"
+                            aria-label={
+                                parameterDialog === "@model"
+                                    ? "模型参数"
+                                    : "方块参数"
+                            }
+                            onKeyDown={(event) => {
+                                if (event.key !== "Tab") return;
+                                const elements = [
+                                    ...event.currentTarget.querySelectorAll<HTMLElement>(
+                                        "button:not(:disabled), textarea:not(:disabled), select:not(:disabled), input:not(:disabled), summary",
+                                    ),
+                                ];
+                                const first = elements[0],
+                                    last = elements.at(-1);
+                                if (
+                                    event.shiftKey &&
+                                    document.activeElement === first
+                                ) {
+                                    event.preventDefault();
+                                    last?.focus();
+                                } else if (
+                                    !event.shiftKey &&
+                                    document.activeElement === last
+                                ) {
+                                    event.preventDefault();
+                                    first?.focus();
+                                }
+                            }}
+                        >
+                            <div className="sim-parameter-dialog-heading">
+                                <strong>
+                                    {parameterDialog === "@model"
+                                        ? "模型参数"
+                                        : `${blockDescriptor(dialogBlock!)?.label ?? "方块"} · 参数`}
+                                </strong>
+                                <button
+                                    autoFocus
+                                    aria-label="关闭参数窗口"
+                                    onClick={() => setParameterDialog(null)}
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                            {parameterDialog === "@model" ? (
+                                <ModelParameters
+                                    onPending={parameterPending}
+                                    value={doc.parameters?.source ?? ""}
+                                    disabled={!editable || run.busy}
+                                    onApply={(source) =>
+                                        applyBlockParameters(null, {}, source)
+                                    }
+                                />
+                            ) : (
+                                <BlockParameterForm
+                                    key={dialogBlock!.id}
+                                    doc={doc}
+                                    block={dialogBlock!}
+                                    disabled={!editable || run.busy}
+                                    onPending={parameterPending}
+                                    onApply={(fields) =>
+                                        applyBlockParameters(
+                                            dialogBlock!.id,
+                                            fields,
+                                        )
+                                    }
+                                />
+                            )}
+                        </div>
+                    </div>
+                )}
             {componentDraft && (
                 <ComponentDialog
                     value={componentDraft.definition}

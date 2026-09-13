@@ -1,4 +1,8 @@
 import { parseExecutionEvents, type ExecutionEvent } from "./conditional";
+import type {
+    AuthoringParameters,
+    ParameterResolution,
+} from "./block-parameters";
 import {
     parseEventRecords,
     type EventPlan,
@@ -6,8 +10,9 @@ import {
 } from "./hybrid";
 import type { SampleTime, SamplingPlan } from "./sampling";
 import type { BlockDefinition, Model, ExecutionOptions } from "./model";
-export const SIMULATION_PROTOCOL = "openmat-simulation-v8";
+export const SIMULATION_PROTOCOL = "openmat-simulation-v9";
 export interface SimulationSnapshot {
+    parameters?: AuthoringParameters;
     sources: Record<string, string>;
     execution: ExecutionOptions;
 }
@@ -128,9 +133,9 @@ export function simulationUrl(kernelUrl: string): string {
     const url = new URL(kernelUrl);
     if (url.protocol !== "ws:" && url.protocol !== "wss:")
         throw new Error("仿真服务需要 WebSocket 地址。");
-    url.pathname = url.pathname.replace(/\/kernel\/?$/, "/simulation/v8");
-    if (!url.pathname.endsWith("/simulation/v8"))
-        url.pathname = "/simulation/v8";
+    url.pathname = url.pathname.replace(/\/kernel\/?$/, "/simulation/v9");
+    if (!url.pathname.endsWith("/simulation/v9"))
+        url.pathname = "/simulation/v9";
     url.search = "";
     url.hash = "";
     return url.toString();
@@ -350,6 +355,12 @@ export class SimulationClient {
     }
     catalog(): Promise<SimulationCatalog> {
         return this.request("catalog");
+    }
+    resolveParameters(
+        model: Model,
+        parameters: AuthoringParameters,
+    ): Promise<ParameterResolution> {
+        return this.request("resolveParameters", { model, parameters });
     }
     check(
         model: Model,

@@ -1,0 +1,154 @@
+{
+  "format": "openmat-simulation",
+  "schemaVersion": 9,
+  "parameters": {
+    "source": "A = 1;\nK = 2;\nx0 = 0;\n",
+    "bindings": {
+      "input": {
+        "Value": "A"
+      },
+      "gain": {
+        "Gain": "K"
+      },
+      "state": {
+        "InitialCondition": "x0"
+      }
+    }
+  },
+  "model": {
+    "schemaVersion": 1,
+    "name": "参数化一阶反馈 · x′ = A − Kx",
+    "settings": {
+      "startTime": 0,
+      "stopTime": 5,
+      "maxStep": 0.01
+    },
+    "blocks": [
+      {
+        "id": "input",
+        "kind": {
+          "type": "constant",
+          "value": [
+            1
+          ]
+        },
+        "position": {
+          "x": 30,
+          "y": 100
+        }
+      },
+      {
+        "id": "sum",
+        "kind": {
+          "type": "sum",
+          "signs": [
+            1,
+            -1
+          ]
+        },
+        "position": {
+          "x": 200,
+          "y": 102
+        }
+      },
+      {
+        "id": "state",
+        "kind": {
+          "type": "integrator",
+          "initial": [
+            0
+          ]
+        },
+        "position": {
+          "x": 355,
+          "y": 100
+        }
+      },
+      {
+        "id": "gain",
+        "kind": {
+          "type": "gain",
+          "gain": [
+            2
+          ]
+        },
+        "position": {
+          "x": 350,
+          "y": 290
+        }
+      },
+      {
+        "id": "scope",
+        "kind": {
+          "type": "scope"
+        },
+        "position": {
+          "x": 540,
+          "y": 100
+        }
+      }
+    ],
+    "connections": [
+      {
+        "from": {
+          "block": "input",
+          "port": "out"
+        },
+        "to": {
+          "block": "sum",
+          "port": "in0"
+        }
+      },
+      {
+        "from": {
+          "block": "gain",
+          "port": "out"
+        },
+        "to": {
+          "block": "sum",
+          "port": "in1"
+        }
+      },
+      {
+        "from": {
+          "block": "sum",
+          "port": "out"
+        },
+        "to": {
+          "block": "state",
+          "port": "in"
+        }
+      },
+      {
+        "from": {
+          "block": "state",
+          "port": "out"
+        },
+        "to": {
+          "block": "gain",
+          "port": "in"
+        }
+      },
+      {
+        "from": {
+          "block": "state",
+          "port": "out"
+        },
+        "to": {
+          "block": "scope",
+          "port": "in"
+        }
+      }
+    ]
+  },
+  "editor": {
+    "labels": {
+      "input": "输入 A",
+      "sum": "误差信号",
+      "state": "连续状态",
+      "gain": "反馈增益 K",
+      "scope": "系统响应"
+    },
+    "bends": {}
+  }
+}

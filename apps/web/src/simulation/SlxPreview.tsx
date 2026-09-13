@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import type { SlxBlock, SlxImport, SlxLine } from "./client";
 import { importLayout } from "./import-layout";
 import { slxSystemPaths } from "./slx-authoring";
+import { SlxBlockGlyph } from "./SlxBlockGlyph";
+import { SlxParameterInspector } from "./SlxParameterInspector";
 
 function rectangle(block: SlxBlock, index: number) {
     const values = (block.properties.Position ?? "")
@@ -195,6 +197,7 @@ export default function SlxPreview({
                     {boxes.map((box) => (
                         <g
                             key={box.block.sid}
+                            className={`sim-symbol-block ${selected === box.block.sid ? "is-selected" : ""}`}
                             role="button"
                             tabIndex={0}
                             aria-label={`${box.block.name} (${box.block.blockType})`}
@@ -213,25 +216,28 @@ export default function SlxPreview({
                                 }
                             }}
                         >
+                            <g transform={`translate(${box.x},${box.y})`}>
+                                <SlxBlockGlyph
+                                    block={box.block}
+                                    width={box.w}
+                                    height={box.h}
+                                />
+                            </g>
                             <rect
                                 x={box.x}
                                 y={box.y}
                                 width={box.w}
                                 height={box.h}
                                 rx={5}
-                                fill="var(--bg-pane)"
-                                stroke={
-                                    selected === box.block.sid
-                                        ? "var(--accent)"
-                                        : "var(--border-strong)"
-                                }
+                                fill="transparent"
+                                stroke="none"
                                 strokeWidth={
                                     selected === box.block.sid ? 3 : 1.5
                                 }
                             />
                             <text
                                 x={box.x + box.w / 2}
-                                y={box.y + box.h / 2 - 3}
+                                y={box.y + box.h + 17}
                                 textAnchor="middle"
                                 fill="var(--text)"
                                 fontSize={12}
@@ -255,6 +261,7 @@ export default function SlxPreview({
                                 textAnchor="middle"
                                 fill="var(--text-muted)"
                                 fontSize={10}
+                                display="none"
                             >
                                 {box.block.blockType}
                             </text>
@@ -270,16 +277,7 @@ export default function SlxPreview({
                                     SID {block.sid} · {block.blockType}
                                 </p>
                                 <small>{block.source.part}</small>
-                                <dl>
-                                    {Object.entries(block.properties).map(
-                                        ([name, value]) => (
-                                            <div key={name}>
-                                                <dt>{name}</dt>
-                                                <dd>{value}</dd>
-                                            </div>
-                                        ),
-                                    )}
-                                </dl>
+                                <SlxParameterInspector block={block} />
                             </>
                         ) : (
                             <p>
