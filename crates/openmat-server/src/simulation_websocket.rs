@@ -11,7 +11,7 @@ use crate::simulation_execution::{self, Execution};
 use openmat_sim::model::Model;
 use openmat_sim::numeric::Kernel;
 use openmat_sim::{CompiledModel, Runner, SourceBundle, compile_with_sources};
-use openmat_sim_slx::ImportedSlx;
+use openmat_sim_slx::{AuthoringParameters, ImportedSlx, resolve_parameters};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use tungstenite::Error as WsError;
@@ -26,6 +26,7 @@ const PROTOCOL_V4: &str = "openmat-simulation-v4";
 const PROTOCOL_V6: &str = "openmat-simulation-v6";
 const PROTOCOL_V7: &str = "openmat-simulation-v7";
 const PROTOCOL_V8: &str = "openmat-simulation-v8";
+const PROTOCOL_V9: &str = "openmat-simulation-v9";
 const PROTOCOL_V5: &str = "openmat-simulation-v5";
 const MAX_MESSAGE: usize = 8 * 1024 * 1024;
 const MAX_SLX: usize = 2 * 1024 * 1024;
@@ -46,9 +47,15 @@ struct Request {
 #[serde(tag = "operation", rename_all = "camelCase", deny_unknown_fields)]
 enum Operation {
     Catalog,
+    ResolveParameters {
+        model: Model,
+        parameters: AuthoringParameters,
+    },
     Check {
         model: Model,
         revision: String,
+        #[serde(default)]
+        parameters: Option<AuthoringParameters>,
         #[serde(default)]
         sources: Option<SourceBundle>,
         #[serde(default)]
@@ -57,6 +64,8 @@ enum Operation {
     Run {
         model: Model,
         revision: String,
+        #[serde(default)]
+        parameters: Option<AuthoringParameters>,
         #[serde(default)]
         sources: Option<SourceBundle>,
         #[serde(default)]
@@ -452,10 +461,28 @@ fn import_slx_profile(
     })
 }
 
-#[allow(clippy::too_many_lines)] // Keep both protocol versions and connection-owned job dispatch together.
+fn resolve_native(
+    model: Model,
+    parameters: Option<AuthoringParameters>,
+    v9: bool,
+) -> Result<Model, Value> {
+    match parameters {
+        None => Ok(model),
+        Some(_) if !v9 => Err(error(
+            "protocol",
+            "native parameters require /simulation/v9",
+        )),
+        Some(parameters) => resolve_parameters(&model, &parameters)
+            .map(|result| result.model)
+            .map_err(|issue| json!(issue)),
+    }
+}
+
+#[allow(clippy::too_many_lines)] // Keep protocol versions and connection-owned job dispatch together.
 fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
     let id = &request.id;
-    let v8 = request.protocol == PROTOCOL_V8;
+    let v9 = request.protocol == PROTOCOL_V9;
+    let v8 = request.protocol == PROTOCOL_V8 || v9;
     let v7 = request.protocol == PROTOCOL_V7 || v8;
     let v6 = request.protocol == PROTOCOL_V6 || v7;
     let v5 = request.protocol == PROTOCOL_V5 || v6;
@@ -515,14 +542,48 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
                 result["schemaVersion"] = json!(8);
                 result["conditionalExecution"] = json!(true);
             }
+            if v9 {
+                result["schemaVersion"] = json!(9);
+                result["parameterCatalog"] = serde_json::from_str(openmat_sim_slx::BLOCK_CATALOG)
+                    .expect("bundled block catalog");
+                result["blocks"]
+                    .as_array_mut()
+                    .expect("catalog blocks")
+                    .iter_mut()
+                    .find(|b| b["type"] == "sum")
+                    .expect("sum descriptor")["default"] = json!([1, 1]);
+            }
             response(id, result)
+        }
+        Operation::ResolveParameters { model, parameters } => {
+            if !v9 {
+                failure(
+                    id,
+                    error("protocol", "native parameters require /simulation/v9"),
+                )
+            } else if job.is_some() {
+                failure(
+                    id,
+                    error("busy", "Stop the active run before editing parameters."),
+                )
+            } else {
+                match resolve_parameters(&model, &parameters) {
+                    Ok(result) => response(id, json!(result)),
+                    Err(issue) => failure(id, json!(issue)),
+                }
+            }
         }
         Operation::Check {
             model,
             revision,
             sources,
             execution,
+            parameters,
         } => {
+            let model = match resolve_native(model, parameters, v9) {
+                Ok(model) => model,
+                Err(issue) => return Some(failure(id, issue)),
+            };
             if !v8 && model.schema_version >= 8 {
                 return Some(failure(
                     id,
@@ -594,7 +655,12 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
             revision,
             sources,
             execution,
+            parameters,
         } => {
+            let model = match resolve_native(model, parameters, v9) {
+                Ok(model) => model,
+                Err(issue) => return Some(failure(id, issue)),
+            };
             if !v8 && model.schema_version >= 8 {
                 return Some(failure(
                     id,
@@ -788,6 +854,7 @@ fn send(
 
 pub(crate) fn serve(socket: &mut WebSocket<TcpStream>, version: u32) -> Result<(), ServerError> {
     let protocol = match version {
+        9 => PROTOCOL_V9,
         5 => PROTOCOL_V5,
         6 => PROTOCOL_V6,
         7 => PROTOCOL_V7,
@@ -1035,6 +1102,7 @@ mod tests {
                         revision: "1".into(),
                         sources: None,
                         execution: None,
+                        parameters: None,
                     },
                 },
                 &mut None,

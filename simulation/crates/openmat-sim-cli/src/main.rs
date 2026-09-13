@@ -202,9 +202,17 @@ fn read_model(path: &Path) -> Result<Model, Value> {
     let bytes = read_bytes(path, 16 * 1024 * 1024)?;
     let raw: Value =
         serde_json::from_slice(&bytes).map_err(|e| failure("model_json", e.to_string()))?;
+    let parameters = raw.get("parameters").cloned();
+    if parameters.is_some() && (raw["format"] != "openmat-simulation" || raw["schemaVersion"] != 9)
+    {
+        return Err(failure(
+            "model_json",
+            "native parameters require authoring schema 9",
+        ));
+    }
     let model = if raw.get("format").is_some() {
         if raw["format"] != "openmat-simulation"
-            || !matches!(raw["schemaVersion"].as_u64(), Some(1..=8))
+            || !matches!(raw["schemaVersion"].as_u64(), Some(1..=9))
         {
             return Err(failure("model_json", "unsupported authoring document"));
         }
@@ -221,7 +229,7 @@ fn read_model(path: &Path) -> Result<Model, Value> {
             ));
         }
         if let Some(asset) = raw.get("slx")
-            && (!matches!(raw["schemaVersion"].as_u64(), Some(4..=8))
+            && (!matches!(raw["schemaVersion"].as_u64(), Some(4..=9))
                 || asset["runnable"] != true
                 || !asset["parameters"].is_string()
                 || asset["parameters"] != asset["appliedParameters"])
@@ -235,7 +243,17 @@ fn read_model(path: &Path) -> Result<Model, Value> {
     } else {
         raw
     };
-    serde_json::from_value(model).map_err(|e| failure("model_json", e.to_string()))
+    let model = serde_json::from_value(model).map_err(|e| failure("model_json", e.to_string()))?;
+    match parameters {
+        None => Ok(model),
+        Some(value) => {
+            let parameters =
+                serde_json::from_value(value).map_err(|e| failure("model_json", e.to_string()))?;
+            openmat_sim_slx::resolve_parameters(&model, &parameters)
+                .map(|result| result.model)
+                .map_err(|issue| failure("block_parameter", issue.to_string()))
+        }
+    }
 }
 
 #[allow(clippy::case_sensitive_file_extension_comparisons)] // Match portable source-bundle path semantics.
@@ -246,11 +264,11 @@ fn read_sources(model: &Model, path: &Path) -> Result<SourceBundle, Value> {
             .map_err(|e| failure("model_json", e.to_string()))?;
         if let Some(value) = document.get("sources") {
             if document["format"] != "openmat-simulation"
-                || !matches!(document["schemaVersion"].as_u64(), Some(4..=8))
+                || !matches!(document["schemaVersion"].as_u64(), Some(4..=9))
             {
                 return Err(failure(
                     "model_json",
-                    "embedded sources require authoring schema 4..8",
+                    "embedded sources require authoring schema 4..9",
                 ));
             }
             embedded = serde_json::from_value(value.clone())

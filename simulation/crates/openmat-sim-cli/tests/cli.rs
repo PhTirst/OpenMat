@@ -46,6 +46,35 @@ impl Drop for TestDirectory {
 }
 
 #[test]
+fn native_parameter_document_recomputes_cached_values_and_rejects_invalid_source() {
+    let directory = TestDirectory::new();
+    let path = directory.0.join("parameters.omsim");
+    let mut document = serde_json::json!({"format":"openmat-simulation","schemaVersion":9,
+        "parameters":{"source":"K = 3;","bindings":{"constant":{"Value":"K"}}},
+        "editor":{"labels":{},"bends":{}},
+        "model":{"schemaVersion":1,"name":"parameters","settings":{"startTime":0,"stopTime":0.1,"maxStep":0.1},
+            "blocks":[{"id":"constant","kind":{"type":"constant","value":[999]}},{"id":"scope","kind":{"type":"scope"}}],
+            "connections":[{"from":{"block":"constant","port":"out"},"to":{"block":"scope","port":"in"}}]}});
+    fs::write(&path, serde_json::to_vec(&document).unwrap()).unwrap();
+    let result = run(&["run".as_ref(), path.as_os_str()]);
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stdout)
+    );
+    assert_eq!(
+        json(&result)["result"]["frames"][0]["values"][0].as_f64(),
+        Some(3.0)
+    );
+    document["parameters"]["source"] = serde_json::json!("K = missing;");
+    fs::write(&path, serde_json::to_vec(&document).unwrap()).unwrap();
+    assert!(!run(&["run".as_ref(), path.as_os_str()]).status.success());
+    document["schemaVersion"] = serde_json::json!(8);
+    fs::write(&path, serde_json::to_vec(&document).unwrap()).unwrap();
+    assert!(!run(&["check".as_ref(), path.as_os_str()]).status.success());
+}
+
+#[test]
 fn check_and_run_are_machine_readable() {
     let model = fixture("first-order.omsim.json");
     let checked = run(&["check".as_ref(), model.as_os_str()]);

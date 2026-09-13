@@ -139,6 +139,14 @@ impl Parameters {
     /// # Errors
     /// Reports unsupported or unresolved constant expressions without fallback values.
     pub fn evaluate(&self, text: &str) -> Result<ParameterArray, Issue> {
+        self.evaluate_with_budget(text, &mut 0)
+    }
+
+    pub(crate) fn evaluate_with_budget(
+        &self,
+        text: &str,
+        work: &mut usize,
+    ) -> Result<ParameterArray, Issue> {
         let statements = parse(text)?;
         let [
             Stmt {
@@ -152,11 +160,13 @@ impl Parameters {
                 "expected exactly one constant expression",
             ));
         };
-        Evaluator {
+        let mut evaluator = Evaluator {
             values: self.values.clone(),
-            work: 0,
-        }
-        .eval(expr, 0)
+            work: *work,
+        };
+        let value = evaluator.eval(expr, 0);
+        *work = evaluator.work;
+        value
     }
 }
 

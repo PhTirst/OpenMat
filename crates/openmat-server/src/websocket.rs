@@ -661,6 +661,7 @@ enum Endpoint {
     SimulationV6,
     SimulationV7,
     SimulationV8,
+    SimulationV9,
     Graphics(openmat_plot_protocol::GraphicsProtocol),
     Workspace(WorkspaceProtocol),
 }
@@ -676,6 +677,7 @@ impl Endpoint {
             Self::SimulationV6 => Some(6),
             Self::SimulationV7 => Some(7),
             Self::SimulationV8 => Some(8),
+            Self::SimulationV9 => Some(9),
             _ => None,
         }
     }
@@ -1234,6 +1236,7 @@ fn validate_handshake(
         ("/simulation/v6", None) => Endpoint::SimulationV6,
         ("/simulation/v7", None) => Endpoint::SimulationV7,
         ("/simulation/v8", None) => Endpoint::SimulationV8,
+        ("/simulation/v9", None) => Endpoint::SimulationV9,
         ("/graphics/v1", None) => Endpoint::Graphics(openmat_plot_protocol::GraphicsProtocol::V1),
         ("/graphics/v2", None) => Endpoint::Graphics(openmat_plot_protocol::GraphicsProtocol::V2),
         ("/graphics/v3", None) => Endpoint::Graphics(openmat_plot_protocol::GraphicsProtocol::V3),
@@ -1250,7 +1253,7 @@ fn validate_handshake(
         _ => {
             return Err(handshake_rejection(
                 StatusCode::NOT_FOUND,
-                "WebSocket endpoints are /kernel, /lsp, /simulation/v1, /simulation/v2, /simulation/v3, /simulation/v4, /simulation/v5, /simulation/v6, /simulation/v7, /simulation/v8, /graphics/v1, /graphics/v2, /graphics/v3, /graphics/v4, and configured /workspace/v1, /workspace/v2, or /workspace/v3",
+                "WebSocket endpoints are /kernel, /lsp, /simulation/v1, /simulation/v2, /simulation/v3, /simulation/v4, /simulation/v5, /simulation/v6, /simulation/v7, /simulation/v8, /simulation/v9, /graphics/v1, /graphics/v2, /graphics/v3, /graphics/v4, and configured /workspace/v1, /workspace/v2, or /workspace/v3",
             ));
         }
     };

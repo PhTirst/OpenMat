@@ -103,6 +103,52 @@ fn request_v4(socket: &mut Socket, id: &str, operation: &str, data: Value) {
 }
 
 #[test]
+fn v9_resolves_native_parameters_and_rejects_stale_or_legacy_execution() {
+    let mut server = Server::start();
+    let model = json!({"schemaVersion":1,"name":"native expressions","settings":{"startTime":0,"stopTime":0.2,"maxStep":0.1},
+        "blocks":[{"id":"c","kind":{"type":"constant","value":[999]}},{"id":"g","kind":{"type":"gain","gain":[999]}},{"id":"s","kind":{"type":"scope"}}],
+        "connections":[{"from":{"block":"c","port":"out"},"to":{"block":"g","port":"in"}},{"from":{"block":"g","port":"out"},"to":{"block":"s","port":"in"}}]});
+    let parameters = json!({"source":"K = 2;","bindings":{"c":{"Value":"3"},"g":{"Gain":"K"}}});
+    server.url = server.url.replace("/simulation/v1", "/simulation/v8");
+    let mut legacy = server.connect();
+    legacy.send(Message::text(json!({"protocol":"openmat-simulation-v8","requestId":"old","operation":"run","model":model,"parameters":parameters,"revision":"1"}).to_string())).unwrap();
+    assert_eq!(read(&mut legacy)["error"]["code"], "protocol");
+    server.url = server.url.replace("/simulation/v8", "/simulation/v9");
+    let mut socket = server.connect();
+    socket.send(Message::text(json!({"protocol":"openmat-simulation-v9","requestId":"resolve","operation":"resolveParameters","model":model,"parameters":parameters}).to_string())).unwrap();
+    let resolved = read(&mut socket);
+    assert_eq!(resolved["ok"], true, "{resolved}");
+    assert_eq!(
+        resolved["result"]["model"]["blocks"][1]["kind"]["gain"][0].as_f64(),
+        Some(2.0)
+    );
+    socket.send(Message::text(json!({"protocol":"openmat-simulation-v9","requestId":"run","operation":"run","model":model,"parameters":parameters,"revision":"1"}).to_string())).unwrap();
+    let started = read(&mut socket);
+    assert_eq!(started["ok"], true, "{started}");
+    let mut samples = 0;
+    loop {
+        let event = read(&mut socket);
+        if let Some(frames) = event["data"]["frames"].as_array() {
+            for frame in frames {
+                assert_eq!(frame["values"][0].as_f64(), Some(6.0));
+                samples += 1;
+            }
+        }
+        if event["event"] == "finished" {
+            break;
+        }
+        assert_ne!(event["event"], "failed", "{event}");
+    }
+    assert!(samples >= 3);
+    let mut invalid = parameters;
+    invalid["source"] = json!("K = unknownName;");
+    socket.send(Message::text(json!({"protocol":"openmat-simulation-v9","requestId":"invalid","operation":"run","model":model,"parameters":invalid,"revision":"2"}).to_string())).unwrap();
+    let rejected = read(&mut socket);
+    assert_eq!(rejected["ok"], false, "{rejected}");
+    assert!(rejected["error"].is_object());
+}
+
+#[test]
 fn v8_streams_conditional_invocations_and_v7_rejects_the_same_snapshot() {
     let mut server = Server::start();
     let doc: Value = serde_json::from_str(include_str!(

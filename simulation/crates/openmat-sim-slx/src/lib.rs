@@ -12,6 +12,7 @@ mod document;
 mod literal;
 mod lower;
 mod multirate;
+mod native_parameters;
 mod parameters;
 
 use openmat_opc::{Limits, Package};
@@ -22,6 +23,9 @@ use std::fmt;
 pub use configuration::ConfigurationObject;
 pub use control::ControlModel;
 pub use document::{Block, Document, Line, PortProperties, Properties, Source, System};
+pub use native_parameters::{
+    AuthoringParameters, BLOCK_CATALOG, ParameterResolution, resolve_parameters,
+};
 pub use parameters::{MAX_PARAMETER_TEXT, ParameterArray, Parameters};
 
 #[derive(Clone, Debug, Serialize)]

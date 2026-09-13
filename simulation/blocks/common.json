@@ -1,0 +1,735 @@
+{
+  "schemaVersion": 1,
+  "baseline": "R2022b",
+  "groups": {
+    "main": "主要参数",
+    "signal": "信号属性",
+    "execution": "执行设置"
+  },
+  "blocks": [
+    {
+      "id": "constant",
+      "slx": "Constant",
+      "label": "Constant",
+      "parameters": [
+        {
+          "name": "Value",
+          "label": "常量值",
+          "group": "main",
+          "editor": "expression",
+          "path": "kind.value",
+          "shape": "vector",
+          "defaultValue": "1"
+        },
+        {
+          "name": "SampleTime",
+          "label": "采样时间",
+          "group": "execution",
+          "editor": "expression",
+          "path": "sampleTime",
+          "shape": "sampleTime",
+          "defaultValue": "inf",
+          "help": "-1 继承，0 连续，inf 常量；正数指定周期（秒）。也支持 [Ts 0]，暂不支持非零偏移。"
+        }
+      ]
+    },
+    {
+      "id": "gain",
+      "slx": "Gain",
+      "label": "Gain",
+      "parameters": [
+        {
+          "name": "Gain",
+          "label": "增益",
+          "group": "main",
+          "editor": "expression",
+          "path": "kind.gain",
+          "shape": "vector",
+          "defaultValue": "1"
+        },
+        {
+          "name": "Multiplication",
+          "label": "乘法方式",
+          "group": "main",
+          "editor": "choice",
+          "defaultValue": "Element-wise(K.*u)",
+          "fixed": "Element-wise(K.*u)",
+          "options": [
+            {
+              "value": "Element-wise(K.*u)",
+              "supported": true
+            },
+            {
+              "value": "Matrix(K*u)",
+              "supported": false
+            },
+            {
+              "value": "Matrix(u*K)",
+              "supported": false
+            },
+            {
+              "value": "Matrix(K*u) (u vector)",
+              "supported": false
+            }
+          ],
+          "help": "当前支持标量和固定宽度向量的逐元素增益。"
+        },
+        {
+          "name": "SampleTime",
+          "label": "采样时间",
+          "group": "execution",
+          "editor": "expression",
+          "path": "sampleTime",
+          "shape": "sampleTime",
+          "defaultValue": "-1",
+          "help": "-1 继承，0 连续，inf 常量；正数指定周期（秒）。也支持 [Ts 0]，暂不支持非零偏移。"
+        }
+      ]
+    },
+    {
+      "id": "sum",
+      "slx": "Sum",
+      "label": "Sum",
+      "parameters": [
+        {
+          "name": "Inputs",
+          "label": "输入符号",
+          "group": "main",
+          "editor": "text",
+          "path": "signs",
+          "defaultValue": "|++",
+          "help": "用 +、- 指定端口符号；也可输入正整数表示求和输入数量。"
+        },
+        {
+          "name": "SampleTime",
+          "label": "采样时间",
+          "group": "execution",
+          "editor": "expression",
+          "path": "sampleTime",
+          "shape": "sampleTime",
+          "defaultValue": "-1",
+          "help": "-1 继承，0 连续，inf 常量；正数指定周期（秒）。也支持 [Ts 0]，暂不支持非零偏移。"
+        }
+      ]
+    },
+    {
+      "id": "product",
+      "slx": "Product",
+      "label": "Product",
+      "parameters": [
+        {
+          "name": "Inputs",
+          "label": "输入数量或乘除顺序",
+          "group": "main",
+          "editor": "text",
+          "path": "operations",
+          "defaultValue": "2",
+          "help": "例如 2、** 或 */。当前至少需要两个输入。"
+        },
+        {
+          "name": "Multiplication",
+          "label": "乘法方式",
+          "group": "main",
+          "editor": "choice",
+          "defaultValue": "Element-wise(.*)",
+          "fixed": "Element-wise(.*)",
+          "options": [
+            {
+              "value": "Element-wise(.*)",
+              "supported": true
+            },
+            {
+              "value": "Matrix(*)",
+              "supported": false
+            }
+          ]
+        },
+        {
+          "name": "SampleTime",
+          "label": "采样时间",
+          "group": "execution",
+          "editor": "expression",
+          "path": "sampleTime",
+          "shape": "sampleTime",
+          "defaultValue": "-1",
+          "help": "-1 继承，0 连续，inf 常量；正数指定周期（秒）。也支持 [Ts 0]，暂不支持非零偏移。"
+        }
+      ]
+    },
+    {
+      "id": "integrator",
+      "slx": "Integrator",
+      "label": "Integrator",
+      "parameters": [
+        {
+          "name": "InitialCondition",
+          "label": "初始条件",
+          "group": "main",
+          "editor": "expression",
+          "path": "kind.initial",
+          "shape": "vector",
+          "defaultValue": "0"
+        },
+        {
+          "name": "ExternalReset",
+          "label": "外部复位",
+          "group": "main",
+          "editor": "choice",
+          "path": "externalReset",
+          "defaultValue": "none",
+          "options": [
+            {
+              "value": "none",
+              "supported": true
+            },
+            {
+              "value": "rising",
+              "supported": true
+            },
+            {
+              "value": "falling",
+              "supported": true
+            },
+            {
+              "value": "either",
+              "supported": true
+            },
+            {
+              "value": "level",
+              "supported": false
+            },
+            {
+              "value": "level hold",
+              "supported": false
+            }
+          ]
+        },
+        {
+          "name": "InitialConditionSource",
+          "label": "初始条件来源",
+          "group": "main",
+          "editor": "choice",
+          "defaultValue": "internal",
+          "fixed": "internal",
+          "options": [
+            {
+              "value": "internal",
+              "supported": true
+            },
+            {
+              "value": "external",
+              "supported": false
+            }
+          ]
+        },
+        {
+          "name": "LimitOutput",
+          "label": "限制输出",
+          "group": "main",
+          "editor": "choice",
+          "defaultValue": "off",
+          "fixed": "off",
+          "options": [
+            {
+              "value": "off",
+              "supported": true
+            },
+            {
+              "value": "on",
+              "supported": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "discreteIntegrator",
+      "slx": "DiscreteIntegrator",
+      "label": "Discrete-Time Integrator",
+      "parameters": [
+        {
+          "name": "IntegratorMethod",
+          "label": "积分方法",
+          "group": "main",
+          "editor": "choice",
+          "defaultValue": "Integration: Forward Euler",
+          "fixed": "Integration: Forward Euler",
+          "options": [
+            {
+              "value": "Integration: Forward Euler",
+              "supported": true
+            },
+            {
+              "value": "Integration: Backward Euler",
+              "supported": false
+            },
+            {
+              "value": "Integration: Trapezoidal",
+              "supported": false
+            },
+            {
+              "value": "Accumulation: Forward Euler",
+              "supported": false
+            }
+          ]
+        },
+        {
+          "name": "gainval",
+          "label": "增益",
+          "group": "main",
+          "editor": "expression",
+          "path": "kind.gain",
+          "shape": "scalar",
+          "defaultValue": "1"
+        },
+        {
+          "name": "InitialCondition",
+          "label": "初始条件",
+          "group": "main",
+          "editor": "expression",
+          "path": "kind.initial",
+          "shape": "vector",
+          "defaultValue": "0"
+        },
+        {
+          "name": "ExternalReset",
+          "label": "外部复位",
+          "group": "main",
+          "editor": "choice",
+          "path": "externalReset",
+          "defaultValue": "none",
+          "options": [
+            {
+              "value": "none",
+              "supported": true
+            },
+            {
+              "value": "rising",
+              "supported": true
+            },
+            {
+              "value": "falling",
+              "supported": true
+            },
+            {
+              "value": "either",
+              "supported": true
+            },
+            {
+              "value": "level",
+              "supported": false
+            },
+            {
+              "value": "level hold",
+              "supported": false
+            }
+          ]
+        },
+        {
+          "name": "InitialConditionSource",
+          "label": "初始条件来源",
+          "group": "main",
+          "editor": "choice",
+          "defaultValue": "internal",
+          "fixed": "internal",
+          "options": [
+            {
+              "value": "internal",
+              "supported": true
+            },
+            {
+              "value": "external",
+              "supported": false
+            }
+          ]
+        },
+        {
+          "name": "LimitOutput",
+          "label": "限制输出",
+          "group": "main",
+          "editor": "choice",
+          "defaultValue": "off",
+          "fixed": "off",
+          "options": [
+            {
+              "value": "off",
+              "supported": true
+            },
+            {
+              "value": "on",
+              "supported": false
+            }
+          ]
+        },
+        {
+          "name": "SampleTime",
+          "label": "采样时间",
+          "group": "execution",
+          "editor": "expression",
+          "path": "sampleTime",
+          "shape": "sampleTime",
+          "defaultValue": "-1",
+          "help": "-1 继承，0 连续，inf 常量；正数指定周期（秒）。也支持 [Ts 0]，暂不支持非零偏移。"
+        }
+      ]
+    },
+    {
+      "id": "unitDelay",
+      "slx": "UnitDelay",
+      "label": "Unit Delay",
+      "parameters": [
+        {
+          "name": "InitialCondition",
+          "label": "初始条件",
+          "group": "main",
+          "editor": "expression",
+          "path": "kind.initial",
+          "shape": "vector",
+          "defaultValue": "0"
+        },
+        {
+          "name": "SampleTime",
+          "label": "采样时间",
+          "group": "execution",
+          "editor": "expression",
+          "path": "sampleTime",
+          "shape": "sampleTime",
+          "defaultValue": "-1",
+          "help": "-1 继承，0 连续，inf 常量；正数指定周期（秒）。也支持 [Ts 0]，暂不支持非零偏移。"
+        }
+      ]
+    },
+    {
+      "id": "zeroOrderHold",
+      "slx": "ZeroOrderHold",
+      "label": "Zero-Order Hold",
+      "parameters": [
+        {
+          "name": "SampleTime",
+          "label": "采样时间",
+          "group": "execution",
+          "editor": "expression",
+          "path": "sampleTime",
+          "shape": "sampleTime",
+          "defaultValue": "-1",
+          "help": "-1 继承，0 连续，inf 常量；正数指定周期（秒）。也支持 [Ts 0]，暂不支持非零偏移。"
+        }
+      ]
+    },
+    {
+      "id": "transferFcn",
+      "slx": "TransferFcn",
+      "label": "Transfer Fcn",
+      "parameters": [
+        {
+          "name": "Numerator",
+          "label": "分子系数",
+          "group": "main",
+          "editor": "expression",
+          "path": "kind.operation.numerator",
+          "shape": "vector",
+          "defaultValue": "[1]"
+        },
+        {
+          "name": "Denominator",
+          "label": "分母系数",
+          "group": "main",
+          "editor": "expression",
+          "path": "kind.operation.denominator",
+          "shape": "vector",
+          "defaultValue": "[1 1]"
+        }
+      ]
+    },
+    {
+      "id": "stateSpace",
+      "slx": "StateSpace",
+      "label": "State-Space",
+      "parameters": [
+        {
+          "name": "A",
+          "label": "A 矩阵",
+          "group": "main",
+          "editor": "expression",
+          "path": "kind.operation.a",
+          "shape": "matrix",
+          "defaultValue": "1"
+        },
+        {
+          "name": "B",
+          "label": "B 矩阵",
+          "group": "main",
+          "editor": "expression",
+          "path": "kind.operation.b",
+          "shape": "matrix",
+          "defaultValue": "1"
+        },
+        {
+          "name": "C",
+          "label": "C 矩阵",
+          "group": "main",
+          "editor": "expression",
+          "path": "kind.operation.c",
+          "shape": "matrix",
+          "defaultValue": "1"
+        },
+        {
+          "name": "D",
+          "label": "D 矩阵",
+          "group": "main",
+          "editor": "expression",
+          "path": "kind.operation.d",
+          "shape": "matrix",
+          "defaultValue": "1"
+        },
+        {
+          "name": "InitialCondition",
+          "label": "初始条件",
+          "group": "main",
+          "editor": "expression",
+          "path": "kind.operation.initial",
+          "shape": "vector",
+          "defaultValue": "0"
+        }
+      ]
+    },
+    {
+      "id": "mux",
+      "slx": "Mux",
+      "label": "Mux",
+      "parameters": [
+        {
+          "name": "Inputs",
+          "label": "输入端口数量",
+          "group": "main",
+          "editor": "expression",
+          "path": "kind.operation.inputs",
+          "shape": "count",
+          "defaultValue": "2"
+        },
+        {
+          "name": "SampleTime",
+          "label": "采样时间",
+          "group": "execution",
+          "editor": "expression",
+          "path": "sampleTime",
+          "shape": "sampleTime",
+          "defaultValue": "-1",
+          "help": "-1 继承，0 连续，inf 常量；正数指定周期（秒）。也支持 [Ts 0]，暂不支持非零偏移。"
+        }
+      ]
+    },
+    {
+      "id": "demux",
+      "slx": "Demux",
+      "label": "Demux",
+      "parameters": [
+        {
+          "name": "Outputs",
+          "label": "输出宽度",
+          "group": "main",
+          "editor": "expression",
+          "path": "kind.operation.widths",
+          "shape": "widths",
+          "defaultValue": "[1 1]",
+          "help": "为各输出指定宽度，例如 [2 3]。"
+        },
+        {
+          "name": "SampleTime",
+          "label": "采样时间",
+          "group": "execution",
+          "editor": "expression",
+          "path": "sampleTime",
+          "shape": "sampleTime",
+          "defaultValue": "-1",
+          "help": "-1 继承，0 连续，inf 常量；正数指定周期（秒）。也支持 [Ts 0]，暂不支持非零偏移。"
+        }
+      ]
+    },
+    {
+      "id": "step",
+      "slx": "Step",
+      "label": "Step",
+      "parameters": [
+        {
+          "name": "Time",
+          "label": "阶跃时间",
+          "group": "main",
+          "editor": "expression",
+          "path": "kind.time",
+          "shape": "scalar",
+          "defaultValue": "1"
+        },
+        {
+          "name": "Before",
+          "label": "初始值",
+          "group": "main",
+          "editor": "expression",
+          "path": "kind.before",
+          "shape": "vector",
+          "defaultValue": "0"
+        },
+        {
+          "name": "After",
+          "label": "最终值",
+          "group": "main",
+          "editor": "expression",
+          "path": "kind.after",
+          "shape": "vector",
+          "defaultValue": "1"
+        },
+        {
+          "name": "SampleTime",
+          "label": "采样时间",
+          "group": "execution",
+          "editor": "expression",
+          "path": "sampleTime",
+          "shape": "sampleTime",
+          "defaultValue": "-1",
+          "help": "-1 继承，0 连续，inf 常量；正数指定周期（秒）。也支持 [Ts 0]，暂不支持非零偏移。"
+        }
+      ]
+    },
+    {
+      "id": "inport",
+      "slx": "Inport",
+      "label": "Inport",
+      "parameters": [
+        {
+          "name": "Port",
+          "label": "端口编号",
+          "group": "main",
+          "editor": "readonly",
+          "path": "kind.port",
+          "defaultValue": "1",
+          "help": "当前随同层端口增删自动编号。"
+        }
+      ]
+    },
+    {
+      "id": "outport",
+      "slx": "Outport",
+      "label": "Outport",
+      "parameters": [
+        {
+          "name": "Port",
+          "label": "端口编号",
+          "group": "main",
+          "editor": "readonly",
+          "path": "kind.port",
+          "defaultValue": "1"
+        },
+        {
+          "name": "InitialOutput",
+          "label": "初始输出",
+          "group": "main",
+          "editor": "expression",
+          "path": "initialOutput",
+          "shape": "vector",
+          "defaultValue": "[]",
+          "conditional": true,
+          "help": "当前需要显式有限初值；[] 继承初值尚未支持。"
+        },
+        {
+          "name": "OutputWhenDisabled",
+          "label": "禁用时的输出",
+          "group": "main",
+          "editor": "choice",
+          "path": "outputWhenDisabled",
+          "defaultValue": "held",
+          "conditional": true,
+          "options": [
+            {
+              "value": "held",
+              "supported": true
+            },
+            {
+              "value": "reset",
+              "supported": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "enabled",
+      "slx": "EnablePort",
+      "label": "Enable",
+      "parameters": [
+        {
+          "name": "StatesWhenEnabling",
+          "label": "重新启用时的状态",
+          "group": "main",
+          "editor": "choice",
+          "path": "statesWhenEnabling",
+          "defaultValue": "held",
+          "options": [
+            {
+              "value": "held",
+              "supported": true
+            },
+            {
+              "value": "reset",
+              "supported": true
+            }
+          ]
+        },
+        {
+          "name": "ControlSampleTime",
+          "label": "控制采样周期",
+          "group": "execution",
+          "editor": "expression",
+          "path": "controlPeriod",
+          "shape": "scalar",
+          "defaultValue": "0.1",
+          "extension": true,
+          "help": "OpenMat 当前按显式离散周期检查控制信号（秒）。"
+        }
+      ]
+    },
+    {
+      "id": "triggered",
+      "slx": "TriggerPort",
+      "label": "Trigger",
+      "parameters": [
+        {
+          "name": "TriggerType",
+          "label": "触发类型",
+          "group": "main",
+          "editor": "choice",
+          "path": "triggerType",
+          "defaultValue": "rising",
+          "options": [
+            {
+              "value": "rising",
+              "supported": true
+            },
+            {
+              "value": "falling",
+              "supported": true
+            },
+            {
+              "value": "either",
+              "supported": true
+            },
+            {
+              "value": "function-call",
+              "supported": false
+            }
+          ]
+        },
+        {
+          "name": "ControlSampleTime",
+          "label": "控制采样周期",
+          "group": "execution",
+          "editor": "expression",
+          "path": "controlPeriod",
+          "shape": "scalar",
+          "defaultValue": "0.1",
+          "extension": true,
+          "help": "OpenMat 当前按显式离散周期检测边沿（秒）。"
+        }
+      ]
+    }
+  ]
+}
