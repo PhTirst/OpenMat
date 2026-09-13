@@ -6,11 +6,7 @@ import {
 } from "./model";
 
 export type ComponentIcon =
-    | "function"
-    | "plant"
-    | "controller"
-    | "filter"
-    | "delay";
+    "function" | "plant" | "controller" | "filter" | "delay";
 export interface Callback {
     source: string;
     entry: string;
@@ -98,7 +94,10 @@ const text = (v: unknown, max: number, empty = false): v is string =>
     typeof v === "string" &&
     new TextEncoder().encode(v).length <= max &&
     (empty || v.trim().length > 0);
-export function validateComponent(raw: unknown): ComponentDefinition {
+export function validateComponent(
+    raw: unknown,
+    allowInherited = false,
+): ComponentDefinition {
     const d = record(raw);
     keys(d, [
         "id",
@@ -129,7 +128,13 @@ export function validateComponent(raw: unknown): ComponentDefinition {
         Boolean(d.update) !== d.discreteStates > 0 ||
         (d.sampleTime !== undefined) !== d.discreteStates > 0 ||
         (d.sampleTime !== undefined &&
-            (!finite(d.sampleTime) || d.sampleTime <= 0))
+            (!finite(d.sampleTime) ||
+                (d.sampleTime <= 0 &&
+                    !(
+                        allowInherited &&
+                        d.sampleTime === -1 &&
+                        d.continuousStates === 0
+                    ))))
     )
         throw new Error(
             "组件名称、图标、状态数量或生命周期回调不完整；离散状态需要正的采样周期。",
@@ -275,7 +280,7 @@ export function attachComponent(
     doc: ModelDocument,
     definition: ComponentDefinition,
 ): void {
-    validateComponent(definition);
+    validateComponent(definition, doc.model.schemaVersion === 5);
     const existing = doc.model.components?.find((d) => d.id === definition.id);
     if (existing && !sameComponentDefinition(existing, definition))
         throw new Error(

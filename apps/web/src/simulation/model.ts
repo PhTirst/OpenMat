@@ -1,3 +1,4 @@
+import { parseSampleTimes, type SampleTime } from "./sampling";
 /** OpenMat authoring data. No React Flow implementation fields are persisted. */
 import {
     validateEmbeddedSources,
@@ -20,6 +21,9 @@ export type BlockType =
     | "gain"
     | "integrator"
     | "unitDelay"
+    | "zeroOrderHold"
+    | "discreteIntegrator"
+    | "rateTransition"
     | "scope"
     | "mFunction"
     | "component";
@@ -143,6 +147,9 @@ export type BlockKind =
     | { type: "sum"; signs: number[] }
     | { type: "gain"; gain: number[] }
     | { type: "integrator" | "unitDelay"; initial: number[] }
+    | { type: "zeroOrderHold" }
+    | { type: "discreteIntegrator"; initial: number[]; gain: number }
+    | { type: "rateTransition"; initial: number[]; deterministic: boolean }
     | { type: "scope" }
     | FunctionKind
     | ComponentKind;
@@ -164,7 +171,7 @@ export interface Connection {
     to: Port;
 }
 export interface Model {
-    schemaVersion: 1 | 2 | 3 | 4;
+    schemaVersion: 1 | 2 | 3 | 4 | 5;
     name: string;
     settings: {
         startTime: number;
@@ -175,10 +182,11 @@ export interface Model {
     blocks: Block[];
     connections: Connection[];
     components?: ComponentDefinition[];
+    sampleTimes?: Record<string, SampleTime>;
 }
 export interface ModelDocument {
     format: "openmat-simulation";
-    schemaVersion: 1 | 2 | 3 | 4;
+    schemaVersion: 1 | 2 | 3 | 4 | 5;
     sources?: Record<string, string>;
     slx?: SlxAsset;
     execution?: ExecutionOptions;
@@ -276,6 +284,34 @@ export const DEFINITIONS: readonly BlockDefinition[] = [
         default: [0],
     },
     {
+        type: "zeroOrderHold",
+        label: "Zero-Order Hold",
+        category: "离散",
+        icon: "zeroOrderHold",
+        inputs: ["in"],
+        outputs: ["out"],
+    },
+    {
+        type: "discreteIntegrator",
+        label: "Discrete Integrator",
+        category: "离散",
+        icon: "discreteIntegrator",
+        inputs: ["in"],
+        outputs: ["out"],
+        parameter: "initial",
+        default: [0],
+    },
+    {
+        type: "rateTransition",
+        label: "Rate Transition",
+        category: "离散",
+        icon: "rateTransition",
+        inputs: ["in"],
+        outputs: ["out"],
+        parameter: "initial",
+        default: [0],
+    },
+    {
         type: "scope",
         label: "Scope",
         category: "观察器",
@@ -338,6 +374,11 @@ export function kind(type: BlockType): BlockKind {
         case "integrator":
         case "unitDelay":
             return { type, initial: [0] };
+        case "discreteIntegrator":
+            return { type, initial: [0], gain: 1 };
+        case "rateTransition":
+            return { type, initial: [0], deterministic: true };
+        case "zeroOrderHold":
         case "scope":
             return { type };
     }
@@ -358,6 +399,7 @@ export function parameterText(block: Block): string {
     if (data.type === "component") return data.component;
     if (data.type === "mFunction")
         return `${data.entry}(${data.inputs.map((input) => input.name).join(", ")})`;
+    if (data.type === "zeroOrderHold") return "sample & hold";
     if (data.type === "scope") return "signal → time";
     if (data.type === "sum")
         return data.signs.map((sign) => (sign === 1 ? "+" : "−")).join(" ");
@@ -458,6 +500,7 @@ export function parseModel(value: unknown): Model {
             "blocks",
             "connections",
             "components",
+            "sampleTimes",
         ],
         "模型",
     );
@@ -465,7 +508,8 @@ export function parseModel(value: unknown): Model {
         data.schemaVersion !== 1 &&
         data.schemaVersion !== 2 &&
         data.schemaVersion !== 3 &&
-        data.schemaVersion !== 4
+        data.schemaVersion !== 4 &&
+        data.schemaVersion !== 5
     )
         throw new Error("不支持的模型版本。");
     if (
@@ -473,8 +517,9 @@ export function parseModel(value: unknown): Model {
         (!Array.isArray(data.components) || data.components.length > 64)
     )
         throw new Error("模型组件定义列表无效。");
-    const components = ((data.components ?? []) as unknown[]).map(
-        validateComponent,
+    const schemaVersion = data.schemaVersion;
+    const components = ((data.components ?? []) as unknown[]).map((d) =>
+        validateComponent(d, data.schemaVersion === 5),
     );
     if (components.length && data.schemaVersion < 3)
         throw new Error("组件定义需要模型版本 3。");
@@ -505,12 +550,11 @@ export function parseModel(value: unknown): Model {
             throw new Error(`不支持的方块类型：${String(k.type)}`);
         const def = definition(k.type);
         if (k.type === "component") {
-            if (data.schemaVersion !== 3 && data.schemaVersion !== 4)
+            if (schemaVersion < 3)
                 throw new Error("自定义组件需要模型版本 3。");
             Object.assign(k, validateComponentKind(k, components));
         } else if (k.type === "step") {
-            if (data.schemaVersion !== 4)
-                throw new Error("Step 需要模型版本 4。");
+            if (schemaVersion < 4) throw new Error("Step 需要模型版本 4。");
             keys(k, ["type", "time", "before", "after"], "Step 参数");
             number(k.time, "阶跃时刻");
             for (const values of [k.before, k.after]) {
@@ -524,6 +568,32 @@ export function parseModel(value: unknown): Model {
             }
             if ((k.before as number[]).length !== (k.after as number[]).length)
                 throw new Error("Step 前后值宽度必须相同。");
+        } else if (
+            ["zeroOrderHold", "discreteIntegrator", "rateTransition"].includes(
+                k.type,
+            )
+        ) {
+            if (data.schemaVersion !== 5)
+                throw new Error("此离散方块需要模型版本 5。");
+            keys(
+                k,
+                k.type === "zeroOrderHold"
+                    ? ["type"]
+                    : [
+                          "type",
+                          "initial",
+                          k.type === "discreteIntegrator"
+                              ? "gain"
+                              : "deterministic",
+                      ],
+                "离散方块参数",
+            );
+            if (k.type === "discreteIntegrator") number(k.gain, "积分增益");
+            if (
+                k.type === "rateTransition" &&
+                typeof k.deterministic !== "boolean"
+            )
+                throw new Error("速率转换需要布尔延迟设置。");
         } else if (k.type === "mFunction") {
             if (data.schemaVersion === 1)
                 throw new Error("M Function 需要模型版本 2。");
@@ -589,8 +659,13 @@ export function parseModel(value: unknown): Model {
         inputDrivers.add(target);
         return edge;
     });
+    if (data.sampleTimes !== undefined && data.schemaVersion !== 5)
+        throw new Error("逐方块采样时间需要模型版本 5。");
     return {
         schemaVersion: data.schemaVersion,
+        ...(data.sampleTimes === undefined
+            ? {}
+            : { sampleTimes: parseSampleTimes(data.sampleTimes, ids) }),
         ...(data.components !== undefined ? { components } : {}),
         name: text(data.name, "模型名称"),
         blocks,
@@ -628,13 +703,14 @@ export function parseDocument(source: string): ModelDocument {
         (raw.schemaVersion !== 1 &&
             raw.schemaVersion !== 2 &&
             raw.schemaVersion !== 3 &&
-            raw.schemaVersion !== 4)
+            raw.schemaVersion !== 4 &&
+            raw.schemaVersion !== 5)
     )
         throw new Error("不支持的编辑器文件格式或版本。");
     const doc = fromModel(parseModel(raw.model));
     doc.schemaVersion = raw.schemaVersion;
     if (raw.sources !== undefined || raw.slx !== undefined) {
-        if (raw.schemaVersion !== 4)
+        if (raw.schemaVersion !== 4 && raw.schemaVersion !== 5)
             throw new Error("内嵌源码和 SLX 层级需要文件版本 4。");
         if (raw.sources !== undefined)
             doc.sources = validateEmbeddedSources(raw.sources);
@@ -694,7 +770,10 @@ export function removeSelection(
             !nodes.has(edge.to.block) &&
             !edges.has(edgeId(edge)),
     );
-    for (const id of nodes) delete next.editor.labels[id];
+    for (const id of nodes) {
+        delete next.editor.labels[id];
+        if (next.model.sampleTimes) delete next.model.sampleTimes[id];
+    }
     const kept = new Set(next.model.connections.map(edgeId));
     for (const id of Object.keys(next.editor.bends))
         if (!kept.has(id)) delete next.editor.bends[id];
@@ -720,6 +799,12 @@ export function copySelection(
     fragment.editor.bends = Object.fromEntries(
         Object.entries(fragment.editor.bends).filter(([id]) => edges.has(id)),
     );
+    if (fragment.model.sampleTimes)
+        fragment.model.sampleTimes = Object.fromEntries(
+            Object.entries(fragment.model.sampleTimes).filter(([id]) =>
+                selected.has(id),
+            ),
+        );
     delete fragment.editor.viewport;
     delete fragment.slx;
     if (fragment.sources) {
@@ -756,8 +841,8 @@ export function pasteFragment(
                 throw new Error(`内嵌源码冲突：${path}`);
             next.sources[path] = content;
         }
-        next.schemaVersion = 4;
-        next.model.schemaVersion = 4;
+        if (next.schemaVersion < 4) next.schemaVersion = 4;
+        if (next.model.schemaVersion < 4) next.model.schemaVersion = 4;
     }
     for (const d of fragment.model.components ?? []) {
         if (
@@ -778,6 +863,18 @@ export function pasteFragment(
             },
         });
         next.editor.labels[id] = `${label(fragment, block)} copy`;
+        if (
+            fragment.model.sampleTimes &&
+            Object.hasOwn(fragment.model.sampleTimes, block.id)
+        ) {
+            next.model.sampleTimes ??= {};
+            Object.defineProperty(next.model.sampleTimes, id, {
+                value: structuredClone(fragment.model.sampleTimes[block.id]),
+                enumerable: true,
+                writable: true,
+                configurable: true,
+            });
+        }
     }
     for (const edge of fragment.model.connections) {
         const copied = {

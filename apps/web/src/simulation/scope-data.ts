@@ -1,4 +1,37 @@
-import type { SimulationFrame } from "./client";
+import type { ScopeInfo, SimulationFrame } from "./client";
+import type { SamplingPlan } from "./sampling";
+
+export function scopeHit(
+    frame: SimulationFrame,
+    index: number,
+    scope?: ScopeInfo,
+    sampling?: SamplingPlan,
+): boolean {
+    const rate = scope?.sampleTime;
+    if (!rate || !sampling || rate.kind === "continuous") return true;
+    if (rate.kind === "constant") return index === 0;
+    if (rate.kind !== "discrete") return false;
+    const clock = sampling.clocks.find((c) => c.period === rate.period);
+    return (
+        clock !== undefined && (frame.sampleHits?.includes(clock.id) ?? false)
+    );
+}
+
+export function scopeFrames(
+    frames: readonly SimulationFrame[],
+    scope?: ScopeInfo,
+    sampling?: SamplingPlan,
+): readonly SimulationFrame[] {
+    if (
+        !scope?.sampleTime ||
+        !sampling ||
+        scope.sampleTime.kind === "continuous"
+    )
+        return frames;
+    return frames.filter((frame, index) =>
+        scopeHit(frame, index, scope, sampling),
+    );
+}
 /** Keep both extrema, in time order, in every horizontal pixel bucket. */
 export function envelope(
     frames: readonly SimulationFrame[],
@@ -55,7 +88,24 @@ export function envelope(
 export function csv(
     frames: readonly SimulationFrame[],
     headers: string[],
+    scopes?: readonly ScopeInfo[],
+    sampling?: SamplingPlan,
 ): string {
     const quote = (text: string) => `"${text.replaceAll('"', '""')}"`;
-    return `${["time", ...headers.map((header) => quote(`Scope:${header}`))].join(",")}\r\n${frames.map((frame) => [frame.time, ...frame.values].join(",")).join("\r\n")}\r\n`;
+    const channels = headers.map((_, i) =>
+        scopes?.find((s) => i >= s.offset && i < s.offset + s.width),
+    );
+    const rows = frames.flatMap((frame, index) => {
+        const hits = channels.map((scope) =>
+            scopeHit(frame, index, scope, sampling),
+        );
+        if (hits.length && !hits.some(Boolean)) return [];
+        return [
+            [
+                frame.time,
+                ...frame.values.map((value, i) => (hits[i] ? value : "")),
+            ].join(","),
+        ];
+    });
+    return `${["time", ...headers.map((header) => quote(`Scope:${header}`))].join(",")}\r\n${rows.join("\r\n")}\r\n`;
 }

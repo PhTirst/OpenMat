@@ -1,3 +1,4 @@
+import { parseSamplingPlan, type SamplingPlan } from "./sampling";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
     SimulationClient,
@@ -34,6 +35,10 @@ export function useSimulationRun(url: string | undefined) {
     const [connected, setConnected] = useState(false);
     const [connectionError, setConnectionError] = useState<string | null>(null);
     const [status, setStatus] = useState<RunStatus>("idle");
+    const [checkedSampling, setCheckedSampling] = useState<{
+        source: string;
+        plan: SamplingPlan;
+    } | null>(null);
     const [info, setInfo] = useState<RunInfo | null>(null);
     const [diagnostics, setDiagnostics] = useState<SimulationDiagnostic[]>([]);
     const [version, setVersion] = useState(0);
@@ -222,6 +227,9 @@ export function useSimulationRun(url: string | undefined) {
                     connection.disconnect();
                     throw new Error("运行响应无效。");
                 }
+                if (result.sampling)
+                    result.sampling = parseSamplingPlan(result.sampling);
+                setCheckedSampling(null);
                 active.current = result;
                 setInfo(result);
                 setStatus("running");
@@ -242,16 +250,22 @@ export function useSimulationRun(url: string | undefined) {
                 )
             )
                 return;
+            setCheckedSampling(null);
             setStatus("checking");
             statusRef.current = "checking";
             setDiagnostics([]);
             try {
-                await connection.check(
+                const result = await connection.check(
                     structuredClone(model),
                     crypto.randomUUID(),
                     snapshot,
                 );
                 if (client.current !== connection) return;
+                if (result.plan.sampling)
+                    setCheckedSampling({
+                        source: numericalSource(model, snapshot),
+                        plan: parseSamplingPlan(result.plan.sampling),
+                    });
                 statusRef.current = "idle";
                 setStatus("idle");
                 setDiagnostics([
@@ -289,6 +303,7 @@ export function useSimulationRun(url: string | undefined) {
         frames.current = [];
         source.current = "";
         setInfo(null);
+        setCheckedSampling(null);
         setSolverStats(null);
         setDiagnostics([]);
         setElapsed(0);
@@ -303,6 +318,7 @@ export function useSimulationRun(url: string | undefined) {
         reconnect,
         status,
         info,
+        checkedSampling,
         diagnostics,
         setDiagnostics,
         frames,

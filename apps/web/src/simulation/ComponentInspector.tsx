@@ -35,9 +35,11 @@ export function ComponentInspector({
             <p className="sim-help">
                 {definition.continuousStates} 个连续状态 ·{" "}
                 {definition.discreteStates} 个离散状态
-                {definition.sampleTime
-                    ? ` · Ts = ${definition.sampleTime} s`
-                    : ""}
+                {definition.sampleTime === -1
+                    ? " · Ts 继承"
+                    : definition.sampleTime
+                      ? ` · Ts = ${definition.sampleTime} s`
+                      : ""}
                 。每个实例独立保存状态。
             </p>
             <h3>实例参数</h3>

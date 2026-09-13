@@ -1,3 +1,6 @@
+import { CommitField } from "./CommitField";
+import { SamplingInspector } from "./SamplingInspector";
+import { sampleTimeText } from "./sampling";
 import {
     Suspense,
     lazy,
@@ -174,46 +177,6 @@ function initialDraft(key: string): Draft {
     }
     const content = serializeDocument(example("feedback"));
     return { content, saved: content, file: null };
-}
-function CommitField({
-    value,
-    onCommit,
-    name,
-    type = "text",
-}: {
-    value: string;
-    onCommit(value: string): void | boolean;
-    name: string;
-    type?: string;
-}) {
-    const [draft, setDraft] = useState(value);
-    const cancelled = useRef(false);
-    useEffect(() => setDraft(value), [value]);
-    return (
-        <input
-            aria-label={name}
-            type={type}
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            onBlur={() => {
-                if (
-                    !cancelled.current &&
-                    draft !== value &&
-                    onCommit(draft) === false
-                )
-                    setDraft(value);
-                cancelled.current = false;
-            }}
-            onKeyDown={(event) => {
-                if (event.key === "Enter") event.currentTarget.blur();
-                if (event.key === "Escape") {
-                    cancelled.current = true;
-                    setDraft(value);
-                    event.currentTarget.blur();
-                }
-            }}
-        />
-    );
 }
 function ResizeBar({
     direction,
@@ -446,25 +409,39 @@ function Editor(props: Props) {
         [],
     );
     const edit = useCallback((next: ModelDocument, regenerated = false) => {
+        let version = next.model.schemaVersion;
         if (
-            next.sources ||
-            next.slx ||
-            next.model.blocks.some((b) => b.kind.type === "step")
+            next.model.sampleTimes ||
+            next.model.blocks.some((b) =>
+                [
+                    "zeroOrderHold",
+                    "discreteIntegrator",
+                    "rateTransition",
+                ].includes(b.kind.type),
+            )
         )
-            next.model.schemaVersion = 4;
+            version = 5;
         else if (
-            next.model.components?.length ||
-            next.model.blocks.some((b) => b.kind.type === "component")
+            version < 4 &&
+            (next.sources ||
+                next.slx ||
+                next.model.blocks.some((b) => b.kind.type === "step"))
         )
-            next.model.schemaVersion = 3;
+            version = 4;
         else if (
-            next.model.blocks.some((block) => block.kind.type === "mFunction")
+            version < 3 &&
+            (next.model.components?.length ||
+                next.model.blocks.some((b) => b.kind.type === "component"))
         )
-            next.model.schemaVersion = 2;
-        if (next.model.schemaVersion === 4) next.schemaVersion = 4;
-        else if (next.model.schemaVersion === 3) next.schemaVersion = 3;
-        else if (next.model.schemaVersion === 2 || next.execution)
-            next.schemaVersion = 2;
+            version = 3;
+        else if (
+            version < 2 &&
+            next.model.blocks.some((b) => b.kind.type === "mFunction")
+        )
+            version = 2;
+        next.model.schemaVersion = version;
+        if (next.schemaVersion < version) next.schemaVersion = version;
+        if (next.execution && next.schemaVersion < 2) next.schemaVersion = 2;
         if (
             !regenerated &&
             next.slx &&
@@ -851,10 +828,13 @@ function Editor(props: Props) {
                     },
                 ),
             );
-            next.schemaVersion = 4;
+            next.schemaVersion =
+                next.model.schemaVersion < 4 ? 4 : next.model.schemaVersion;
             next.sources = result.sources ?? {};
             next.slx = {
                 ...asset,
+                profile: result.profile ?? "control-v1",
+                ...(result.sampling ? { sampling: result.sampling } : {}),
                 appliedParameters: asset.parameters,
                 runnable: result.runnable,
                 issues: result.issues,
@@ -899,15 +879,19 @@ function Editor(props: Props) {
                 new Blob([decodeSlx(asset.package)]),
                 asset.name,
                 asset.parameters,
+                asset.profile ?? "control-v1",
             );
             if (!alive.current) return;
             const next = structuredClone(docRef.current);
             next.slx = {
                 ...asset,
+                profile: result.profile ?? asset.profile ?? "control-v1",
+                ...(result.sampling ? { sampling: result.sampling } : {}),
                 runnable: result.runnable,
                 issues: result.issues,
                 document: result.document,
             };
+            if (!result.sampling) delete next.slx.sampling;
             if (result.runnable && result.model) {
                 const imported = parseDocument(JSON.stringify(result.model));
                 const oldPositions = new Map(
@@ -1106,6 +1090,21 @@ function Editor(props: Props) {
                 });
             }
             change((next) => {
+                if (
+                    [
+                        "zeroOrderHold",
+                        "discreteIntegrator",
+                        "rateTransition",
+                    ].includes(type)
+                ) {
+                    next.model.sampleTimes ??= {};
+                    next.model.sampleTimes[id] = {
+                        kind: "discrete",
+                        period:
+                            next.model.settings.sampleTime ??
+                            next.model.settings.maxStep,
+                    };
+                }
                 next.model.blocks.push({
                     id,
                     kind: blockKind,
@@ -1184,7 +1183,10 @@ function Editor(props: Props) {
                 attachComponent(next, definition);
                 pendingSources = copied.sources;
             }
-            if (definition.sampleTime !== undefined) {
+            if (
+                next.model.schemaVersion < 5 &&
+                definition.sampleTime !== undefined
+            ) {
                 const hasDiscrete = next.model.blocks.some(
                     (b) =>
                         b.kind.type === "unitDelay" ||
@@ -1195,7 +1197,7 @@ function Editor(props: Props) {
                     next.model.settings.sampleTime !== definition.sampleTime
                 )
                     throw new Error(
-                        "当前阶段所有离散组件需要相同的采样周期，请先统一模型与组件的周期。",
+                        "当前模型使用单周期格式；可在模型设置启用多速率采样，再为组件设置独立周期。",
                     );
                 next.model.settings.sampleTime = definition.sampleTime;
             }
@@ -1279,7 +1281,10 @@ function Editor(props: Props) {
                 }),
             );
         }
-        if (definition.sampleTime !== undefined) {
+        if (
+            next.model.schemaVersion < 5 &&
+            definition.sampleTime !== undefined
+        ) {
             if (
                 next.model.blocks.some((b) => {
                     const d = componentFor(next.model, b);
@@ -1289,7 +1294,9 @@ function Editor(props: Props) {
                     );
                 })
             )
-                throw new Error("当前阶段所有离散组件需要相同的采样周期。");
+                throw new Error(
+                    "当前模型使用单周期格式；请在模型设置启用多速率采样。",
+                );
             next.model.settings.sampleTime = definition.sampleTime;
         }
         if (modelSources(next.model).length > 64)
@@ -1450,20 +1457,20 @@ function Editor(props: Props) {
                 );
             return Boolean(
                 from &&
-                    to &&
-                    connection.sourceHandle &&
-                    connection.targetHandle &&
-                    ports(from, model.components).outputs.includes(
-                        connection.sourceHandle,
-                    ) &&
-                    ports(to, model.components).inputs.includes(
-                        connection.targetHandle,
-                    ) &&
-                    !model.connections.some(
-                        (edge) =>
-                            edge.to.block === connection.target &&
-                            edge.to.port === connection.targetHandle,
-                    ),
+                to &&
+                connection.sourceHandle &&
+                connection.targetHandle &&
+                ports(from, model.components).outputs.includes(
+                    connection.sourceHandle,
+                ) &&
+                ports(to, model.components).inputs.includes(
+                    connection.targetHandle,
+                ) &&
+                !model.connections.some(
+                    (edge) =>
+                        edge.to.block === connection.target &&
+                        edge.to.port === connection.targetHandle,
+                ),
             );
         },
         [],
@@ -1922,7 +1929,8 @@ function Editor(props: Props) {
                 if (
                     type === "mFunction" ||
                     type === "component" ||
-                    type === "step"
+                    type === "step" ||
+                    type === "zeroOrderHold"
                 )
                     return;
                 node.kind =
@@ -1934,7 +1942,10 @@ function Editor(props: Props) {
                             ? { type, signs: values }
                             : type === "scope"
                               ? { type }
-                              : { type, initial: values };
+                              : ({
+                                    ...node.kind,
+                                    initial: values,
+                                } as Block["kind"]);
                 const inputs = ports(node, next.model.components).inputs;
                 next.model.connections = next.model.connections.filter(
                     (edge) =>
@@ -1961,9 +1972,19 @@ function Editor(props: Props) {
                     ),
                 ) ?? [];
             await platform.saveExport(
-                new Blob([csv(run.frames.current, headers)], {
-                    type: "text/csv;charset=utf-8",
-                }),
+                new Blob(
+                    [
+                        csv(
+                            run.frames.current,
+                            headers,
+                            run.info?.scopes,
+                            run.info?.sampling,
+                        ),
+                    ],
+                    {
+                        type: "text/csv;charset=utf-8",
+                    },
+                ),
                 `${doc.model.name}-results.csv`,
             );
         } catch (error) {
@@ -2172,6 +2193,9 @@ function Editor(props: Props) {
                     </option>
                     <option value="massSpring">质量—弹簧—阻尼 · m 组件</option>
                     <option value="piControl">离散 PI + 连续系统</option>
+                    <option value="multirate">
+                        多速率 PI · 10 ms / 100 ms
+                    </option>
                     <option value="stress">300 方块交互测试</option>
                 </select>
             </div>
@@ -2629,6 +2653,7 @@ function Editor(props: Props) {
                             <ScopePanel
                                 frames={run.frames.current}
                                 scopes={run.info?.scopes ?? []}
+                                sampling={run.info?.sampling}
                                 version={run.version}
                                 names={doc.editor.labels}
                                 dark={theme === "modern-dark"}
@@ -2703,6 +2728,19 @@ function Editor(props: Props) {
                                         {originalBlock.sid}
                                         <br />
                                         {originalBlock.source.part}
+                                    </p>
+                                    <p className="sim-help">
+                                        实际采样：
+                                        {sampleTimeText(
+                                            doc.slx?.runnable &&
+                                                !doc.slx.snapshotEdited &&
+                                                doc.slx.parameters ===
+                                                    doc.slx.appliedParameters
+                                                ? doc.slx.sampling?.blocks[
+                                                      `slx_${originalBlock.sid.replaceAll(":", "_")}`
+                                                  ]
+                                                : undefined,
+                                        )}
                                     </p>
                                     <dl className="sim-slx-original-parameters">
                                         {Object.entries(
@@ -2785,6 +2823,53 @@ function Editor(props: Props) {
                                     }}
                                 />
                             </label>
+                            <SamplingInspector
+                                key={`sampling-${chosen.id}`}
+                                model={doc.model}
+                                block={chosen}
+                                resolved={
+                                    (run.checkedSampling?.source === numerical
+                                        ? run.checkedSampling.plan
+                                        : run.info &&
+                                            run.source.current === numerical
+                                          ? run.info.sampling
+                                          : doc.slx?.runnable &&
+                                              !doc.slx.snapshotEdited &&
+                                              doc.slx.parameters ===
+                                                  doc.slx.appliedParameters
+                                            ? doc.slx.sampling
+                                            : undefined
+                                    )?.blocks[chosen.id]
+                                }
+                                onError={setError}
+                                onChange={(rate) =>
+                                    change((next) => {
+                                        next.model.sampleTimes ??= {};
+                                        if (rate)
+                                            Object.defineProperty(
+                                                next.model.sampleTimes,
+                                                chosen.id,
+                                                {
+                                                    value: rate,
+                                                    enumerable: true,
+                                                    writable: true,
+                                                    configurable: true,
+                                                },
+                                            );
+                                        else
+                                            delete next.model.sampleTimes[
+                                                chosen.id
+                                            ];
+                                    })
+                                }
+                                onKindChange={(value) =>
+                                    change((next) => {
+                                        next.model.blocks.find(
+                                            (b) => b.id === chosen.id,
+                                        )!.kind = value;
+                                    })
+                                }
+                            />
                             {chosen.kind.type === "mFunction" && (
                                 <FunctionInspector
                                     value={chosen.kind}
@@ -2964,9 +3049,10 @@ function Editor(props: Props) {
                                     <ComponentInspector
                                         key={chosen.id}
                                         value={chosen.kind}
-                                        definition={
-                                            componentFor(doc.model, chosen)!
-                                        }
+                                        definition={componentFor(
+                                            doc.model,
+                                            chosen,
+                                        )!}
                                         disabled={!editable}
                                         onChange={(kind) =>
                                             change((next) => {
@@ -3009,7 +3095,8 @@ function Editor(props: Props) {
                                         }}
                                     />
                                 )}
-                            {chosen.kind.type !== "scope" &&
+                            {chosen.kind.type !== "zeroOrderHold" &&
+                                chosen.kind.type !== "scope" &&
                                 chosen.kind.type !== "mFunction" &&
                                 chosen.kind.type !== "step" &&
                                 chosen.kind.type !== "component" && (
@@ -3037,7 +3124,7 @@ function Editor(props: Props) {
                                     : chosen.kind.type === "gain"
                                       ? "当前 Gain 为逐元素增益。支持标量或与输入等宽的向量。"
                                       : chosen.kind.type === "unitDelay"
-                                        ? "一个采样周期的延迟；所有离散方块共用模型采样周期。"
+                                        ? "一个自身采样周期的延迟；可继承或单独指定周期。"
                                         : chosen.kind.type === "integrator"
                                           ? "输入为状态导数，输出为当前连续状态。"
                                           : chosen.kind.type === "scope"
@@ -3132,6 +3219,17 @@ function Editor(props: Props) {
                                     }}
                                 />
                             </label>
+                            {doc.model.schemaVersion < 5 && (
+                                <button
+                                    onClick={() =>
+                                        change((next) => {
+                                            next.model.schemaVersion = 5;
+                                        })
+                                    }
+                                >
+                                    启用多速率采样
+                                </button>
+                            )}
                             <SolverInspector
                                 value={doc.execution}
                                 capabilities={run.capabilities}
@@ -3227,6 +3325,7 @@ function Editor(props: Props) {
             {componentDraft && (
                 <ComponentDialog
                     value={componentDraft.definition}
+                    allowInherited={doc.model.schemaVersion === 5}
                     onApply={applyComponent}
                     onClose={() => setComponentDraft(null)}
                 />

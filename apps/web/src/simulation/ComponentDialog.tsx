@@ -30,10 +30,12 @@ export function blankComponent(id: string): ComponentDefinition {
 }
 export function ComponentDialog({
     value,
+    allowInherited = false,
     onApply,
     onClose,
 }: {
     value: ComponentDefinition;
+    allowInherited?: boolean;
     onApply(d: ComponentDefinition): void;
     onClose(): void;
 }) {
@@ -90,7 +92,7 @@ export function ComponentDialog({
                 } else next[role] ??= newCallback(next.id, role);
             }
             if (!next.discreteStates) delete next.sampleTime;
-            onApply(validateComponent(next));
+            onApply(validateComponent(next, allowInherited));
         } catch (e) {
             setError(e instanceof Error ? e.message : String(e));
         }
@@ -220,10 +222,18 @@ export function ComponentDialog({
                     {draft.discreteStates > 0 && (
                         <label>
                             采样周期 (s)
+                            {allowInherited && draft.continuousStates === 0
+                                ? "，-1 为继承"
+                                : ""}
                             <input
                                 aria-label="组件采样周期"
                                 type="number"
-                                min={0}
+                                min={
+                                    allowInherited &&
+                                    draft.continuousStates === 0
+                                        ? -1
+                                        : 0
+                                }
                                 step="any"
                                 value={draft.sampleTime ?? 0.1}
                                 onChange={(e) =>

@@ -1,3 +1,4 @@
+import multirateModel from "../../../../simulation/examples/multirate-control.omsim.json";
 import {
     emptyDocument,
     fromModel,
@@ -44,11 +45,13 @@ export type Example =
     | "pendulum"
     | "customDelay"
     | "massSpring"
-    | "piControl";
+    | "piControl"
+    | "multirate";
 export function example(name: Example): ModelDocument {
     if (name === "pendulum") return fromModel(parseModel(pendulumModel));
     if (name === "customDelay") return fromModel(parseModel(delayModel));
     if (name === "massSpring") return fromModel(parseModel(plantModel));
+    if (name === "multirate") return fromModel(parseModel(multirateModel));
     if (name === "piControl") return fromModel(parseModel(piModel));
     const doc = emptyDocument(
         name === "blank"

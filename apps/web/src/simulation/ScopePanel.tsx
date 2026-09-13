@@ -1,6 +1,7 @@
-import { memo, useEffect, useRef, useState } from "react";
+import type { SamplingPlan } from "./sampling";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { ScopeInfo, SimulationFrame } from "./client";
-import { envelope } from "./scope-data";
+import { envelope, scopeFrames } from "./scope-data";
 const COLORS = [
     "#2689da",
     "#d88034",
@@ -14,12 +15,14 @@ const COLORS = [
 export const ScopePanel = memo(function ScopePanel({
     frames,
     scopes,
+    sampling,
     version,
     names,
     dark,
 }: {
     frames: readonly SimulationFrame[];
     scopes: readonly ScopeInfo[];
+    sampling?: SamplingPlan | undefined;
     version: number;
     names: Record<string, string>;
     dark: boolean;
@@ -29,6 +32,14 @@ export const ScopePanel = memo(function ScopePanel({
     const [stairs, setStairs] = useState(false);
     const [startChannel, setStartChannel] = useState(0);
     const scope = scopes.find((item) => item.block === selected) ?? scopes[0];
+    const observed = useMemo(
+        () => scopeFrames(frames, scope, sampling),
+        [frames, scope, sampling, version],
+    );
+    const stepped =
+        stairs ||
+        scope?.sampleTime?.kind === "discrete" ||
+        scope?.sampleTime?.kind === "constant";
     const offset = scope?.offset ?? 0,
         width = scope?.width ?? 0;
     const firstChannel = Math.min(
@@ -60,7 +71,7 @@ export const ScopePanel = memo(function ScopePanel({
             ctx.fillStyle = dark ? "#20252b" : "#fff";
             ctx.fillRect(0, 0, w, h);
             ctx.font = '11px "Segoe UI", sans-serif';
-            if (!frames.length || !width) {
+            if (!observed.length || !width) {
                 ctx.fillStyle = dark ? "#a3afbe" : "#667488";
                 ctx.textAlign = "center";
                 ctx.fillText(
@@ -73,7 +84,7 @@ export const ScopePanel = memo(function ScopePanel({
             let low = Infinity,
                 high = -Infinity;
             const series = Array.from({ length: shown }, (_, ch) =>
-                envelope(frames, offset + firstChannel + ch, right - left),
+                envelope(observed, offset + firstChannel + ch, right - left),
             );
             series.forEach((points) =>
                 points.forEach((point) => {
@@ -139,11 +150,21 @@ export const ScopePanel = memo(function ScopePanel({
                             ((point.value - low) / dy) * (bottom - top);
                     if (!i) ctx.moveTo(x, y);
                     else {
-                        if (stairs) ctx.lineTo(x, previousY);
+                        if (stepped) ctx.lineTo(x, previousY);
                         ctx.lineTo(x, y);
                     }
                     previousY = y;
                 });
+                if (points.length === 1) {
+                    const point = points[0]!;
+                    ctx.arc(
+                        left + ((point.time - begin) / dx) * (right - left),
+                        bottom - ((point.value - low) / dy) * (bottom - top),
+                        2,
+                        0,
+                        2 * Math.PI,
+                    );
+                }
                 ctx.stroke();
             });
             ctx.restore();
@@ -162,10 +183,13 @@ export const ScopePanel = memo(function ScopePanel({
             observer.disconnect();
             cancelAnimationFrame(scheduled);
         };
-    }, [frames, version, offset, width, shown, firstChannel, dark, stairs]);
+    }, [frames, observed, offset, width, shown, firstChannel, dark, stepped]);
     return (
         <div className="sim-scope">
             <div className="sim-scope-toolbar">
+                <span aria-label="Scope 记录点数">
+                    {observed.length} 个记录点
+                </span>
                 <label>
                     Scope{" "}
                     <select
@@ -190,7 +214,11 @@ export const ScopePanel = memo(function ScopePanel({
                 <label>
                     <input
                         type="checkbox"
-                        checked={stairs}
+                        checked={stepped}
+                        disabled={
+                            scope?.sampleTime?.kind === "discrete" ||
+                            scope?.sampleTime?.kind === "constant"
+                        }
                         onChange={(event) => setStairs(event.target.checked)}
                     />
                     阶梯显示
@@ -219,7 +247,9 @@ export const ScopePanel = memo(function ScopePanel({
                         </span>
                     ))}
                 </span>
-                <span>{frames.length.toLocaleString()} samples</span>
+                {!sampling && (
+                    <span>{frames.length.toLocaleString()} samples</span>
+                )}
             </div>
             <canvas ref={canvas} aria-label="Scope 仿真结果曲线" role="img" />
         </div>

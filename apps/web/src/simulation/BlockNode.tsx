@@ -103,6 +103,24 @@ export function BlockIcon({
                 <path d="M6 10h7l-7 7h7m2-11h3m1-2v5" />
             </>
         ),
+        zeroOrderHold: (
+            <>
+                <path d="M3 20h18M4 18h5v-5h5V7h6M4 4v16" />
+                <circle cx="9" cy="13" r="1" />
+                <circle cx="14" cy="7" r="1" />
+            </>
+        ),
+        discreteIntegrator: (
+            <>
+                <rect x="2" y="2" width="20" height="20" rx="3" />
+                <path d="M16 6H7l5 6-5 6h9M18 10v4" />
+            </>
+        ),
+        rateTransition: (
+            <>
+                <path d="M2 8h4m3 0h4m3 0h6M2 17h8m4 0h8M9 11l3 3 3-3M12 5v9" />
+            </>
+        ),
         scope: (
             <>
                 <rect x="2" y="3" width="20" height="16" rx="3" />
