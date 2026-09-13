@@ -152,6 +152,7 @@ pub struct Program {
     input_count: usize,
     instructions: Vec<Instruction>,
     outputs: Vec<usize>,
+    guards: Vec<Option<usize>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -201,9 +202,31 @@ impl Program {
         }
         Ok(Self {
             input_count,
+            guards: vec![None; instructions.len()],
             instructions,
             outputs,
         })
+    }
+
+    /// Attach dominating execution predicates; inactive instructions produce zero.
+    /// # Errors
+    /// Rejects mismatched or non-dominating guards before either backend executes.
+    pub fn with_guards(mut self, guards: Vec<Option<usize>>) -> Result<Self, EvalError> {
+        if guards.len() != self.instructions.len()
+            || guards
+                .iter()
+                .enumerate()
+                .any(|(i, g)| g.is_some_and(|g| g >= i))
+        {
+            return Err(EvalError("invalid numerical execution guard".into()));
+        }
+        self.guards = guards;
+        Ok(self)
+    }
+
+    #[must_use]
+    pub fn guards(&self) -> &[Option<usize>] {
+        &self.guards
     }
 
     #[must_use]
@@ -232,6 +255,9 @@ impl Program {
         }
         for i in (0..used.len()).rev() {
             if used[i] {
+                if let Some(guard) = self.guards[i] {
+                    used[guard] = true;
+                }
                 for id in self.instructions[i].operands() {
                     used[id] = true;
                 }
@@ -239,15 +265,18 @@ impl Program {
         }
         let mut mapping = vec![0; used.len()];
         let mut instructions = Vec::new();
+        let mut guards = Vec::new();
         for (i, op) in self.instructions.iter().enumerate() {
             if used[i] {
                 mapping[i] = instructions.len();
                 instructions.push(op.remap(|id| mapping[id]));
+                guards.push(self.guards[i].map(|id| mapping[id]));
             }
         }
         Self {
             input_count: self.input_count,
             instructions,
+            guards,
             outputs: self.outputs.iter().map(|&id| mapping[id]).collect(),
         }
     }
@@ -285,6 +314,10 @@ impl Kernel for ReferenceKernel {
             return Err(EvalError("numerical kernel buffer length mismatch".into()));
         }
         for (index, instruction) in self.program.instructions.iter().enumerate() {
+            if self.program.guards[index].is_some_and(|g| self.registers[g] == 0.0) {
+                self.registers[index] = 0.0;
+                continue;
+            }
             self.registers[index] = match *instruction {
                 Instruction::Input(input) => inputs[input],
                 Instruction::Constant(value) => value,

@@ -5,6 +5,7 @@ pub mod authoring;
 mod compiler;
 pub mod component;
 mod component_compiler;
+pub mod conditional;
 mod diagnostic;
 mod engine;
 pub mod hybrid;

@@ -13,6 +13,70 @@ fn directory() -> PathBuf {
 }
 
 #[test]
+#[ignore = "requires pinned SUNDIALS runtime"]
+fn cvode_conditional_controller_and_triggered_state_match_reference_clock_hits() {
+    for source in [
+        include_str!("../../../examples/enabled-control.omsim.json"),
+        include_str!("../../../examples/triggered-counter.omsim.json"),
+    ] {
+        let doc: serde_json::Value = serde_json::from_str(source).unwrap();
+        let model = serde_json::from_value(doc["model"].clone()).unwrap();
+        let sources = serde_json::from_value(
+            doc.get("sources")
+                .cloned()
+                .unwrap_or_else(|| serde_json::json!({})),
+        )
+        .unwrap();
+        let plan = compile_with_sources(&model, &sources).unwrap();
+        let runner = || {
+            Runner::new_with_update(
+                plan.clone(),
+                ReferenceKernel::new(plan.program().clone()),
+                plan.update_program().cloned().map(ReferenceKernel::new),
+            )
+            .unwrap()
+        };
+        let reference = runner().collect(CollectionLimits::default()).unwrap();
+        for method in [Method::Adams, Method::Bdf] {
+            let solver = Cvode::new(
+                &directory(),
+                plan.continuous_state_count(),
+                Options {
+                    method,
+                    relative_tolerance: 1e-9,
+                    absolute_tolerance: 1e-11,
+                },
+            )
+            .unwrap();
+            let actual = runner()
+                .with_solver(Box::new(solver))
+                .unwrap()
+                .collect(CollectionLimits::default())
+                .unwrap();
+            let a: Vec<_> = actual
+                .frames
+                .iter()
+                .filter(|f| !f.sample_hits.is_empty())
+                .collect();
+            let b: Vec<_> = reference
+                .frames
+                .iter()
+                .filter(|f| !f.sample_hits.is_empty())
+                .collect();
+            assert_eq!(a.len(), b.len());
+            for (a, b) in a.into_iter().zip(b) {
+                assert!((a.time - b.time).abs() < 1e-12);
+                assert_eq!(a.execution_hits, b.execution_hits);
+                assert_eq!(a.execution_events, b.execution_events);
+                for (x, y) in a.values.iter().zip(&b.values) {
+                    assert!((x - y).abs() < 1e-6, "{method:?} at {}: {x} != {y}", a.time);
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn missing_runtime_and_invalid_options_are_explicit_errors() {
     assert!(Cvode::new(std::path::Path::new("missing"), 1, Options::default()).is_err());
     assert!(Cvode::new(std::path::Path::new("missing"), 2049, Options::default()).is_err());

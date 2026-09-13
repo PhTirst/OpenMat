@@ -13,6 +13,54 @@ fn library() -> PathBuf {
 }
 
 #[test]
+#[ignore = "requires pinned LLVM runtime"]
+fn native_conditional_examples_match_reference() {
+    for source in [
+        include_str!("../../../examples/enabled-control.omsim.json"),
+        include_str!("../../../examples/triggered-counter.omsim.json"),
+    ] {
+        let doc: serde_json::Value = serde_json::from_str(source).unwrap();
+        let model = serde_json::from_value(doc["model"].clone()).unwrap();
+        let sources = serde_json::from_value(
+            doc.get("sources")
+                .cloned()
+                .unwrap_or_else(|| serde_json::json!({})),
+        )
+        .unwrap();
+        let plan = openmat_sim::compile_with_sources(&model, &sources).unwrap();
+        let reference = Runner::new_with_update(
+            plan.clone(),
+            ReferenceKernel::new(plan.program().clone()),
+            plan.update_program().cloned().map(ReferenceKernel::new),
+        )
+        .unwrap()
+        .collect(CollectionLimits::default())
+        .unwrap();
+        let actual = Runner::new_with_update(
+            plan.clone(),
+            LlvmKernel::compile(plan.program().clone(), &library()).unwrap(),
+            plan.update_program()
+                .cloned()
+                .map(|p| LlvmKernel::compile(p, &library()).unwrap()),
+        )
+        .unwrap()
+        .collect(CollectionLimits::default())
+        .unwrap();
+        assert_eq!(actual.scopes, reference.scopes);
+        assert_eq!(actual.frames.len(), reference.frames.len());
+        for (a, b) in actual.frames.iter().zip(&reference.frames) {
+            assert_eq!(a.execution_events, b.execution_events);
+            assert_eq!(a.execution_hits, b.execution_hits);
+            assert_eq!(a.sample_hits, b.sample_hits);
+            assert!((a.time - b.time).abs() < 1e-12);
+            for (x, y) in a.values.iter().zip(&b.values) {
+                assert!((x - y).abs() < 1e-12);
+            }
+        }
+    }
+}
+
+#[test]
 fn missing_native_library_is_an_error() {
     let program = Program::new(1, vec![Instruction::Input(0)], vec![0]).unwrap();
     assert!(

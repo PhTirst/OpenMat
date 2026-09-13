@@ -68,6 +68,79 @@ pub(crate) fn connections(document: &Document, nodes: &[Node<'_>]) -> Result<Vec
     Ok(edges)
 }
 
+/// Preserve local boundary edges for the schema-8 native hierarchy.
+pub(crate) fn local_connections(
+    document: &Document,
+    nodes: &[Node<'_>],
+) -> Result<Vec<Edge>, Issue> {
+    let ids: BTreeMap<_, _> = nodes
+        .iter()
+        .enumerate()
+        .map(|(i, n)| (n.source.sid.as_str(), i))
+        .collect();
+    let mut drivers = BTreeMap::new();
+    for system in &document.systems {
+        let local = system.blocks.iter().map(|b| b.sid.as_str()).collect();
+        for line in &system.lines {
+            collect_line(line, None, &local, &ids, nodes, &mut drivers)?;
+        }
+    }
+    Ok(drivers
+        .into_iter()
+        .filter(|(to, _)| !matches!(nodes[to.block].kind, Kind::Terminator))
+        .map(|(to, from)| Edge { from, to })
+        .collect())
+}
+
+pub(crate) fn source_pin(source: &str, nodes: &[Node<'_>]) -> Result<Pin, Issue> {
+    let ids: BTreeMap<_, _> = nodes
+        .iter()
+        .enumerate()
+        .map(|(i, n)| (n.source.sid.as_str(), i))
+        .collect();
+    endpoint(source, true, &ids.keys().copied().collect(), &ids, nodes)
+}
+
+pub(crate) fn resolved_source(
+    document: &Document,
+    nodes: &[Node<'_>],
+    edges: &[Edge],
+    source: &str,
+) -> Result<Pin, Issue> {
+    let ids: BTreeMap<_, _> = nodes
+        .iter()
+        .enumerate()
+        .map(|(i, n)| (n.source.sid.as_str(), i))
+        .collect();
+    let mut parents = BTreeMap::new();
+    let mut outputs = BTreeMap::new();
+    for system in &document.systems {
+        if let Some(parent) = &system.parent_block {
+            for b in &system.blocks {
+                let index = ids[b.sid.as_str()];
+                let parent = ids[parent.as_str()];
+                parents.insert(index, parent);
+                if let Kind::Outport(port) = nodes[index].kind {
+                    outputs.insert(
+                        Pin {
+                            block: parent,
+                            port: port - 1,
+                        },
+                        index,
+                    );
+                }
+            }
+        }
+    }
+    resolve(
+        source_pin(source, nodes)?,
+        nodes,
+        &edges.iter().map(|e| (e.to, e.from)).collect(),
+        &parents,
+        &outputs,
+    )
+}
+
 fn collect_line(
     line: &Line,
     inherited: Option<&str>,

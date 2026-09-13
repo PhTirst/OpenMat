@@ -30,6 +30,10 @@ Schema 7 adds [native virtual subsystems and experiment data](docs/native-author
 group/ungroup editing, Product/Mux/Demux/State-Space/Transfer Fcn, embedded CSV
 inputs, root outputs and explicit export to the ordinary m workspace.
 
+Schema 8 and `conditional-v1` add [conditional subsystems](docs/conditional-subsystems.md):
+sampled Enabled/Triggered execution, separate state/output policies, private m
+component state, conditional Scope records, and guarded reference/LLVM execution.
+
 The editor and streaming service are described by
 [RFC 0012](../docs/rfcs/0012-simulation-editor-v0.md). The editor opens the raw
 `.omsim.json` models below and saves `.omsim` authoring documents containing the
@@ -63,6 +67,8 @@ serialized buffer layout does not change m-language one-based indexing.
 | [periodic-reset](examples/periodic-reset.omsim.json) | Continuous and 50 ms discrete reset integrators | Event-marked sawtooth trajectories |
 | [pi-control](examples/pi-control.omsim.json) | Sampled PI driving a continuous plant | Held command, saturation and continuous response |
 | [experiment-control](examples/experiment-control.omsim.json) | Native PI subsystem, Transfer Fcn plant and embedded two-channel data | Reference/simulation/synthetic observation comparison and m workspace export |
+| [enabled-control](examples/enabled-control.omsim.json) | Enabled discrete PI with a continuous plant | Pause/resume, held internal state and reset disabled output |
+| [triggered-counter](examples/triggered-counter.omsim.json) | Triggered m component with private state | Five rising-edge calls, inner Scope records actual invocations |
 
 The first model can be read as:
 

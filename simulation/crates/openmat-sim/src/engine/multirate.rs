@@ -8,18 +8,89 @@ pub(super) struct SampledState {
     pub hits: Vec<usize>,
     next_ticks: Vec<u64>,
     base_tick: u64,
+    pub execution_hits: Vec<String>,
+    pub execution_events: Vec<crate::conditional::ExecutionEvent>,
+    total_execution_events: usize,
 }
 
 impl SampledState {
     pub fn new(plan: &SamplingPlan) -> Self {
         let mut extra = vec![0.0; plan.cache_count + plan.clocks.len()];
         extra[plan.cache_count..].fill(1.0);
+        if let Some(conditional) = &plan.conditional {
+            for (offset, values) in &conditional.initial_cache {
+                extra[*offset..*offset + values.len()].copy_from_slice(values);
+            }
+        }
         Self {
             extra,
             hits: (0..plan.clocks.len()).collect(),
             next_ticks: vec![1; plan.clocks.len()],
             base_tick: 0,
+            execution_hits: vec![],
+            execution_events: vec![],
+            total_execution_events: 0,
         }
+    }
+
+    fn record_execution(
+        &mut self,
+        plan: &SamplingPlan,
+        previous: &[f64],
+        initial: bool,
+    ) -> Result<(), RunError> {
+        self.execution_hits.clear();
+        self.execution_events.clear();
+        if let Some(conditional) = &plan.conditional {
+            for domain in &conditional.domains {
+                if !self.hits.contains(&domain.clock) {
+                    continue;
+                }
+                let start = domain.memory;
+                let active = self.extra[start + 2] != 0.0;
+                if active {
+                    self.execution_hits.push(domain.id.clone());
+                }
+                let kind = match domain.execution {
+                    crate::conditional::Execution::Enabled { .. } => {
+                        let before = !initial && previous[start] > 0.0;
+                        let after = self.extra[start] > 0.0;
+                        if before == after {
+                            None
+                        } else if after {
+                            Some("enabled")
+                        } else {
+                            Some("disabled")
+                        }
+                    }
+                    crate::conditional::Execution::Triggered { .. } => {
+                        active.then_some("triggered")
+                    }
+                };
+                if let Some(kind) = kind {
+                    self.execution_events
+                        .push(crate::conditional::ExecutionEvent {
+                            block: domain.id.clone(),
+                            kind,
+                        });
+                }
+                if self.extra[start + 3] != 0.0 && !initial {
+                    self.execution_events
+                        .push(crate::conditional::ExecutionEvent {
+                            block: domain.id.clone(),
+                            kind: "statesReset",
+                        });
+                }
+            }
+        }
+        self.total_execution_events += self.execution_events.len();
+        if self.total_execution_events > 100_000 {
+            return Err(RunError::new(
+                "event_limit",
+                "conditional execution records exceeded 100000 per run",
+            ));
+        }
+        Ok(())
     }
 }
 
@@ -27,6 +98,7 @@ impl<K: Kernel> Runner<K> {
     pub(super) fn initialize_sampling(&mut self) -> Result<(), RunError> {
         let plan = self.plan.sampling.as_ref().expect("sampling plan");
         let state = self.sampling.as_mut().expect("sampling instance");
+        let initial_extra = state.extra.clone();
         if let Some(kernel) = &mut self.update_kernel {
             self.update_scratch.evaluate_with_extra(
                 kernel,
@@ -41,7 +113,15 @@ impl<K: Kernel> Runner<K> {
                 .copy_from_slice(&self.update_scratch.outputs[..plan.cache_count]);
             self.pending
                 .copy_from_slice(&self.update_scratch.outputs[plan.cache_count..]);
+            if let Some(conditional) = &plan.conditional {
+                for (i, &immediate) in conditional.immediate_states.iter().enumerate() {
+                    if immediate {
+                        self.held[i] = self.pending[i];
+                    }
+                }
+            }
         }
+        state.record_execution(plan, &initial_extra, true)?;
         self.sample_hit = !state.hits.is_empty();
         self.evaluate_current(&AtomicBool::new(false))?;
         self.capture_observations();
@@ -194,6 +274,7 @@ impl<K: Kernel> Runner<K> {
             .collect();
         let event_hit = event.is_finite() && near(next, event);
         let mut candidate_sampling = current.clone();
+        let previous_extra = current.extra.clone();
         candidate_sampling.hits = hits;
         if self.solver.is_none() && near(next, (current.base_tick + 1) as f64 * settings.max_step) {
             candidate_sampling.base_tick += 1;
@@ -205,7 +286,12 @@ impl<K: Kernel> Runner<K> {
         }
         let mut candidate_state = self.held.clone();
         for (i, &clock) in sampling.state_clocks.iter().enumerate() {
-            if candidate_sampling.hits.contains(&clock) {
+            if candidate_sampling.hits.contains(&clock)
+                && !sampling
+                    .conditional
+                    .as_ref()
+                    .is_some_and(|p| p.immediate_states[i])
+            {
                 candidate_state[i] = self.pending[i];
             }
         }
@@ -273,6 +359,13 @@ impl<K: Kernel> Runner<K> {
                 if !candidate_sampling.hits.is_empty()
                     && let Some(kernel) = &mut self.update_kernel
                 {
+                    if let Some(conditional) = &sampling.conditional {
+                        for domain in &conditional.domains {
+                            let range = domain.memory..domain.memory + 4;
+                            candidate_sampling.extra[range.clone()]
+                                .copy_from_slice(&previous_extra[range]);
+                        }
+                    }
                     self.update_scratch.evaluate_with_extra(
                         kernel,
                         &self.plan.update_origins,
@@ -293,6 +386,16 @@ impl<K: Kernel> Runner<K> {
                 }
             }
         }
+        if !candidate_sampling.hits.is_empty()
+            && let Some(conditional) = &sampling.conditional
+        {
+            for (i, &immediate) in conditional.immediate_states.iter().enumerate() {
+                if immediate {
+                    candidate_state[i] = candidate_pending[i];
+                }
+            }
+        }
+        candidate_sampling.record_execution(sampling, &previous_extra, false)?;
         self.scratch.evaluate_with_extra(
             &mut self.kernel,
             &self.plan.origins,

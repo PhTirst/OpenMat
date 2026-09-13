@@ -20,6 +20,10 @@ pub struct Frame {
     pub values: Vec<f64>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub events: Vec<crate::hybrid::EventRecord>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub execution_hits: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub execution_events: Vec<crate::conditional::ExecutionEvent>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -311,6 +315,14 @@ impl<K: Kernel> Runner<K> {
                 .events
                 .as_ref()
                 .map_or_else(Vec::new, |e| e.records.clone()),
+            execution_hits: self
+                .sampling
+                .as_ref()
+                .map_or_else(Vec::new, |s| s.execution_hits.clone()),
+            execution_events: self
+                .sampling
+                .as_ref()
+                .map_or_else(Vec::new, |s| s.execution_events.clone()),
         }
     }
 

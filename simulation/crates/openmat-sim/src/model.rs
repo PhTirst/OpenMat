@@ -10,6 +10,7 @@ pub const CONTROL_SCHEMA_VERSION: u32 = 4;
 pub const MULTIRATE_SCHEMA_VERSION: u32 = 5;
 pub const HYBRID_SCHEMA_VERSION: u32 = 6;
 pub const AUTHORING_SCHEMA_VERSION: u32 = 7;
+pub const CONDITIONAL_SCHEMA_VERSION: u32 = 8;
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
@@ -68,6 +69,8 @@ pub enum BlockKind {
     Subsystem {
         inputs: usize,
         outputs: usize,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        execution: Option<crate::conditional::Execution>,
     },
     Inport {
         port: usize,
@@ -153,7 +156,12 @@ pub struct FunctionParameter {
 impl BlockKind {
     pub(crate) fn inputs(&self) -> Vec<String> {
         match self {
-            Self::Subsystem { inputs, .. } => (1..=*inputs).map(|i| format!("in{i}")).collect(),
+            Self::Subsystem {
+                inputs, execution, ..
+            } => (1..=*inputs)
+                .map(|i| format!("in{i}"))
+                .chain(execution.iter().map(|e| e.control_port().into()))
+                .collect(),
             Self::Inport { .. } => vec![],
             Self::Standard { operation } => operation.input_names(),
             Self::Control { operation, .. } => (0..operation.input_count())

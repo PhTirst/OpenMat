@@ -103,6 +103,55 @@ fn request_v4(socket: &mut Socket, id: &str, operation: &str, data: Value) {
 }
 
 #[test]
+fn v8_streams_conditional_invocations_and_v7_rejects_the_same_snapshot() {
+    let mut server = Server::start();
+    let doc: Value = serde_json::from_str(include_str!(
+        "../../../simulation/examples/triggered-counter.omsim.json"
+    ))
+    .unwrap();
+    server.url = server.url.replace("/simulation/v1", "/simulation/v7");
+    let mut legacy = server.connect();
+    legacy.send(Message::text(json!({"protocol":"openmat-simulation-v7","requestId":"old","operation":"run","model":doc["model"],"sources":doc["sources"],"revision":"r"}).to_string())).unwrap();
+    assert_eq!(read(&mut legacy)["error"]["code"], "protocol");
+    server.url = server.url.replace("/simulation/v7", "/simulation/v8");
+    let mut socket = server.connect();
+    socket.send(Message::text(json!({"protocol":"openmat-simulation-v8","requestId":"conditional","operation":"run","model":doc["model"],"sources":doc["sources"],"revision":"r"}).to_string())).unwrap();
+    let started = read(&mut socket);
+    assert_eq!(started["ok"], true, "{started}");
+    let scope = started["result"]["scopes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["block"] == "invocations")
+        .unwrap();
+    assert_eq!(scope["execution"], "counter");
+    let offset = usize::try_from(scope["offset"].as_u64().unwrap()).unwrap();
+    let mut invocations = Vec::new();
+    let mut events = 0;
+    loop {
+        let event = read(&mut socket);
+        assert_eq!(event["protocol"], "openmat-simulation-v8");
+        assert_ne!(event["event"], "failed", "{event}");
+        if event["event"] == "finished" {
+            break;
+        }
+        if let Some(frames) = event["data"]["frames"].as_array() {
+            for frame in frames {
+                if frame["executionHits"]
+                    .as_array()
+                    .is_some_and(|hits| hits.iter().any(|h| h == "counter"))
+                {
+                    invocations.push(frame["values"][offset].as_f64().unwrap());
+                }
+                events += frame["executionEvents"].as_array().map_or(0, Vec::len);
+            }
+        }
+    }
+    assert_eq!(invocations, vec![1., 2., 3., 4., 5.]);
+    assert_eq!(events, 5);
+}
+
+#[test]
 fn v5_streams_independent_clock_hits_and_v4_rejects_the_same_model() {
     let mut server = Server::start();
     server.url = server.url.replace("/simulation/v1", "/simulation/v4");

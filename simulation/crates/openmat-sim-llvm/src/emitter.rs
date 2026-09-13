@@ -17,7 +17,9 @@ pub fn emit_llvm(program: &Program) -> String {
         .iter()
         .enumerate()
         .map(|(index, op)| {
-            if let Instruction::Constant(value) = op {
+            if let Instruction::Constant(value) = op
+                && program.guards()[index].is_none()
+            {
                 format!("0x{:016X}", value.to_bits())
             } else {
                 format!("%v{index}")
@@ -25,69 +27,19 @@ pub fn emit_llvm(program: &Program) -> String {
         })
         .collect();
     for (index, instruction) in program.instructions().iter().enumerate() {
-        match *instruction {
-            Instruction::Compare(compare, a, b) => {
-                let predicate = match compare {
-                    Comparison::Equal => "oeq",
-                    Comparison::NotEqual => "une",
-                    Comparison::Less => "olt",
-                    Comparison::LessEqual => "ole",
-                    Comparison::Greater => "ogt",
-                    Comparison::GreaterEqual => "oge",
-                };
-                writeln!(ir, "  %cmp{index} = fcmp {predicate} double {}, {}\n  %v{index} = uitofp i1 %cmp{index} to double", operands[a],operands[b]).unwrap();
-            }
-            Instruction::Select(c, a, b) => {
-                writeln!(ir, "  %cond{index} = fcmp une double {}, 0.000000e+00\n  %v{index} = select i1 %cond{index}, double {}, double {}", operands[c],operands[a],operands[b]).unwrap();
-            }
-            Instruction::Input(input) => {
-                writeln!(ir, "  %p{index} = getelementptr double, ptr %inputs, i64 {input}\n  %v{index} = load double, ptr %p{index}, align 8").unwrap();
-            }
-            Instruction::Constant(_) => {}
-            Instruction::Add(a, b) => {
-                writeln!(
-                    ir,
-                    "  %v{index} = fadd double {}, {}",
-                    operands[a], operands[b]
-                )
-                .unwrap();
-            }
-            Instruction::Multiply(a, b) => {
-                writeln!(
-                    ir,
-                    "  %v{index} = fmul double {}, {}",
-                    operands[a], operands[b]
-                )
-                .unwrap();
-            }
-            Instruction::Negate(a) => {
-                writeln!(ir, "  %v{index} = fneg double {}", operands[a]).unwrap();
-            }
-            Instruction::Subtract(a, b) => {
-                writeln!(
-                    ir,
-                    "  %v{index} = fsub double {}, {}",
-                    operands[a], operands[b]
-                )
-                .unwrap();
-            }
-            Instruction::Divide(a, b) => {
-                writeln!(
-                    ir,
-                    "  %v{index} = fdiv double {}, {}",
-                    operands[a], operands[b]
-                )
-                .unwrap();
-            }
-            Instruction::Math(function, a) => {
-                writeln!(
-                    ir,
-                    "  %v{index} = call double @openmat_math_{}(double {})",
-                    function.name(),
-                    operands[a]
-                )
-                .unwrap();
-            }
+        let start = ir.len();
+        emit_instruction(
+            &mut ir,
+            index,
+            instruction,
+            &operands,
+            program.guards()[index].is_some(),
+        );
+        if let Some(guard) = program.guards()[index] {
+            let operation = ir
+                .split_off(start)
+                .replace(&format!("%v{index} ="), &format!("%raw{index} ="));
+            writeln!(ir, "  %enabled{index} = fcmp une double {}, 0.000000e+00\n  br i1 %enabled{index}, label %active{index}, label %inactive{index}\nactive{index}:\n{operation}  br label %join{index}\ninactive{index}:\n  br label %join{index}\njoin{index}:\n  %v{index} = phi double [ %raw{index}, %active{index} ], [ 0.000000e+00, %inactive{index} ]", operands[guard]).unwrap();
         }
     }
     for (index, &value) in program.outputs().iter().enumerate() {
@@ -102,4 +54,86 @@ pub fn emit_llvm(program: &Program) -> String {
         .unwrap();
     }
     ir
+}
+
+fn emit_instruction(
+    ir: &mut String,
+    index: usize,
+    instruction: &Instruction,
+    operands: &[String],
+    guarded: bool,
+) {
+    match *instruction {
+        Instruction::Compare(compare, a, b) => {
+            let predicate = match compare {
+                Comparison::Equal => "oeq",
+                Comparison::NotEqual => "une",
+                Comparison::Less => "olt",
+                Comparison::LessEqual => "ole",
+                Comparison::Greater => "ogt",
+                Comparison::GreaterEqual => "oge",
+            };
+            writeln!(ir, "  %cmp{index} = fcmp {predicate} double {}, {}\n  %v{index} = uitofp i1 %cmp{index} to double", operands[a],operands[b]).unwrap();
+        }
+        Instruction::Select(c, a, b) => {
+            writeln!(ir, "  %cond{index} = fcmp une double {}, 0.000000e+00\n  %v{index} = select i1 %cond{index}, double {}, double {}", operands[c],operands[a],operands[b]).unwrap();
+        }
+        Instruction::Input(input) => {
+            writeln!(ir, "  %p{index} = getelementptr double, ptr %inputs, i64 {input}\n  %v{index} = load double, ptr %p{index}, align 8").unwrap();
+        }
+        Instruction::Constant(value) => {
+            if guarded {
+                writeln!(
+                    ir,
+                    "  %v{index} = select i1 true, double 0x{:016X}, double 0.000000e+00",
+                    value.to_bits()
+                )
+                .unwrap();
+            }
+        }
+        Instruction::Add(a, b) => {
+            writeln!(
+                ir,
+                "  %v{index} = fadd double {}, {}",
+                operands[a], operands[b]
+            )
+            .unwrap();
+        }
+        Instruction::Multiply(a, b) => {
+            writeln!(
+                ir,
+                "  %v{index} = fmul double {}, {}",
+                operands[a], operands[b]
+            )
+            .unwrap();
+        }
+        Instruction::Negate(a) => {
+            writeln!(ir, "  %v{index} = fneg double {}", operands[a]).unwrap();
+        }
+        Instruction::Subtract(a, b) => {
+            writeln!(
+                ir,
+                "  %v{index} = fsub double {}, {}",
+                operands[a], operands[b]
+            )
+            .unwrap();
+        }
+        Instruction::Divide(a, b) => {
+            writeln!(
+                ir,
+                "  %v{index} = fdiv double {}, {}",
+                operands[a], operands[b]
+            )
+            .unwrap();
+        }
+        Instruction::Math(function, a) => {
+            writeln!(
+                ir,
+                "  %v{index} = call double @openmat_math_{}(double {})",
+                function.name(),
+                operands[a]
+            )
+            .unwrap();
+        }
+    }
 }

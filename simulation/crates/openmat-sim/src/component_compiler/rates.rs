@@ -390,6 +390,7 @@ pub(super) fn layout(
         cache_count: 0,
         output_offsets: Vec::new(),
         node_clocks: Vec::new(),
+        conditional: None,
     };
     for (node, &rate) in nodes.iter().zip(rates) {
         let clock = if let SampleTime::Discrete { period } = rate {

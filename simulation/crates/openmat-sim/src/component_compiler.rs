@@ -6,6 +6,7 @@ use crate::model::{Block, BlockKind, FunctionInput, Model, Port};
 use crate::numeric::{Comparison, Instruction, Kernel, MAX_VALUES, Program, ReferenceKernel};
 use crate::static_function::{self, Signature};
 use crate::{CompiledModel, ModelError, ScopeInfo, SourceBundle, m_function};
+mod conditional;
 mod hybrid;
 mod rates;
 mod standard;
@@ -48,8 +49,16 @@ fn program(
         .map_err(|e| ModelError::new("numerical_ir", e.to_string()))
 }
 
-#[allow(clippy::too_many_lines)] // Ordered compilation phases share the validated graph and state layout.
 pub(crate) fn compile(model: &Model, sources: &SourceBundle) -> Result<CompiledModel, ModelError> {
+    compile_domains(model, sources, &[])
+}
+
+#[allow(clippy::too_many_lines)] // Ordered compilation phases share the validated graph and state layout.
+pub(crate) fn compile_domains(
+    model: &Model,
+    sources: &SourceBundle,
+    domains: &[crate::conditional::DomainSpec],
+) -> Result<CompiledModel, ModelError> {
     let mut definitions = BTreeMap::new();
     if model.components.len() > 64 {
         return Err(ModelError::new(
@@ -134,7 +143,8 @@ pub(crate) fn compile(model: &Model, sources: &SourceBundle) -> Result<CompiledM
         }
     }
     let sampling = if model.schema_version >= 5 {
-        let resolved = rates::resolve(model, &mut nodes)?;
+        let configured = conditional::configure(model, &nodes, domains)?;
+        let resolved = rates::resolve(&configured, &mut nodes)?;
         x.clear();
         q.clear();
         for node in &mut nodes {
@@ -149,7 +159,9 @@ pub(crate) fn compile(model: &Model, sources: &SourceBundle) -> Result<CompiledM
                 "combined state budget exceeded",
             ));
         }
-        Some(rates::layout(model, &nodes, &resolved)?)
+        let mut plan = rates::layout(model, &nodes, &resolved)?;
+        conditional::layout(&nodes, domains, &mut plan, q.len())?;
+        Some(plan)
     } else {
         None
     };
@@ -185,13 +197,22 @@ pub(crate) fn compile(model: &Model, sources: &SourceBundle) -> Result<CompiledM
     let mut scopes = Vec::new();
     let mut offset = 0;
     for (i, node) in nodes.iter().enumerate() {
-        if let Some(p) = &node.scope {
-            let values = flow.callback(i, p, 0)?;
+        let execution = sampling
+            .as_ref()
+            .and_then(|s| s.conditional.as_ref())
+            .and_then(|p| p.scopes.get(&i));
+        if node.scope.is_some() || execution.is_some() {
+            let values = if let Some(p) = &node.scope {
+                flow.callback(i, p, 0)?
+            } else {
+                flow.signal(Wire { block: i, port: 0 }, 0)?
+            };
             scopes.push(ScopeInfo {
                 block: node.block.id.clone(),
                 offset,
                 width: values.len(),
                 sample_time: sampling.as_ref().map(|s| s.blocks[&node.block.id]),
+                execution: execution.cloned(),
             });
             offset += values.len();
             origins.extend((0..values.len()).map(|_| origin(node, "in")));
@@ -220,7 +241,7 @@ pub(crate) fn compile(model: &Model, sources: &SourceBundle) -> Result<CompiledM
     } else {
         None
     };
-    let flow_program = program(input_count, flow.instructions, outputs)?;
+    let flow_program = flow.finish(outputs)?;
     let mut update = Emitter::new(&nodes, x.len(), input_count);
     update.sampling = sampling.as_ref();
     update.cache_start = 1 + x.len() + q.len();
@@ -239,16 +260,28 @@ pub(crate) fn compile(model: &Model, sources: &SourceBundle) -> Result<CompiledM
             }
         }
     }
+    for (id, values) in update.domain_memory()? {
+        next.extend(values);
+        update_origins.extend((0..4).map(|_| Port {
+            block: id.clone(),
+            port: "execution".into(),
+        }));
+    }
     for (i, node) in nodes.iter().enumerate() {
         if let Some(p) = &node.update {
             let values = update.callback(i, p, 0)?;
             if let Some(sampling) = &sampling {
                 for (j, value) in values.into_iter().enumerate() {
                     let clock = sampling.state_clocks[node.q_offset + j];
-                    let hit = update.push(Instruction::Input(
-                        update.cache_start + sampling.cache_count + clock,
-                    ))?;
+                    let hit = if let Some(domain) = update.domain(i) {
+                        update.gate(domain)?.active
+                    } else {
+                        update.push(Instruction::Input(
+                            update.cache_start + sampling.cache_count + clock,
+                        ))?
+                    };
                     let old = update.push(Instruction::Input(1 + x.len() + node.q_offset + j))?;
+                    let old = update.inactive_state(i, j, old)?;
                     next.push(update.push(Instruction::Select(hit, value, old))?);
                 }
             } else {
@@ -267,7 +300,7 @@ pub(crate) fn compile(model: &Model, sources: &SourceBundle) -> Result<CompiledM
     let update_program = if next.is_empty() {
         None
     } else {
-        Some(program(input_count, update.instructions, next)?)
+        Some(update.finish(next)?)
     };
     let mut time_events: Vec<_> = model
         .blocks
@@ -905,6 +938,7 @@ fn lower_builtin(node: &mut Node<'_>, sources: &SourceBundle) -> Result<(), Mode
             node.scope = Some(program(count, ops, inputs[0].clone())?);
             return Ok(());
         }
+        BlockKind::Outport { .. } => inputs[0].clone(),
         BlockKind::ZeroOrderHold | BlockKind::RateTransition { .. } => {
             if node.q.is_empty() {
                 inputs[0].clone()
@@ -916,7 +950,6 @@ fn lower_builtin(node: &mut Node<'_>, sources: &SourceBundle) -> Result<(), Mode
         BlockKind::Component { .. }
         | BlockKind::Standard { .. }
         | BlockKind::Inport { .. }
-        | BlockKind::Outport { .. }
         | BlockKind::Subsystem { .. } => {
             unreachable!("authoring nodes are flattened or lowered before builtin dispatch")
         }
@@ -930,6 +963,9 @@ struct Emitter<'a> {
     continuous: usize,
     input_count: usize,
     instructions: Vec<Instruction>,
+    guards: Vec<Option<usize>>,
+    gates: BTreeMap<usize, conditional::Gate>,
+    gate_visiting: BTreeSet<usize>,
     cache: Vec<Vec<Option<Vec<usize>>>>,
     visiting: BTreeSet<(usize, usize)>,
     order: Vec<usize>,
@@ -945,6 +981,9 @@ impl<'a> Emitter<'a> {
             continuous,
             input_count,
             instructions: vec![],
+            guards: vec![],
+            gates: BTreeMap::new(),
+            gate_visiting: BTreeSet::new(),
             cache: nodes.iter().map(|n| vec![None; n.outputs.len()]).collect(),
             visiting: BTreeSet::new(),
             order: vec![],
@@ -962,7 +1001,14 @@ impl<'a> Emitter<'a> {
         }
         let id = self.instructions.len();
         self.instructions.push(instruction);
+        self.guards.push(None);
         Ok(id)
+    }
+    fn finish(self, outputs: Vec<usize>) -> Result<Program, ModelError> {
+        Program::new(self.input_count, self.instructions, outputs)
+            .and_then(|p| p.with_guards(self.guards))
+            .map(|p| p.pruned())
+            .map_err(|e| ModelError::new("numerical_ir", e.to_string()))
     }
     fn signal(&mut self, wire: Wire, depth: usize) -> Result<Vec<usize>, ModelError> {
         if let Some(values) = &self.cache[wire.block][wire.port] {
@@ -1001,11 +1047,33 @@ impl<'a> Emitter<'a> {
         {
             let sampling = self.sampling.expect("sampled plan");
             let clock = sampling.node_clocks[wire.block].expect("sampled output clock");
-            let hit = self.push(Instruction::Input(
-                self.cache_start + sampling.cache_count + clock,
-            ))?;
+            let domain = self.domain(wire.block);
+            let gate = domain.map(|d| self.gate(d)).transpose()?;
+            let hit = if let Some(gate) = gate {
+                gate.active
+            } else {
+                self.push(Instruction::Input(
+                    self.cache_start + sampling.cache_count + clock,
+                ))?
+            };
             for (i, value) in values.iter_mut().enumerate() {
-                let old = self.push(Instruction::Input(self.cache_start + offset + i))?;
+                let mut old = self.push(Instruction::Input(self.cache_start + offset + i))?;
+                if let Some(domain) = domain
+                    && let Some(policy) = sampling.conditional.as_ref().expect("domain").domains
+                        [domain]
+                        .outputs
+                        .get(&wire.block)
+                    && policy.when_disabled == crate::conditional::HoldReset::Reset
+                {
+                    let initial = self.push(Instruction::Constant(
+                        policy.initial[i % policy.initial.len()],
+                    ))?;
+                    old = self.push(Instruction::Select(
+                        gate.expect("domain gate").hit,
+                        initial,
+                        old,
+                    ))?;
+                }
                 *value = self.push(Instruction::Select(hit, *value, old))?;
             }
         }
@@ -1023,6 +1091,11 @@ impl<'a> Emitter<'a> {
         depth: usize,
     ) -> Result<Vec<usize>, ModelError> {
         let node = &self.nodes[block];
+        let gate = if self.sampled {
+            self.domain(block).map(|d| self.gate(d)).transpose()?
+        } else {
+            None
+        };
         let header = 1 + node.x.len() + node.q.len();
         let mut inputs = BTreeMap::new();
         // Only input instructions surviving SSA pruning create feedthrough edges.
@@ -1040,7 +1113,16 @@ impl<'a> Emitter<'a> {
                         1 + self.continuous + node.q_offset + i - 1 - node.x.len()
                     };
                     debug_assert!(global < self.input_count);
-                    self.push(Instruction::Input(global))?
+                    let mut value = self.push(Instruction::Input(global))?;
+                    if i > node.x.len()
+                        && i < header
+                        && let Some(gate) = gate
+                    {
+                        let initial =
+                            self.push(Instruction::Constant(node.q[i - 1 - node.x.len()]))?;
+                        value = self.push(Instruction::Select(gate.reset, initial, value))?;
+                    }
+                    value
                 } else {
                     let mut offset = i - header;
                     let p = node
@@ -1065,7 +1147,9 @@ impl<'a> Emitter<'a> {
             let id = if let Instruction::Input(i) = op {
                 inputs[i]
             } else {
-                self.push(op.remap(|i| mapping[i]))?
+                let id = self.push(op.remap(|i| mapping[i]))?;
+                self.guards[id] = gate.map(|g| g.active);
+                id
             };
             mapping.push(id);
         }

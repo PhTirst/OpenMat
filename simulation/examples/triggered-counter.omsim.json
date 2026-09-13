@@ -1,0 +1,291 @@
+{
+  "format": "openmat-simulation",
+  "schemaVersion": 8,
+  "model": {
+    "schemaVersion": 8,
+    "name": "Triggered m component with private counter state",
+    "settings": {
+      "startTime": 0,
+      "stopTime": 5,
+      "maxStep": 0.01
+    },
+    "blocks": [
+      {
+        "id": "one",
+        "kind": {
+          "type": "constant",
+          "value": [
+            1
+          ]
+        },
+        "position": {
+          "x": 20,
+          "y": 120
+        }
+      },
+      {
+        "id": "clock",
+        "kind": {
+          "type": "integrator",
+          "initial": [
+            0
+          ]
+        },
+        "position": {
+          "x": 220,
+          "y": 120
+        }
+      },
+      {
+        "id": "wave",
+        "kind": {
+          "type": "mFunction",
+          "source": "trigger-wave.m",
+          "entry": "trigger_wave",
+          "inputs": [
+            {
+              "name": "t",
+              "width": 1
+            }
+          ],
+          "parameters": [],
+          "outputWidth": 1
+        },
+        "position": {
+          "x": 435,
+          "y": 120
+        }
+      },
+      {
+        "id": "counter",
+        "kind": {
+          "type": "subsystem",
+          "inputs": 0,
+          "outputs": 1,
+          "execution": {
+            "type": "triggered",
+            "period": 0.05,
+            "edge": "rising",
+            "outputs": [
+              {
+                "initial": [
+                  0
+                ],
+                "whenDisabled": "held"
+              }
+            ]
+          }
+        },
+        "position": {
+          "x": 660,
+          "y": 120
+        }
+      },
+      {
+        "id": "compare",
+        "kind": {
+          "type": "standard",
+          "operation": {
+            "type": "mux",
+            "inputs": 2
+          }
+        },
+        "position": {
+          "x": 660,
+          "y": 370
+        }
+      },
+      {
+        "id": "scope",
+        "kind": {
+          "type": "scope"
+        },
+        "position": {
+          "x": 910,
+          "y": 370
+        }
+      },
+      {
+        "id": "state",
+        "kind": {
+          "type": "component",
+          "component": "event_counter",
+          "parameters": {}
+        },
+        "position": {
+          "x": 40,
+          "y": 140
+        },
+        "parent": "counter"
+      },
+      {
+        "id": "out",
+        "kind": {
+          "type": "outport",
+          "port": 1
+        },
+        "position": {
+          "x": 300,
+          "y": 90
+        },
+        "parent": "counter"
+      },
+      {
+        "id": "invocations",
+        "kind": {
+          "type": "scope"
+        },
+        "position": {
+          "x": 300,
+          "y": 280
+        },
+        "parent": "counter"
+      }
+    ],
+    "connections": [
+      {
+        "to": {
+          "block": "clock",
+          "port": "in"
+        },
+        "from": {
+          "block": "one",
+          "port": "out"
+        }
+      },
+      {
+        "to": {
+          "block": "wave",
+          "port": "t"
+        },
+        "from": {
+          "block": "clock",
+          "port": "out"
+        }
+      },
+      {
+        "to": {
+          "block": "counter",
+          "port": "trigger"
+        },
+        "from": {
+          "block": "wave",
+          "port": "out"
+        }
+      },
+      {
+        "to": {
+          "block": "compare",
+          "port": "in0"
+        },
+        "from": {
+          "block": "wave",
+          "port": "out"
+        }
+      },
+      {
+        "to": {
+          "block": "compare",
+          "port": "in1"
+        },
+        "from": {
+          "block": "counter",
+          "port": "out1"
+        }
+      },
+      {
+        "to": {
+          "block": "scope",
+          "port": "in"
+        },
+        "from": {
+          "block": "compare",
+          "port": "out"
+        }
+      },
+      {
+        "to": {
+          "block": "out",
+          "port": "in"
+        },
+        "from": {
+          "block": "state",
+          "port": "count"
+        }
+      },
+      {
+        "to": {
+          "block": "invocations",
+          "port": "in"
+        },
+        "from": {
+          "block": "state",
+          "port": "count"
+        }
+      }
+    ],
+    "sampleTimes": {
+      "wave": {
+        "kind": "discrete",
+        "period": 0.05
+      }
+    },
+    "components": [
+      {
+        "id": "event_counter",
+        "name": "Event Counter",
+        "category": "条件执行",
+        "icon": "controller",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "count",
+            "width": 1
+          }
+        ],
+        "parameters": [],
+        "continuousStates": 0,
+        "discreteStates": 1,
+        "sampleTime": -1,
+        "initialize": {
+          "source": "counter-initialize.m",
+          "entry": "counter_initialize"
+        },
+        "outputsFunction": {
+          "source": "counter-outputs.m",
+          "entry": "counter_outputs"
+        },
+        "update": {
+          "source": "counter-update.m",
+          "entry": "counter_update"
+        }
+      }
+    ]
+  },
+  "editor": {
+    "labels": {
+      "one": "时钟速率 1",
+      "clock": "仿真时钟",
+      "wave": "50 ms 触发信号",
+      "counter": "上升沿触发计数器",
+      "compare": "触发信号 / 累计次数",
+      "scope": "触发计数轨迹",
+      "state": "m 组件 · 每次调用加一",
+      "out": "计数输出",
+      "invocations": "仅记录执行时刻"
+    },
+    "bends": {}
+  },
+  "execution": {
+    "backend": "reference",
+    "solver": {
+      "type": "rk4"
+    }
+  },
+  "sources": {
+    "trigger-wave.m": "function y = trigger_wave(t)\ny = sin(6.283185307179586 * t - 0.4);\nend\n",
+    "counter-initialize.m": "function y = counter_initialize(p)\ny = 0;\nend\n",
+    "counter-outputs.m": "function y = counter_outputs(t,x,q,u,p)\ny = q(1) + 1;\nend\n",
+    "counter-update.m": "function y = counter_update(t,x,q,u,p)\ny = q(1) + 1;\nend\n"
+  }
+}

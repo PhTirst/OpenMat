@@ -25,6 +25,8 @@ pub struct SamplingPlan {
     pub(crate) output_offsets: Vec<Vec<Option<usize>>>,
     #[serde(skip)]
     pub(crate) node_clocks: Vec<Option<usize>>,
+    #[serde(skip)]
+    pub(crate) conditional: Option<crate::conditional::ConditionalPlan>,
 }
 
 impl SamplingPlan {

@@ -61,6 +61,32 @@ fn check_and_run_are_machine_readable() {
 }
 
 #[test]
+fn moved_conditional_snapshot_runs_without_original_source_files() {
+    let directory = TestDirectory::new();
+    let target = directory.0.join("counter.omsim");
+    fs::copy(fixture("triggered-counter.omsim.json"), &target).unwrap();
+    let output = run(&["run".as_ref(), target.as_os_str()]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let result = json(&output);
+    let frames = result["result"]["frames"].as_array().unwrap();
+    let events = frames
+        .iter()
+        .filter(|f| {
+            f["executionHits"]
+                .as_array()
+                .is_some_and(|hits| hits.iter().any(|h| h == "counter"))
+        })
+        .count();
+    assert_eq!(events, 5);
+    assert_eq!(frames.last().unwrap()["values"][0], 5.0);
+    assert_eq!(fs::read_dir(&directory.0).unwrap().count(), 1);
+}
+
+#[test]
 fn relative_authoring_files_load_m_sources_and_validate_versions_and_paths() {
     let directory = TestDirectory::new();
     fs::copy(fixture("pendulum.m"), directory.0.join("pendulum.m")).unwrap();

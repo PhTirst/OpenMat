@@ -23,6 +23,8 @@ pub struct ScopeInfo {
     pub width: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sample_time: Option<crate::model::SampleTime>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub execution: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -109,9 +111,9 @@ pub fn compile_with_sources(
 ) -> Result<CompiledModel, ModelError> {
     validate_model(model)?;
     m_function::validate_bundle(sources)?;
-    if model.schema_version == crate::model::AUTHORING_SCHEMA_VERSION {
-        let flat = crate::authoring::flatten(model)?;
-        return crate::component_compiler::compile(&flat, sources);
+    if model.schema_version >= crate::model::AUTHORING_SCHEMA_VERSION {
+        let (flat, domains) = crate::authoring::flatten(model)?;
+        return crate::component_compiler::compile_domains(&flat, sources, &domains);
     }
     if model.schema_version >= COMPONENT_SCHEMA_VERSION {
         return crate::component_compiler::compile(model, sources);
@@ -180,6 +182,7 @@ fn compile_legacy(model: &Model, sources: &SourceBundle) -> Result<CompiledModel
                 offset: scope_width,
                 width: input.len(),
                 sample_time: None,
+                execution: None,
             });
             scope_width += input.len();
             outputs.extend(input);
@@ -436,6 +439,7 @@ fn validate_model(model: &Model) -> Result<(), ModelError> {
         MULTIRATE_SCHEMA_VERSION,
         HYBRID_SCHEMA_VERSION,
         crate::model::AUTHORING_SCHEMA_VERSION,
+        crate::model::CONDITIONAL_SCHEMA_VERSION,
     ]
     .contains(&model.schema_version)
     {
@@ -514,7 +518,28 @@ fn validate_model(model: &Model) -> Result<(), ModelError> {
             );
         }
         let values = match &block.kind {
-            BlockKind::Subsystem { inputs, outputs } => {
+            BlockKind::Subsystem {
+                inputs,
+                outputs,
+                execution,
+            } => {
+                if let Some(execution) = execution {
+                    if model.schema_version < crate::model::CONDITIONAL_SCHEMA_VERSION {
+                        return Err(ModelError::new(
+                            "schema_version",
+                            "conditional execution requires schema 8",
+                        )
+                        .at(&block.id, None));
+                    }
+                    execution
+                        .validate(*outputs)
+                        .map_err(|e| e.at(&block.id, None))?;
+                    components += execution
+                        .outputs()
+                        .iter()
+                        .map(|p| p.initial.len())
+                        .sum::<usize>();
+                }
                 if *inputs > 64 || *outputs > 64 {
                     return Err(ModelError::new(
                         "subsystem_ports",

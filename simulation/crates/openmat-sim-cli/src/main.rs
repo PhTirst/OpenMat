@@ -26,8 +26,8 @@ const USAGE: &str = r"OpenMat simulation
   openmat-sim import-slx MODEL.slx [--output MODEL.omsim]
 
 SLX options for every command:
-  --slx-profile legacy|control-v1|multirate-v1|hybrid-v1  (default: legacy)
-  --parameters FILE.m            (control-v1/multirate-v1/hybrid-v1; explicit constant assignments)
+  --slx-profile legacy|control-v1|multirate-v1|hybrid-v1|conditional-v1  (default: legacy)
+  --parameters FILE.m            (control-v1/multirate-v1/hybrid-v1/conditional-v1; explicit constant assignments)
 
 Control-v1 import exports a self-contained schema-4 authoring snapshot.
 SLX execution requires a supported R2022b model configuration.
@@ -104,11 +104,11 @@ fn parse_options(args: &[OsString]) -> Result<Options, Value> {
             "--slx-profile" => {
                 options.slx_profile = value
                     .to_str()
-                    .filter(|p| ["legacy", "control-v1", "multirate-v1", "hybrid-v1"].contains(p))
+                    .filter(|p| ["legacy", "control-v1", "multirate-v1", "hybrid-v1", "conditional-v1"].contains(p))
                     .ok_or_else(|| {
                         failure(
                             "arguments",
-                            "SLX profile must be legacy, control-v1, multirate-v1 or hybrid-v1",
+                            "SLX profile must be legacy, control-v1, multirate-v1, hybrid-v1 or conditional-v1",
                         )
                     })?
                     .into();
@@ -177,7 +177,7 @@ fn parse_options(args: &[OsString]) -> Result<Options, Value> {
     {
         return Err(failure(
             "arguments",
-            "--parameters requires an SLX model and --slx-profile control-v1, multirate-v1 or hybrid-v1",
+            "--parameters requires an SLX model and --slx-profile control-v1, multirate-v1, hybrid-v1 or conditional-v1",
         ));
     }
     if options.solver == "rk4"
@@ -204,7 +204,7 @@ fn read_model(path: &Path) -> Result<Model, Value> {
         serde_json::from_slice(&bytes).map_err(|e| failure("model_json", e.to_string()))?;
     let model = if raw.get("format").is_some() {
         if raw["format"] != "openmat-simulation"
-            || !matches!(raw["schemaVersion"].as_u64(), Some(1..=7))
+            || !matches!(raw["schemaVersion"].as_u64(), Some(1..=8))
         {
             return Err(failure("model_json", "unsupported authoring document"));
         }
@@ -221,7 +221,7 @@ fn read_model(path: &Path) -> Result<Model, Value> {
             ));
         }
         if let Some(asset) = raw.get("slx")
-            && (!matches!(raw["schemaVersion"].as_u64(), Some(4..=7))
+            && (!matches!(raw["schemaVersion"].as_u64(), Some(4..=8))
                 || asset["runnable"] != true
                 || !asset["parameters"].is_string()
                 || asset["parameters"] != asset["appliedParameters"])
@@ -246,11 +246,11 @@ fn read_sources(model: &Model, path: &Path) -> Result<SourceBundle, Value> {
             .map_err(|e| failure("model_json", e.to_string()))?;
         if let Some(value) = document.get("sources") {
             if document["format"] != "openmat-simulation"
-                || !matches!(document["schemaVersion"].as_u64(), Some(4..=7))
+                || !matches!(document["schemaVersion"].as_u64(), Some(4..=8))
             {
                 return Err(failure(
                     "model_json",
-                    "embedded sources require authoring schema 4..7",
+                    "embedded sources require authoring schema 4..8",
                 ));
             }
             embedded = serde_json::from_value(value.clone())
@@ -352,7 +352,9 @@ fn execute(options: &Options) -> Result<(), Value> {
             })
             .transpose()?
             .unwrap_or_default();
-        let lowered = if options.slx_profile == "hybrid-v1" {
+        let lowered = if options.slx_profile == "conditional-v1" {
+            imported.lower_conditional(&parameters)
+        } else if options.slx_profile == "hybrid-v1" {
             imported.lower_hybrid(&parameters)
         } else if options.slx_profile == "multirate-v1" {
             imported.lower_multirate(&parameters)

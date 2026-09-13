@@ -48,6 +48,9 @@ impl Node<'_> {
         )
     }
     pub fn input_name(&self, port: usize) -> String {
+        if matches!(self.kind, Kind::Subsystem) {
+            return format!("in{}", port + 1);
+        }
         if let Kind::Hybrid(kind) = &self.kind {
             return if matches!(kind, BlockKind::Control { .. }) {
                 format!("in{port}")
@@ -64,6 +67,9 @@ impl Node<'_> {
         }
     }
     pub fn output_name(&self, port: usize) -> String {
+        if matches!(self.kind, Kind::Subsystem) {
+            return format!("out{}", port + 1);
+        }
         if matches!(self.kind, Kind::Demux(_)) {
             format!("out{port}")
         } else {

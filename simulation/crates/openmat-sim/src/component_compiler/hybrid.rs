@@ -139,7 +139,15 @@ pub(super) fn events(
     let mut events = Vec::new();
     let mut outputs = Vec::new();
     let signals = signal_types(nodes)?;
-    for node in nodes {
+    validate_conditional_initials(nodes, sampling, &signals)?;
+    for (index, node) in nodes.iter().enumerate() {
+        if sampling
+            .conditional
+            .as_ref()
+            .is_some_and(|p| p.node_domains[index].is_some())
+        {
+            continue;
+        }
         let (operation, reset) = match &node.block.kind {
             BlockKind::Control {
                 operation,
@@ -308,6 +316,7 @@ fn signal_types(nodes: &[Node<'_>]) -> Result<BTreeMap<String, SignalType>, Mode
         for node in nodes {
             let driver = match node.block.kind {
                 BlockKind::Scope
+                | BlockKind::Outport { .. }
                 | BlockKind::ZeroOrderHold
                 | BlockKind::UnitDelay { .. }
                 | BlockKind::RateTransition { .. }
@@ -428,6 +437,31 @@ fn validate_reset_dependencies(
             "reset input depends instantaneously on a reset state cycle; insert a stateful delay",
         )
         .at(&reset_nodes[i].block.id, Some("reset")));
+    }
+    Ok(())
+}
+
+// Logical initial values are exact boolean encodings, not approximate real values.
+#[allow(clippy::float_cmp)]
+fn validate_conditional_initials(
+    nodes: &[Node<'_>],
+    sampling: &SamplingPlan,
+    signals: &BTreeMap<String, SignalType>,
+) -> Result<(), ModelError> {
+    if let Some(conditional) = &sampling.conditional {
+        for domain in &conditional.domains {
+            for (&node, policy) in &domain.outputs {
+                if signals[&nodes[node].block.id] == SignalType::Logical
+                    && policy.initial.iter().any(|&v| v != 0.0 && v != 1.0)
+                {
+                    return Err(ModelError::new(
+                        "signal_type",
+                        "logical conditional output initial values must be 0 or 1",
+                    )
+                    .at(&nodes[node].block.id, None));
+                }
+            }
+        }
     }
     Ok(())
 }

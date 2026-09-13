@@ -1,4 +1,5 @@
 //! Versioned multirate lowering; normalization never mutates the source document.
+mod conditional;
 mod hybrid;
 mod normalize;
 use crate::{
@@ -16,7 +17,7 @@ impl ImportedSlx {
     /// # Errors
     /// Reports unsupported rates, block configurations, dependencies and numerical graphs.
     pub fn lower_multirate(&self, parameter_text: &str) -> Result<ControlModel, Vec<Issue>> {
-        self.multirate_inner(parameter_text, false)
+        self.multirate_inner(parameter_text, false, false)
             .map_err(|issues| {
                 let paths = self.block_paths();
                 issues
@@ -35,7 +36,25 @@ impl ImportedSlx {
     /// # Errors
     /// Reject unsupported hybrid parameters, types, rates and dependencies.
     pub fn lower_hybrid(&self, parameter_text: &str) -> Result<ControlModel, Vec<Issue>> {
-        self.multirate_inner(parameter_text, true)
+        self.multirate_inner(parameter_text, true, false)
+            .map_err(|issues| {
+                let paths = self.block_paths();
+                issues
+                    .into_iter()
+                    .map(|mut issue| {
+                        if let Some(path) = issue.block.as_ref().and_then(|sid| paths.get(sid)) {
+                            issue.message = format!("{path}: {}", issue.message);
+                        }
+                        issue
+                    })
+                    .collect()
+            })
+    }
+    /// Import the sampled enabled/triggered subset while preserving native hierarchy.
+    /// # Errors
+    /// Rejects unsupported state, initialization, rate and conditional configurations.
+    pub fn lower_conditional(&self, parameter_text: &str) -> Result<ControlModel, Vec<Issue>> {
+        self.multirate_inner(parameter_text, true, true)
             .map_err(|issues| {
                 let paths = self.block_paths();
                 issues
@@ -54,6 +73,7 @@ impl ImportedSlx {
         &self,
         parameter_text: &str,
         hybrid: bool,
+        conditional: bool,
     ) -> Result<ControlModel, Vec<Issue>> {
         let mut issues: Vec<_> = compatibility::global_checks(&self.document, &self.package)
             .into_iter()
@@ -84,6 +104,11 @@ impl ImportedSlx {
         }
         let settings = lower::settings(&properties).map_err(|e| vec![e])?;
         let mut normalized = self.document.clone();
+        let mut domains = if conditional {
+            conditional::prepare(&mut normalized, &parameters).map_err(|e| vec![e])?
+        } else {
+            vec![]
+        };
         let mut adaptations = BTreeMap::new();
         let mut native = BTreeMap::new();
         for system in &mut normalized.systems {
@@ -201,6 +226,17 @@ impl ImportedSlx {
                     }
                 }
             }
+        }
+        if conditional {
+            conditional::restore(
+                &normalized,
+                &nodes,
+                &edges,
+                &adaptations,
+                &mut domains,
+                &mut model,
+            )
+            .map_err(|e| vec![e])?;
         }
         let plan = openmat_sim::compile_with_sources(&model, &sources).map_err(|e| {
             let mut issue = Issue::new(&e.0.code, e.0.message);

@@ -1,0 +1,524 @@
+{
+  "format": "openmat-simulation",
+  "schemaVersion": 8,
+  "model": {
+    "schemaVersion": 8,
+    "name": "Enabled discrete PI with continuous plant",
+    "settings": {
+      "startTime": 0,
+      "stopTime": 8,
+      "maxStep": 0.01
+    },
+    "blocks": [
+      {
+        "id": "reference",
+        "kind": {
+          "type": "constant",
+          "value": [
+            1
+          ]
+        },
+        "position": {
+          "x": 30,
+          "y": 140
+        }
+      },
+      {
+        "id": "error",
+        "kind": {
+          "type": "sum",
+          "signs": [
+            1,
+            -1
+          ]
+        },
+        "position": {
+          "x": 235,
+          "y": 140
+        }
+      },
+      {
+        "id": "sample",
+        "kind": {
+          "type": "zeroOrderHold"
+        },
+        "position": {
+          "x": 430,
+          "y": 140
+        }
+      },
+      {
+        "id": "controller",
+        "kind": {
+          "type": "subsystem",
+          "inputs": 1,
+          "outputs": 1,
+          "execution": {
+            "type": "enabled",
+            "period": 0.05,
+            "statesWhenEnabling": "held",
+            "outputs": [
+              {
+                "initial": [
+                  0
+                ],
+                "whenDisabled": "reset"
+              }
+            ]
+          }
+        },
+        "position": {
+          "x": 645,
+          "y": 140
+        }
+      },
+      {
+        "id": "plant",
+        "kind": {
+          "type": "standard",
+          "operation": {
+            "type": "transferFcn",
+            "numerator": [
+              1
+            ],
+            "denominator": [
+              1,
+              1
+            ]
+          }
+        },
+        "position": {
+          "x": 900,
+          "y": 140
+        }
+      },
+      {
+        "id": "start",
+        "kind": {
+          "type": "step",
+          "time": 0.5,
+          "before": [
+            0
+          ],
+          "after": [
+            1
+          ]
+        },
+        "position": {
+          "x": 30,
+          "y": 415
+        }
+      },
+      {
+        "id": "pause",
+        "kind": {
+          "type": "step",
+          "time": 3,
+          "before": [
+            0
+          ],
+          "after": [
+            -1
+          ]
+        },
+        "position": {
+          "x": 235,
+          "y": 415
+        }
+      },
+      {
+        "id": "resume",
+        "kind": {
+          "type": "step",
+          "time": 4.5,
+          "before": [
+            0
+          ],
+          "after": [
+            1
+          ]
+        },
+        "position": {
+          "x": 430,
+          "y": 415
+        }
+      },
+      {
+        "id": "enable",
+        "kind": {
+          "type": "sum",
+          "signs": [
+            1,
+            1,
+            1
+          ]
+        },
+        "position": {
+          "x": 645,
+          "y": 415
+        }
+      },
+      {
+        "id": "compare",
+        "kind": {
+          "type": "standard",
+          "operation": {
+            "type": "mux",
+            "inputs": 4
+          }
+        },
+        "position": {
+          "x": 900,
+          "y": 415
+        }
+      },
+      {
+        "id": "scope",
+        "kind": {
+          "type": "scope"
+        },
+        "position": {
+          "x": 1140,
+          "y": 415
+        }
+      },
+      {
+        "id": "u",
+        "kind": {
+          "type": "inport",
+          "port": 1
+        },
+        "position": {
+          "x": 25,
+          "y": 180
+        },
+        "parent": "controller"
+      },
+      {
+        "id": "kp",
+        "kind": {
+          "type": "gain",
+          "gain": [
+            2
+          ]
+        },
+        "position": {
+          "x": 255,
+          "y": 80
+        },
+        "parent": "controller"
+      },
+      {
+        "id": "integral",
+        "kind": {
+          "type": "discreteIntegrator",
+          "initial": [
+            0
+          ],
+          "gain": 1
+        },
+        "position": {
+          "x": 255,
+          "y": 285
+        },
+        "parent": "controller"
+      },
+      {
+        "id": "pi",
+        "kind": {
+          "type": "sum",
+          "signs": [
+            1,
+            1
+          ]
+        },
+        "position": {
+          "x": 480,
+          "y": 175
+        },
+        "parent": "controller"
+      },
+      {
+        "id": "limit",
+        "kind": {
+          "type": "control",
+          "operation": {
+            "type": "saturation",
+            "lower": [
+              -2
+            ],
+            "upper": [
+              2
+            ]
+          },
+          "zeroCrossing": false
+        },
+        "position": {
+          "x": 685,
+          "y": 175
+        },
+        "parent": "controller"
+      },
+      {
+        "id": "y",
+        "kind": {
+          "type": "outport",
+          "port": 1
+        },
+        "position": {
+          "x": 900,
+          "y": 175
+        },
+        "parent": "controller"
+      }
+    ],
+    "connections": [
+      {
+        "to": {
+          "block": "error",
+          "port": "in0"
+        },
+        "from": {
+          "block": "reference",
+          "port": "out"
+        }
+      },
+      {
+        "to": {
+          "block": "error",
+          "port": "in1"
+        },
+        "from": {
+          "block": "plant",
+          "port": "out"
+        }
+      },
+      {
+        "to": {
+          "block": "sample",
+          "port": "in"
+        },
+        "from": {
+          "block": "error",
+          "port": "out"
+        }
+      },
+      {
+        "to": {
+          "block": "controller",
+          "port": "in1"
+        },
+        "from": {
+          "block": "sample",
+          "port": "out"
+        }
+      },
+      {
+        "to": {
+          "block": "controller",
+          "port": "enable"
+        },
+        "from": {
+          "block": "enable",
+          "port": "out"
+        }
+      },
+      {
+        "to": {
+          "block": "plant",
+          "port": "in"
+        },
+        "from": {
+          "block": "controller",
+          "port": "out1"
+        }
+      },
+      {
+        "to": {
+          "block": "enable",
+          "port": "in0"
+        },
+        "from": {
+          "block": "start",
+          "port": "out"
+        }
+      },
+      {
+        "to": {
+          "block": "enable",
+          "port": "in1"
+        },
+        "from": {
+          "block": "pause",
+          "port": "out"
+        }
+      },
+      {
+        "to": {
+          "block": "enable",
+          "port": "in2"
+        },
+        "from": {
+          "block": "resume",
+          "port": "out"
+        }
+      },
+      {
+        "to": {
+          "block": "kp",
+          "port": "in"
+        },
+        "from": {
+          "block": "u",
+          "port": "out"
+        }
+      },
+      {
+        "to": {
+          "block": "integral",
+          "port": "in"
+        },
+        "from": {
+          "block": "u",
+          "port": "out"
+        }
+      },
+      {
+        "to": {
+          "block": "pi",
+          "port": "in0"
+        },
+        "from": {
+          "block": "kp",
+          "port": "out"
+        }
+      },
+      {
+        "to": {
+          "block": "pi",
+          "port": "in1"
+        },
+        "from": {
+          "block": "integral",
+          "port": "out"
+        }
+      },
+      {
+        "to": {
+          "block": "limit",
+          "port": "in0"
+        },
+        "from": {
+          "block": "pi",
+          "port": "out"
+        }
+      },
+      {
+        "to": {
+          "block": "y",
+          "port": "in"
+        },
+        "from": {
+          "block": "limit",
+          "port": "out"
+        }
+      },
+      {
+        "to": {
+          "block": "compare",
+          "port": "in0"
+        },
+        "from": {
+          "block": "reference",
+          "port": "out"
+        }
+      },
+      {
+        "to": {
+          "block": "compare",
+          "port": "in1"
+        },
+        "from": {
+          "block": "plant",
+          "port": "out"
+        }
+      },
+      {
+        "to": {
+          "block": "compare",
+          "port": "in2"
+        },
+        "from": {
+          "block": "controller",
+          "port": "out1"
+        }
+      },
+      {
+        "to": {
+          "block": "compare",
+          "port": "in3"
+        },
+        "from": {
+          "block": "enable",
+          "port": "out"
+        }
+      },
+      {
+        "to": {
+          "block": "scope",
+          "port": "in"
+        },
+        "from": {
+          "block": "compare",
+          "port": "out"
+        }
+      }
+    ],
+    "sampleTimes": {
+      "sample": {
+        "kind": "discrete",
+        "period": 0.05
+      },
+      "start": {
+        "kind": "discrete",
+        "period": 0.05
+      },
+      "pause": {
+        "kind": "discrete",
+        "period": 0.05
+      },
+      "resume": {
+        "kind": "discrete",
+        "period": 0.05
+      }
+    }
+  },
+  "editor": {
+    "labels": {
+      "reference": "参考值 1",
+      "error": "跟踪误差",
+      "sample": "50 ms 采样",
+      "controller": "可启停 PI 控制器",
+      "plant": "连续对象 1 / (s + 1)",
+      "start": "0.5 s 启动",
+      "pause": "3 s 暂停",
+      "resume": "4.5 s 恢复",
+      "enable": "控制器启用信号",
+      "compare": "参考 / 响应 / 控制 / 启用",
+      "scope": "启停控制响应",
+      "u": "误差输入",
+      "kp": "比例 Kp = 2",
+      "integral": "离散积分 Ki = 1",
+      "pi": "PI 输出",
+      "limit": "执行器限幅 ±2",
+      "y": "控制输出"
+    },
+    "bends": {}
+  },
+  "execution": {
+    "backend": "reference",
+    "solver": {
+      "type": "rk4"
+    }
+  }
+}

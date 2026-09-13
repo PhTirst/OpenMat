@@ -116,8 +116,9 @@ one-way assignment. It does not read arbitrary workspace expressions or keep a
 live bidirectional binding. The selected result retains its original run snapshot
 even if the model is subsequently edited; the editor indicates stale results.
 
-The editor uses `/simulation/v7` on the same configured native listener. Earlier
-routes reject schema 7; v7 also accepts schemas 1–6 with their existing rules.
+This milestone introduced `/simulation/v7` on the configured native listener.
+The current editor uses `/simulation/v8` for [conditional execution](conditional-subsystems.md).
+Earlier routes reject schema 7; v7 also accepts schemas 1–6 with their existing rules.
 Older OpenMat versions cannot open schema-7 authoring documents. Original SLX
 packages keep their separate import/parameter workflow and are not rewritten.
 See [RFC 0018](../../docs/rfcs/0018-native-model-authoring-v1.md) for the contract.

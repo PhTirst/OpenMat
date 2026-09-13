@@ -25,6 +25,7 @@ const PROTOCOL_V3: &str = "openmat-simulation-v3";
 const PROTOCOL_V4: &str = "openmat-simulation-v4";
 const PROTOCOL_V6: &str = "openmat-simulation-v6";
 const PROTOCOL_V7: &str = "openmat-simulation-v7";
+const PROTOCOL_V8: &str = "openmat-simulation-v8";
 const PROTOCOL_V5: &str = "openmat-simulation-v5";
 const MAX_MESSAGE: usize = 8 * 1024 * 1024;
 const MAX_SLX: usize = 2 * 1024 * 1024;
@@ -76,6 +77,12 @@ enum Operation {
         parameters: String,
     },
     ImportSlxHybrid {
+        name: String,
+        bytes: Vec<u8>,
+        #[serde(default)]
+        parameters: String,
+    },
+    ImportSlxConditional {
         name: String,
         bytes: Vec<u8>,
         #[serde(default)]
@@ -410,14 +417,18 @@ fn import_slx_profile(
         ));
     }
     let imported = ImportedSlx::read(bytes, name).map_err(|issue| json!(issue))?;
-    let profile = if version == 6 {
+    let profile = if version == 8 {
+        "conditional-v1"
+    } else if version == 6 {
         "hybrid-v1"
     } else if version == 5 {
         "multirate-v1"
     } else {
         "control-v1"
     };
-    let lowered = if version == 6 {
+    let lowered = if version == 8 {
+        imported.lower_conditional(parameters)
+    } else if version == 6 {
         imported.lower_hybrid(parameters)
     } else if version == 5 {
         imported.lower_multirate(parameters)
@@ -444,7 +455,8 @@ fn import_slx_profile(
 #[allow(clippy::too_many_lines)] // Keep both protocol versions and connection-owned job dispatch together.
 fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
     let id = &request.id;
-    let v7 = request.protocol == PROTOCOL_V7;
+    let v8 = request.protocol == PROTOCOL_V8;
+    let v7 = request.protocol == PROTOCOL_V7 || v8;
     let v6 = request.protocol == PROTOCOL_V6 || v7;
     let v5 = request.protocol == PROTOCOL_V5 || v6;
     let v4 = request.protocol == PROTOCOL_V4 || v5;
@@ -499,6 +511,10 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
                     json!({"type":"outport","label":"Outport","category":"Hierarchy","icon":"outport","inputs":["in"],"outputs":[]})
                 ]);
             }
+            if v8 {
+                result["schemaVersion"] = json!(8);
+                result["conditionalExecution"] = json!(true);
+            }
             response(id, result)
         }
         Operation::Check {
@@ -507,6 +523,12 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
             sources,
             execution,
         } => {
+            if !v8 && model.schema_version >= 8 {
+                return Some(failure(
+                    id,
+                    error("protocol", "conditional models require /simulation/v8"),
+                ));
+            }
             if !v7 && model.schema_version >= 7 {
                 return Some(failure(
                     id,
@@ -573,6 +595,12 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
             sources,
             execution,
         } => {
+            if !v8 && model.schema_version >= 8 {
+                return Some(failure(
+                    id,
+                    error("protocol", "conditional models require /simulation/v8"),
+                ));
+            }
             if !v7 && model.schema_version >= 7 {
                 return Some(failure(
                     id,
@@ -674,6 +702,28 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
                 }
             }
         }
+        Operation::ImportSlxConditional {
+            name,
+            bytes,
+            parameters,
+        } => {
+            if !v8 {
+                return Some(failure(
+                    id,
+                    error("protocol", "conditional-v1 import requires /simulation/v8"),
+                ));
+            }
+            if job.is_some() {
+                return Some(failure(
+                    id,
+                    error("busy", "Stop the active run before importing a model."),
+                ));
+            }
+            match import_slx_profile(&name, &bytes, &parameters, 8) {
+                Ok(result) => response(id, result),
+                Err(error) => failure(id, error),
+            }
+        }
         Operation::ImportSlxHybrid {
             name,
             bytes,
@@ -741,6 +791,7 @@ pub(crate) fn serve(socket: &mut WebSocket<TcpStream>, version: u32) -> Result<(
         5 => PROTOCOL_V5,
         6 => PROTOCOL_V6,
         7 => PROTOCOL_V7,
+        8 => PROTOCOL_V8,
         4 => PROTOCOL_V4,
         3 => PROTOCOL_V3,
         2 => PROTOCOL_V2,
@@ -834,6 +885,57 @@ pub(crate) fn serve(socket: &mut WebSocket<TcpStream>, version: u32) -> Result<(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn conditional_execution_requires_v8_and_preserves_scope_domains() {
+        let doc: Value = serde_json::from_str(include_str!(
+            "../../../simulation/examples/triggered-counter.omsim.json"
+        ))
+        .unwrap();
+        for protocol in [
+            PROTOCOL,
+            PROTOCOL_V2,
+            PROTOCOL_V3,
+            PROTOCOL_V4,
+            PROTOCOL_V5,
+            PROTOCOL_V6,
+            PROTOCOL_V7,
+        ] {
+            for operation in ["check", "run"] {
+                let request = serde_json::from_value(json!({"protocol":protocol,"requestId":"conditional","operation":operation,"model":doc["model"],"sources":doc["sources"],"revision":"1"})).unwrap();
+                assert_eq!(
+                    handle(request, &mut None).unwrap()["error"]["code"],
+                    "protocol"
+                );
+            }
+            let request = serde_json::from_value(json!({"protocol":protocol,"requestId":"conditional","operation":"importSlxConditional","name":"bad","bytes":[]})).unwrap();
+            assert_eq!(
+                handle(request, &mut None).unwrap()["error"]["code"],
+                "protocol"
+            );
+        }
+        let request = serde_json::from_value(json!({"protocol":PROTOCOL_V8,"requestId":"conditional","operation":"check","model":doc["model"],"sources":doc["sources"],"revision":"1"})).unwrap();
+        let result = handle(request, &mut None).unwrap();
+        assert_eq!(result["ok"], true, "{result}");
+        assert!(
+            result["result"]["plan"]["scopes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|s| s["block"] == "invocations" && s["execution"] == "counter")
+        );
+        let catalog = handle(
+            Request {
+                protocol: PROTOCOL_V8.into(),
+                id: "catalog".into(),
+                operation: Operation::Catalog,
+            },
+            &mut None,
+        )
+        .unwrap();
+        assert_eq!(catalog["result"]["schemaVersion"], 8);
+        assert_eq!(catalog["result"]["conditionalExecution"], true);
+    }
 
     #[test]
     fn native_authoring_has_an_explicit_protocol_boundary() {

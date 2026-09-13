@@ -73,6 +73,12 @@ Desktop, so all referenced sources remain accessible through the workspace API.
 
 ## Callback and sampling contract
 
+The table below describes ordinary periodic execution. Schema-8
+[conditional subsystems](conditional-subsystems.md) additionally gate output/update
+calls: enabled bodies run only while enabled, and triggered bodies inherit actual
+invocations using `sampleTime: -1`. Each accepted invocation prepares state for the
+next invocation. Disabled intervals and solver trials do not update it.
+
 | Callback signature | Result | Invocation |
 | --- | --- | --- |
 | `z = initialize(p)` | Column `[x0; q0]` | Once during preparation for each instance |
@@ -185,6 +191,8 @@ Components require model and authoring schema 3, served over `/simulation/v3`
 with `openmat-simulation-v3`. Older schema documents still open. The v1/v2
 routes retain their earlier limits and reject schema-3 models explicitly.
 Library JSON uses its own `openmat-component` schema 1; it is not an OPC package.
+Schema 2 extends library definitions to pure discrete components with inherited
+`sampleTime: -1`. Positive-period definitions still use schema 1.
 
 These callbacks form OpenMat's own compiled component interface. They do not
 load arbitrary MATLAB Level-2 S-functions, MATLAB Function blocks or Simulink
