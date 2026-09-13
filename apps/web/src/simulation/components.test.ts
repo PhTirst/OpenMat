@@ -124,7 +124,7 @@ describe("stateful component documents and libraries", () => {
             parseComponentFile(
                 componentFile(definition).replace(
                     '"schemaVersion": 1',
-                    '"schemaVersion": 2',
+                    '"schemaVersion": 3',
                 ),
             ),
         ).toThrow();

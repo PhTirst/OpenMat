@@ -241,13 +241,20 @@ export function parseComponentFile(content: string): ComponentDefinition {
         throw new Error("组件定义超过 64 KiB。");
     const file = record(JSON.parse(content));
     keys(file, ["format", "schemaVersion", "definition"]);
-    if (file.format !== "openmat-component" || file.schemaVersion !== 1)
+    if (
+        file.format !== "openmat-component" ||
+        (file.schemaVersion !== 1 && file.schemaVersion !== 2)
+    )
         throw new Error("不支持的组件库格式。");
-    return validateComponent(file.definition);
+    return validateComponent(file.definition, file.schemaVersion === 2);
 }
 export const componentFile = (definition: ComponentDefinition): string =>
     JSON.stringify(
-        { format: "openmat-component", schemaVersion: 1, definition },
+        {
+            format: "openmat-component",
+            schemaVersion: definition.sampleTime === -1 ? 2 : 1,
+            definition,
+        },
         null,
         2,
     ) + "\n";
@@ -280,7 +287,7 @@ export function attachComponent(
     doc: ModelDocument,
     definition: ComponentDefinition,
 ): void {
-    validateComponent(definition, doc.model.schemaVersion === 5);
+    validateComponent(definition, doc.model.schemaVersion >= 5);
     const existing = doc.model.components?.find((d) => d.id === definition.id);
     if (existing && !sameComponentDefinition(existing, definition))
         throw new Error(

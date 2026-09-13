@@ -1,4 +1,6 @@
 import experimentControl from "../../../../simulation/examples/experiment-control.omsim.json";
+import enabledControl from "../../../../simulation/examples/enabled-control.omsim.json";
+import triggeredCounter from "../../../../simulation/examples/triggered-counter.omsim.json";
 import saturatedPi from "../../../../simulation/examples/saturated-pi.omsim.json";
 import switchedControl from "../../../../simulation/examples/switched-control.omsim.json";
 import periodicReset from "../../../../simulation/examples/periodic-reset.omsim.json";
@@ -28,7 +30,10 @@ export function initializeComponentExample(
     const sources = Object.fromEntries(
         modelSources(doc.model).map((reference) => [
             reference,
-            componentSources[`../../../../simulation/examples/${reference}`] ??
+            doc.sources?.[reference] ??
+                componentSources[
+                    `../../../../simulation/examples/${reference}`
+                ] ??
                 "",
         ]),
     );
@@ -39,6 +44,14 @@ export function initializeComponentExample(
             Object.assign(copied, result.sources);
             return result.definition;
         }) ?? [];
+    if (doc.sources) {
+        const used = new Set(modelSources(doc.model));
+        doc.sources = Object.fromEntries(
+            Object.entries({ ...doc.sources, ...copied }).filter(([path]) =>
+                used.has(path),
+            ),
+        );
+    }
     return copied;
 }
 export const PENDULUM_SOURCE = pendulumSource;
@@ -55,8 +68,14 @@ export type Example =
     | "saturatedPi"
     | "switchedControl"
     | "experimentControl"
+    | "enabledControl"
+    | "triggeredCounter"
     | "periodicReset";
 export function example(name: Example): ModelDocument {
+    if (name === "enabledControl")
+        return parseDocument(JSON.stringify(enabledControl));
+    if (name === "triggeredCounter")
+        return parseDocument(JSON.stringify(triggeredCounter));
     if (name === "experimentControl")
         return parseDocument(JSON.stringify(experimentControl));
     if (name === "saturatedPi")

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { ConditionalInspector } from "./ConditionalInspector";
 import {
     authoringPorts,
     matrixText,
@@ -140,17 +141,13 @@ export function AuthoringInspector({
     };
     if (kind.type === "subsystem")
         return (
-            <fieldset className="sim-hybrid-fields">
-                <legend>子系统</legend>
-                <p>
-                    {kind.inputs} 个输入 · {kind.outputs} 个输出
-                </p>
-                <button onClick={onEnter}>进入子系统</button>
-                <p className="sim-help">
-                    进入内部后添加 Inport / Outport
-                    可增加边界端口。虚拟子系统在编译时展开，内部状态独立保留。
-                </p>
-            </fieldset>
+            <ConditionalInspector
+                kind={kind}
+                disabled={disabled}
+                onChange={onChange}
+                onError={onError}
+                onEnter={onEnter}
+            />
         );
     if (kind.type === "outport" || (kind.type === "inport" && parent))
         return (

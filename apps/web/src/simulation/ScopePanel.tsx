@@ -1,3 +1,4 @@
+import { EXECUTION_LABELS } from "./conditional";
 import type { SamplingPlan } from "./sampling";
 import { ResultWorkspaceExport } from "./result-workspace";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
@@ -37,7 +38,18 @@ export const ScopePanel = memo(function ScopePanel({
     const [stairs, setStairs] = useState(false);
     const [showEvents, setShowEvents] = useState(true);
     const eventFrames = useMemo(
-        () => frames.filter((f) => f.events?.length),
+        () =>
+            frames.flatMap((f) => {
+                const events = [
+                    ...(f.events ?? []),
+                    ...(f.executionEvents ?? []).map((e) => ({
+                        ...e,
+                        surface: "execution",
+                        direction: 0,
+                    })),
+                ];
+                return events.length ? [{ ...f, events }] : [];
+            }),
         [frames, version],
     );
     const eventCount = eventFrames.reduce(
@@ -194,7 +206,11 @@ export const ScopePanel = memo(function ScopePanel({
                     columns.set(
                         x,
                         (columns.get(x) ?? false) ||
-                            frame.events!.some((e) => e.kind === "reset"),
+                            frame.events!.some(
+                                (e) =>
+                                    e.kind === "reset" ||
+                                    e.kind === "statesReset",
+                            ),
                     );
                 }
                 ctx.setLineDash([3, 4]);
@@ -330,10 +346,22 @@ export const ScopePanel = memo(function ScopePanel({
                                     {" · "}
                                     {names[event.block] ?? event.block}
                                     {" · "}
-                                    {event.kind === "reset" ? "复位" : "穿越"}
-                                    {event.direction > 0 ? " ↑" : " ↓"}
+                                    {Object.hasOwn(EXECUTION_LABELS, event.kind)
+                                        ? EXECUTION_LABELS[
+                                              event.kind as keyof typeof EXECUTION_LABELS
+                                          ]
+                                        : event.kind === "reset"
+                                          ? "复位"
+                                          : "穿越"}
+                                    {event.direction === 0
+                                        ? ""
+                                        : event.direction > 0
+                                          ? " ↑"
+                                          : " ↓"}
                                     {" · "}
-                                    {event.surface}
+                                    {event.surface === "execution"
+                                        ? "子系统"
+                                        : event.surface}
                                 </li>
                             ))}
                         </ol>

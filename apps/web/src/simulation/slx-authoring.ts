@@ -8,7 +8,7 @@ import type {
 } from "./client";
 
 export interface SlxAsset {
-    profile?: "control-v1" | "multirate-v1" | "hybrid-v1";
+    profile?: "control-v1" | "multirate-v1" | "hybrid-v1" | "conditional-v1";
     sampling?: SamplingPlan;
     eventPlan?: EventPlan;
     name: string;
@@ -92,7 +92,8 @@ export function validateSlxAsset(raw: unknown): SlxAsset {
         asset.profile !== undefined &&
         asset.profile !== "control-v1" &&
         asset.profile !== "multirate-v1" &&
-        asset.profile !== "hybrid-v1"
+        asset.profile !== "hybrid-v1" &&
+        asset.profile !== "conditional-v1"
     )
         throw new Error("不支持的 SLX 导入配置。");
     const packageText = string(asset.package, 2796204);
@@ -188,7 +189,10 @@ export function validateSlxAsset(raw: unknown): SlxAsset {
             ? {}
             : {
                   profile: asset.profile as
-                      "control-v1" | "multirate-v1" | "hybrid-v1",
+                      | "control-v1"
+                      | "multirate-v1"
+                      | "hybrid-v1"
+                      | "conditional-v1",
               }),
         ...(asset.eventPlan == null
             ? {}

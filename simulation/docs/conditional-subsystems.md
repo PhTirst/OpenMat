@@ -83,6 +83,21 @@ cargo run --manifest-path simulation/Cargo.toml --locked -p openmat-sim-cli -- r
 
 ## 验证
 
+从仓库根目录运行通用验证：
+
+```powershell
+cargo fmt --manifest-path simulation/Cargo.toml --all --check
+cargo clippy --manifest-path simulation/Cargo.toml --locked --workspace --all-targets -- -D warnings
+cargo test --manifest-path simulation/Cargo.toml --locked --workspace
+cargo clippy --locked -p openmat-server --all-targets -- -D warnings
+cargo test --locked -p openmat-server --lib
+cargo test --locked -p openmat-server --test simulation_transport
+pnpm --dir apps/web typecheck
+pnpm --dir apps/web exec vitest run --maxWorkers=4
+pnpm --dir apps/web exec vite build
+node tools/release/check-public-source.mjs --staged
+```
+
 通用测试覆盖状态/输出策略分离、触发启动和零平台、复制实例的私有状态、禁用期间
 跳过无效 m 表达式、失败不发布部分状态、外部复位同时发生、端口重编号、文件版本、
 组件库、保存重开及搬移独立模型文件。LLVM 使用真正的条件分支跳过内部指令。

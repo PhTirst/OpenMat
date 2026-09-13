@@ -126,3 +126,79 @@ it("groups feedback, edits inside, undoes, saves, reopens and runs the nested do
     expect(native.run.mock.calls[0]?.[0]).toEqual(saved.model);
     view.unmount();
 });
+
+it("changes conditional execution, restores its control wire with undo, saves and reopens", async () => {
+    const workspace = new MockWorkspaceClient();
+    await workspace.connect();
+    const root = await workspace.currentDirectory();
+    await workspace.create("conditional.omsim", "file");
+    const file = await workspace.read("conditional.omsim");
+    const content = serializeDocument(example("triggeredCounter"));
+    const saved = await workspace.write(
+        file.path,
+        content,
+        file.revision,
+        root.generation,
+    );
+    localStorage.setItem(
+        `openmat.simulation.draft.v1:${root.path}`,
+        JSON.stringify({
+            content,
+            saved: content,
+            file: { path: file.path, revision: saved.revision },
+        }),
+    );
+    const session = createRef<ModelEditorSession>();
+    const mount = () =>
+        render(
+            <ModelEditor
+                workspace={workspace}
+                rootPath={root.path}
+                rootGeneration={root.generation}
+                visible
+                theme="modern-light"
+                onClose={vi.fn()}
+                onSaved={vi.fn()}
+                pendingSaves={new PendingOperations()}
+                sessionRef={session}
+            />,
+        );
+    let view = mount();
+    fireEvent.click(
+        await screen.findByRole("treeitem", { name: /上升沿触发计数器/ }),
+    );
+    fireEvent.change(screen.getByLabelText("子系统执行方式"), {
+        target: { value: "virtual" },
+    });
+    fireEvent.click(screen.getByText("应用执行设置"));
+    expect(screen.queryByLabelText("触发边沿")).not.toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+    expect(await screen.findByLabelText("触发边沿")).toHaveValue("rising");
+    fireEvent.change(screen.getByLabelText("触发边沿"), {
+        target: { value: "either" },
+    });
+    fireEvent.click(screen.getByText("应用执行设置"));
+    await act(async () => {
+        expect(await session.current!.save()).toBe(true);
+    });
+    const document = parseDocument((await workspace.read(file.path)).content);
+    expect(document.model.schemaVersion).toBe(8);
+    expect(
+        document.model.blocks.find((b) => b.id === "counter")!.kind,
+    ).toMatchObject({ execution: { type: "triggered", edge: "either" } });
+    expect(
+        document.model.connections.some(
+            (e) => e.to.block === "counter" && e.to.port === "trigger",
+        ),
+    ).toBe(true);
+    view.unmount();
+    view = mount();
+    fireEvent.click(
+        await screen.findByRole("treeitem", { name: /上升沿触发计数器/ }),
+    );
+    expect(screen.getByLabelText("触发边沿")).toHaveValue("either");
+    fireEvent.click(screen.getByRole("button", { name: /▶ 运行/ }));
+    await waitFor(() => expect(native.run).toHaveBeenCalledOnce());
+    expect(native.run.mock.calls[0]?.[0]).toEqual(document.model);
+    view.unmount();
+});

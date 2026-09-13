@@ -3,6 +3,7 @@ import {
     STANDARD_LABELS,
     type AuthoringKind,
 } from "./authoring";
+import { defaultConditional } from "./conditional";
 import { AuthoringInspector } from "./AuthoringInspector";
 import {
     groupBlocks,
@@ -472,7 +473,13 @@ function Editor(props: Props) {
                     ),
             )
         )
-            version = 7;
+            version = Math.max(version, 7) as ModelDocument["schemaVersion"];
+        if (
+            next.model.blocks.some(
+                (b) => b.kind.type === "subsystem" && b.kind.execution,
+            )
+        )
+            version = 8;
         if (
             next.model.blocks.some(
                 (b) =>
@@ -1159,6 +1166,11 @@ function Editor(props: Props) {
                     CONTROL_PRESETS.find((p) => p.id === preset)?.kind ??
                     kind(type),
             );
+            if (
+                blockKind.type === "subsystem" &&
+                (preset === "enabled" || preset === "triggered")
+            )
+                blockKind.execution = defaultConditional(preset, 0);
             if (blockKind.type === "inport" || blockKind.type === "outport") {
                 const type = blockKind.type;
                 blockKind.port =
@@ -1451,6 +1463,7 @@ function Editor(props: Props) {
                     draftRef.current.file?.path ?? null,
                     workspace,
                     sourceWorkspaceRef.current,
+                    docRef.current.sources,
                 );
                 const target = sourcePath(
                     draftRef.current.file?.path ?? null,
@@ -2024,6 +2037,12 @@ function Editor(props: Props) {
                             label: "展开子系统",
                             disabled:
                                 selected.length !== 1 ||
+                                doc.model.blocks.some(
+                                    (b) =>
+                                        b.id === menu?.node &&
+                                        b.kind.type === "subsystem" &&
+                                        Boolean(b.kind.execution),
+                                ) ||
                                 doc.model.blocks.find(
                                     (b) => b.id === menu?.node,
                                 )?.kind.type !== "subsystem",
@@ -2374,13 +2393,16 @@ function Editor(props: Props) {
                                 );
                                 for (const [path, content] of Object.entries(
                                     sources,
-                                ))
+                                )) {
+                                    if (Object.hasOwn(next.sources ?? {}, path))
+                                        continue;
                                     sourceWorkspaceRef.current?.ensureSource({
                                         path,
                                         content,
                                         savedContent: "",
                                         file: null,
                                     });
+                                }
                             }
                             replace(next);
                         });
@@ -2403,6 +2425,12 @@ function Editor(props: Props) {
                     </option>
                     <option value="experimentControl">
                         实验数据 · 子系统 PI 控制
+                    </option>
+                    <option value="enabledControl">
+                        启停控制 · 离散 PI + 连续对象
+                    </option>
+                    <option value="triggeredCounter">
+                        触发计数 · m 组件与私有状态
                     </option>
                     <option value="saturatedPi">饱和 PI · 抗积分饱和</option>
                     <option value="switchedControl">Switch · 双增益反馈</option>
@@ -2752,8 +2780,10 @@ function Editor(props: Props) {
                                     disabled={
                                         !editable ||
                                         selected.length !== 1 ||
-                                        chosen?.kind.type !== "subsystem"
+                                        chosen?.kind.type !== "subsystem" ||
+                                        Boolean(chosen.kind.execution)
                                     }
+                                    title="条件子系统需先切换为普通子系统才能展开"
                                     onClick={ungroupSelected}
                                 >
                                     展开子系统
@@ -2939,6 +2969,16 @@ function Editor(props: Props) {
                                 embedded={
                                     codePath
                                         ? doc.sources?.[codePath]
+                                        : undefined
+                                }
+                                onEmbeddedChange={
+                                    editable && !doc.slx && codePath
+                                        ? (content) =>
+                                              change((next) => {
+                                                  if (next.sources && codePath)
+                                                      next.sources[codePath] =
+                                                          content;
+                                              })
                                         : undefined
                                 }
                             />
@@ -3510,15 +3550,18 @@ function Editor(props: Props) {
                                         onLibrary={() =>
                                             void saveComponentLibrary(chosen)
                                         }
-                                        embedded={blockSources(
-                                            doc.model,
-                                            chosen,
-                                        ).some((path) =>
-                                            Object.hasOwn(
-                                                doc.sources ?? {},
-                                                path,
-                                            ),
-                                        )}
+                                        embedded={
+                                            Boolean(doc.slx) &&
+                                            blockSources(
+                                                doc.model,
+                                                chosen,
+                                            ).some((path) =>
+                                                Object.hasOwn(
+                                                    doc.sources ?? {},
+                                                    path,
+                                                ),
+                                            )
+                                        }
                                         onError={(message) => {
                                             invalidParameter.current = true;
                                             setError(message);

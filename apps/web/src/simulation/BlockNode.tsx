@@ -33,11 +33,25 @@ export function BlockIcon({
         | ControlOperation["type"]
         | StandardOperation["type"]
         | "resetDiscrete"
+        | "enabled"
+        | "triggered"
         | "unknown";
     size?: number;
 }) {
     const shapes = {
         standard: <path d="M3 4h18v16H3zM7 8h10M7 12h10M7 16h6" />,
+        enabled: (
+            <>
+                <rect x="3" y="5" width="18" height="16" rx="2" />
+                <path d="M12 1v7m-4 4 3 3 6-7" />
+            </>
+        ),
+        triggered: (
+            <>
+                <rect x="3" y="5" width="18" height="16" rx="2" />
+                <path d="M12 1v5M6 15h5V9h6" />
+            </>
+        ),
         subsystem: (
             <>
                 <rect x="3" y="3" width="18" height="18" rx="3" />
@@ -311,6 +325,11 @@ export const BlockNode = memo(function BlockNode({
                               ? 60 + i * 28
                               : `${((i + 1) / (p.inputs.length + 1)) * 100}%`,
                     }}
+                    className={
+                        name === "enable" || name === "trigger"
+                            ? "sim-conditional-handle"
+                            : undefined
+                    }
                     title={`${data.label}.${name} · 输入`}
                     aria-label={`${data.label} 输入 ${name}`}
                 >

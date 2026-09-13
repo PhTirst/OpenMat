@@ -1,3 +1,4 @@
+import { initialOutput } from "./conditional";
 import {
     edgeId,
     type Block,
@@ -95,6 +96,20 @@ export function renumberBoundaries(doc: ModelDocument) {
                 );
             const map = mappings.get(parent ?? "") ?? new Map<string, string>();
             mappings.set(parent ?? "", map);
+            const owner = doc.model.blocks.find((b) => b.id === parent);
+            const execution =
+                owner?.kind.type === "subsystem"
+                    ? owner.kind.execution
+                    : undefined;
+            const policies =
+                type === "outport" && execution
+                    ? ports.map((b) =>
+                          b.kind.type === "outport"
+                              ? (execution.outputs[b.kind.port - 1] ??
+                                initialOutput())
+                              : initialOutput(),
+                      )
+                    : undefined;
             ports.forEach((b, i) => {
                 if (b.kind.type !== "inport" && b.kind.type !== "outport")
                     return;
@@ -105,13 +120,16 @@ export function renumberBoundaries(doc: ModelDocument) {
                 b.kind.port = i + 1;
             });
             const p = doc.model.blocks.find((b) => b.id === parent);
-            if (p?.kind.type === "subsystem")
+            if (p?.kind.type === "subsystem") {
                 p.kind[type === "inport" ? "inputs" : "outputs"] = ports.length;
+                if (policies && p.kind.execution)
+                    p.kind.execution.outputs = policies;
+            }
         }
     doc.model.connections = doc.model.connections.filter((edge) => {
         for (const p of [edge.from, edge.to]) {
             const map = mappings.get(p.block);
-            if (map) {
+            if (map && p.port !== "enable" && p.port !== "trigger") {
                 const next = map.get(p.port);
                 if (!next) return false;
                 p.port = next;
@@ -121,7 +139,11 @@ export function renumberBoundaries(doc: ModelDocument) {
     });
 }
 function upgrade(doc: ModelDocument) {
-    doc.schemaVersion = doc.model.schemaVersion = 7;
+    doc.schemaVersion = doc.model.schemaVersion = Math.max(
+        doc.schemaVersion,
+        doc.model.schemaVersion,
+        7,
+    ) as ModelDocument["schemaVersion"];
 }
 const key = (p: Port) => JSON.stringify(p);
 const wire = (from: Port, to: Port): Connection => ({
@@ -246,6 +268,10 @@ export function ungroupBlock(doc: ModelDocument, id: string): ModelDocument {
     const next = structuredClone(doc),
         sub = next.model.blocks.find((b) => b.id === id);
     if (sub?.kind.type !== "subsystem") throw new Error("请选择一个子系统。");
+    if (sub.kind.execution)
+        throw new Error(
+            "条件子系统保留执行边界；如需展开，请先在检查器中改为普通子系统。",
+        );
     const boundaries = next.model.blocks.filter(
         (b) =>
             b.parent === id &&

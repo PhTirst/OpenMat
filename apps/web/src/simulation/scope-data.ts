@@ -7,6 +7,8 @@ export function scopeHit(
     scope?: ScopeInfo,
     sampling?: SamplingPlan,
 ): boolean {
+    if (scope?.execution)
+        return frame.executionHits?.includes(scope.execution) ?? false;
     const rate = scope?.sampleTime;
     if (!rate || !sampling || rate.kind === "continuous") return true;
     if (rate.kind === "constant") return index === 0;
@@ -23,9 +25,10 @@ export function scopeFrames(
     sampling?: SamplingPlan,
 ): readonly SimulationFrame[] {
     if (
-        !scope?.sampleTime ||
-        !sampling ||
-        scope.sampleTime.kind === "continuous"
+        !scope?.execution &&
+        (!scope?.sampleTime ||
+            !sampling ||
+            scope.sampleTime.kind === "continuous")
     )
         return frames;
     return frames.filter((frame, index) =>

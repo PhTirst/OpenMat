@@ -203,7 +203,7 @@ export interface Connection {
     to: Port;
 }
 export interface Model {
-    schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+    schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
     name: string;
     settings: {
         startTime: number;
@@ -218,7 +218,7 @@ export interface Model {
 }
 export interface ModelDocument {
     format: "openmat-simulation";
-    schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+    schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
     sources?: Record<string, string>;
     slx?: SlxAsset;
     execution?: ExecutionOptions;
@@ -237,7 +237,9 @@ export interface BlockDefinition {
         | BlockType
         | ControlOperation["type"]
         | StandardOperation["type"]
-        | "resetDiscrete";
+        | "resetDiscrete"
+        | "enabled"
+        | "triggered";
     preset?: string;
     inputs: string[];
     outputs: string[];
@@ -418,6 +420,15 @@ export const PALETTE_DEFINITIONS: readonly BlockDefinition[] = [
             d.type !== "resetIntegrator" &&
             d.type !== "standard",
     ),
+    ...(["enabled", "triggered"] as const).map((type) => ({
+        type: "subsystem" as const,
+        preset: type,
+        icon: type,
+        label: type === "enabled" ? "Enabled Subsystem" : "Triggered Subsystem",
+        category: "条件执行",
+        inputs: [type === "enabled" ? "enable" : "trigger"],
+        outputs: [],
+    })),
     ...STANDARD_PRESETS.map((p) => ({
         type: "standard" as const,
         preset: p.id,
@@ -443,13 +454,15 @@ export const PALETTE_DEFINITIONS: readonly BlockDefinition[] = [
     })),
 ];
 export function kindIcon(k: BlockKind): BlockDefinition["icon"] {
-    return k.type === "standard"
-        ? k.operation.type
-        : k.type === "control"
+    return k.type === "subsystem" && k.execution
+        ? k.execution.type
+        : k.type === "standard"
           ? k.operation.type
-          : k.type === "resetIntegrator" && k.discrete
-            ? "resetDiscrete"
-            : k.type;
+          : k.type === "control"
+            ? k.operation.type
+            : k.type === "resetIntegrator" && k.discrete
+              ? "resetDiscrete"
+              : k.type;
 }
 export function ports(
     block: Block,
@@ -686,7 +699,8 @@ export function parseModel(value: unknown): Model {
         data.schemaVersion !== 4 &&
         data.schemaVersion !== 5 &&
         data.schemaVersion !== 6 &&
-        data.schemaVersion !== 7
+        data.schemaVersion !== 7 &&
+        data.schemaVersion !== 8
     )
         throw new Error("不支持的模型版本。");
     if (
@@ -731,6 +745,12 @@ export function parseModel(value: unknown): Model {
         if (["standard", "subsystem", "inport", "outport"].includes(k.type)) {
             if (schemaVersion < 7) throw new Error("此方块需要模型版本 7。");
             Object.assign(k, parseAuthoringKind(k));
+            if (
+                k.type === "subsystem" &&
+                k.execution !== undefined &&
+                schemaVersion < 8
+            )
+                throw new Error("条件执行需要模型版本 8。");
         } else if (k.type === "component") {
             if (schemaVersion < 3)
                 throw new Error("自定义组件需要模型版本 3。");
@@ -903,7 +923,8 @@ export function parseDocument(source: string): ModelDocument {
             raw.schemaVersion !== 4 &&
             raw.schemaVersion !== 5 &&
             raw.schemaVersion !== 6 &&
-            raw.schemaVersion !== 7)
+            raw.schemaVersion !== 7 &&
+            raw.schemaVersion !== 8)
     )
         throw new Error("不支持的编辑器文件格式或版本。");
     const doc = fromModel(parseModel(raw.model));
@@ -913,7 +934,8 @@ export function parseDocument(source: string): ModelDocument {
             raw.schemaVersion !== 4 &&
             raw.schemaVersion !== 5 &&
             raw.schemaVersion !== 6 &&
-            raw.schemaVersion !== 7
+            raw.schemaVersion !== 7 &&
+            raw.schemaVersion !== 8
         )
             throw new Error("内嵌源码和 SLX 层级需要文件版本 4。");
         if (raw.sources !== undefined)

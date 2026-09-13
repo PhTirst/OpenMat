@@ -10,16 +10,17 @@ export function FunctionCodePanel({
     onRun,
     onSave,
     embedded,
+    onEmbeddedChange,
 }: {
     path: string | null;
     shared?: DesignerSourceWorkspace | undefined;
     theme: IdeTheme;
     reveal?:
-        | { lineNumber: number; column: number; requestId: number }
-        | undefined;
+        { lineNumber: number; column: number; requestId: number } | undefined;
     onRun(): void;
     onSave(): void;
     embedded?: string | undefined;
+    onEmbeddedChange?: ((content: string) => void) | undefined;
 }) {
     if (embedded !== undefined)
         return (
@@ -27,13 +28,19 @@ export function FunctionCodePanel({
                 <div className="sim-source-title">
                     <span>{path} · 随模型保存</span>
                     <span>
-                        导入生成的回调；请回到原始 SLX 模型修改参数后重新生成。
+                        {onEmbeddedChange
+                            ? "源码随当前模型一起保存。"
+                            : "导入生成的回调；请回到原始 SLX 模型修改参数后重新生成。"}
                     </span>
+                    {onEmbeddedChange && (
+                        <button onClick={onSave}>保存模型与源码</button>
+                    )}
                 </div>
                 <textarea
                     className="sim-embedded-code"
                     aria-label="内嵌 m 回调"
-                    readOnly
+                    readOnly={!onEmbeddedChange}
+                    onChange={(e) => onEmbeddedChange?.(e.target.value)}
                     value={embedded}
                     spellCheck={false}
                 />

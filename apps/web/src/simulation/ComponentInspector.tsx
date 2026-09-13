@@ -90,8 +90,8 @@ export function ComponentInspector({
                 ) : null;
             })}
             <p className="sim-help">
-                输出和导数用于连续求值；update
-                只在采样时刻执行，其结果在下一采样时刻成为可见状态。
+                update
+                只在采样或条件调用时执行。每次输出使用该次调用前的离散状态，新的状态供后续调用使用。
             </p>
             {embedded && (
                 <p className="sim-help">

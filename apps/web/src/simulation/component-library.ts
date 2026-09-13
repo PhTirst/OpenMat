@@ -27,7 +27,7 @@ export interface LibraryEntry {
     sources?: Record<string, string>;
 }
 function bundled(slug: string, raw: unknown): LibraryEntry {
-    const definition = validateComponent(raw);
+    const definition = validateComponent(raw, true);
     return {
         key: "builtin:" + slug,
         definition,

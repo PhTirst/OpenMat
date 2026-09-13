@@ -1107,3 +1107,13 @@
 .sim-hybrid-fields .sim-help {
     margin: 2px 0;
 }
+.sim-conditional-output {
+    border-top: 1px solid var(--border-color, #d8e1ea);
+    padding-top: 8px;
+    margin-top: 8px;
+}
+.sim-block .react-flow__handle.sim-conditional-handle {
+    background: #b07d36;
+    border-color: #b07d36;
+    border-radius: 2px;
+}

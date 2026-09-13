@@ -1,3 +1,4 @@
+import { parseConditional, type ConditionalExecution } from "./conditional";
 export interface TimeSeries {
     times: number[];
     values: number[][];
@@ -17,7 +18,12 @@ export type StandardOperation =
     | { type: "transferFcn"; numerator: number[]; denominator: number[] };
 export type AuthoringKind =
     | { type: "standard"; operation: StandardOperation }
-    | { type: "subsystem"; inputs: number; outputs: number }
+    | {
+          type: "subsystem";
+          inputs: number;
+          outputs: number;
+          execution?: ConditionalExecution;
+      }
     | { type: "inport"; port: number; data?: TimeSeries }
     | { type: "outport"; port: number };
 export const STANDARD_LABELS = {
@@ -132,8 +138,9 @@ export function parseAuthoringKind(raw: unknown): AuthoringKind {
     const k = object(raw),
         bad = () => new Error("方块参数的类型或尺寸无效。");
     if (k.type === "subsystem") {
-        keys(k, ["type", "inputs", "outputs"]);
+        keys(k, ["type", "inputs", "outputs", "execution"]);
         if (!count(k.inputs, 0, 64) || !count(k.outputs, 0, 64)) throw bad();
+        if (k.execution !== undefined) parseConditional(k.execution, k.outputs);
     } else if (k.type === "inport" || k.type === "outport") {
         keys(
             k,
@@ -241,7 +248,12 @@ export function authoringPorts(k: AuthoringKind): {
         Array.from({ length: n }, (_, i) => `${prefix}${i + first}`);
     if (k.type === "subsystem")
         return {
-            inputs: names(k.inputs, "in", 1),
+            inputs: [
+                ...names(k.inputs, "in", 1),
+                ...(k.execution
+                    ? [k.execution.type === "enabled" ? "enable" : "trigger"]
+                    : []),
+            ],
             outputs: names(k.outputs, "out", 1),
         };
     if (k.type === "inport") return { inputs: [], outputs: ["out"] };

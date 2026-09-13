@@ -1,3 +1,4 @@
+import { parseExecutionEvents, type ExecutionEvent } from "./conditional";
 import {
     parseEventRecords,
     type EventPlan,
@@ -5,7 +6,7 @@ import {
 } from "./hybrid";
 import type { SampleTime, SamplingPlan } from "./sampling";
 import type { BlockDefinition, Model, ExecutionOptions } from "./model";
-export const SIMULATION_PROTOCOL = "openmat-simulation-v7";
+export const SIMULATION_PROTOCOL = "openmat-simulation-v8";
 export interface SimulationSnapshot {
     sources: Record<string, string>;
     execution: ExecutionOptions;
@@ -39,11 +40,14 @@ export interface ScopeInfo {
     offset: number;
     width: number;
     sampleTime?: SampleTime;
+    execution?: string;
 }
 export interface SimulationFrame {
     time: number;
     sampleHit: boolean;
     sampleHits?: number[];
+    executionHits?: string[];
+    executionEvents?: ExecutionEvent[];
     events?: SimulationEventRecord[];
     values: number[];
 }
@@ -84,7 +88,7 @@ export interface SlxLine {
     branches: SlxLine[];
 }
 export interface SlxImport {
-    profile?: "control-v1" | "multirate-v1" | "hybrid-v1";
+    profile?: "control-v1" | "multirate-v1" | "hybrid-v1" | "conditional-v1";
     sampling?: SamplingPlan;
     eventPlan?: EventPlan;
     sources?: Record<string, string>;
@@ -124,9 +128,9 @@ export function simulationUrl(kernelUrl: string): string {
     const url = new URL(kernelUrl);
     if (url.protocol !== "ws:" && url.protocol !== "wss:")
         throw new Error("仿真服务需要 WebSocket 地址。");
-    url.pathname = url.pathname.replace(/\/kernel\/?$/, "/simulation/v7");
-    if (!url.pathname.endsWith("/simulation/v7"))
-        url.pathname = "/simulation/v7";
+    url.pathname = url.pathname.replace(/\/kernel\/?$/, "/simulation/v8");
+    if (!url.pathname.endsWith("/simulation/v8"))
+        url.pathname = "/simulation/v8";
     url.search = "";
     url.hash = "";
     return url.toString();
@@ -275,6 +279,19 @@ export class SimulationClient {
             )
                 throw new Error("frames");
             for (const frame of event.data.frames) {
+                if (frame.executionEvents !== undefined)
+                    frame.executionEvents = parseExecutionEvents(
+                        frame.executionEvents,
+                    );
+                if (
+                    frame.executionHits !== undefined &&
+                    (!Array.isArray(frame.executionHits) ||
+                        frame.executionHits.length > 64 ||
+                        frame.executionHits.some(
+                            (id) => typeof id !== "string" || id.length > 128,
+                        ))
+                )
+                    throw new Error("execution hits");
                 if (frame.events !== undefined)
                     frame.events = parseEventRecords(frame.events);
                 if (
@@ -359,18 +376,24 @@ export class SimulationClient {
         file: Blob,
         name: string,
         parameters = "",
-        profile: "control-v1" | "multirate-v1" | "hybrid-v1" = "hybrid-v1",
+        profile:
+            | "control-v1"
+            | "multirate-v1"
+            | "hybrid-v1"
+            | "conditional-v1" = "conditional-v1",
     ): Promise<SlxImport> {
         if (file.size > 2 * 1024 * 1024)
             throw new Error(
                 "交互式 SLX 导入上限为 2 MiB；更大的模型可用命令行检查。",
             );
         return this.request(
-            profile === "hybrid-v1"
-                ? "importSlxHybrid"
-                : profile === "multirate-v1"
-                  ? "importSlxMultirate"
-                  : "importSlxControl",
+            profile === "conditional-v1"
+                ? "importSlxConditional"
+                : profile === "hybrid-v1"
+                  ? "importSlxHybrid"
+                  : profile === "multirate-v1"
+                    ? "importSlxMultirate"
+                    : "importSlxControl",
             {
                 name,
                 parameters,

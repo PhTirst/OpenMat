@@ -5,6 +5,10 @@ It uses the native Rust simulation engine with optional LLVM and CVODE. Browser 
 the editor and theme; native file dialogs stay behind the desktop platform
 adapter. No computation runs in React or in a browser m-language VM.
 
+The latest milestone adds [Enabled and Triggered subsystems](../../simulation/docs/conditional-subsystems.md),
+with conditional control handles, editable execution policies, event-marked Scope
+records and two runnable examples. It uses model schema 8 and `/simulation/v8`.
+
 ## Open and run
 
 Start the current source checkout using the normal development launcher:
@@ -139,7 +143,7 @@ uploads are limited to 2 MiB and parameter text to 64 KiB.
 
 ## Runs and results
 
-`/simulation/v7` (with legacy `/simulation/v1` through `/simulation/v6`) shares the native server's existing configured port. A separate
+`/simulation/v8` (with legacy `/simulation/v1` through `/simulation/v7`) shares the native server's existing configured port. A separate
 WebSocket carries catalog/check/run/cancel/import requests; no extra server
 listener is started. Each connection owns one job. Disconnect cancels its job;
 a different connection cannot cancel it. The native worker evaluates an immutable
