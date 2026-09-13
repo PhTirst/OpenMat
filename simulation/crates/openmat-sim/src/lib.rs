@@ -1,6 +1,7 @@
 //! Causal block compilation and deterministic continuous/discrete simulation.
 #![forbid(unsafe_code)]
 
+pub mod authoring;
 mod compiler;
 pub mod component;
 mod component_compiler;

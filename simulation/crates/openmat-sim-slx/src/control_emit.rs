@@ -138,7 +138,12 @@ fn emit_block(
             if let BlockKind::ResetIntegrator { initial, .. } = &mut kind {
                 *initial = expand(initial.clone(), width.outputs[0])?;
             }
-            return Ok(Block { id, position, kind });
+            return Ok(Block {
+                parent: None,
+                id,
+                position,
+                kind,
+            });
         }
         Kind::Legacy(block) => {
             let mut block = block.clone();
@@ -151,6 +156,7 @@ fn emit_block(
         }
         Kind::Ground => {
             return Ok(Block {
+                parent: None,
                 id,
                 position,
                 kind: BlockKind::Constant {
@@ -164,6 +170,7 @@ fn emit_block(
             after,
         } => {
             return Ok(Block {
+                parent: None,
                 id,
                 position,
                 kind: BlockKind::Step {
@@ -274,6 +281,7 @@ fn emit_block(
         update: None,
     });
     Ok(Block {
+        parent: None,
         id,
         position,
         kind: BlockKind::Component {

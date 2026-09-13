@@ -8,6 +8,7 @@ use crate::static_function::{self, Signature};
 use crate::{CompiledModel, ModelError, ScopeInfo, SourceBundle, m_function};
 mod hybrid;
 mod rates;
+mod standard;
 
 #[derive(Clone, Copy)]
 struct Wire {
@@ -284,6 +285,22 @@ pub(crate) fn compile(model: &Model, sources: &SourceBundle) -> Result<CompiledM
             }
         })
         .collect();
+    let mut input_knots: Vec<_> = model
+        .blocks
+        .iter()
+        .filter_map(|b| match &b.kind {
+            BlockKind::Inport {
+                data: Some(data), ..
+            } => Some(&data.times),
+            _ => None,
+        })
+        .flatten()
+        .copied()
+        .filter(|t| *t > model.settings.start_time && *t <= model.settings.stop_time)
+        .collect();
+    input_knots.sort_by(f64::total_cmp);
+    input_knots.dedup();
+    time_events.extend(&input_knots);
     time_events.sort_by(f64::total_cmp);
     time_events.dedup();
     Ok(CompiledModel {
@@ -298,6 +315,7 @@ pub(crate) fn compile(model: &Model, sources: &SourceBundle) -> Result<CompiledM
         origins,
         execution_order,
         time_events,
+        input_knots,
         sampling,
         events,
     })
@@ -325,7 +343,35 @@ fn node<'a>(
     } else {
         None
     };
-    let (inputs, outputs) = if let Some(d) = definition {
+    let (inputs, outputs) = if let BlockKind::Standard { operation } = &block.kind {
+        use crate::authoring::StandardOp;
+        let realization = operation.realization();
+        let input_width = match operation {
+            StandardOp::Demux { widths } => widths.iter().sum(),
+            _ => realization.as_ref().map_or(0, |r| r.d[0].len()),
+        };
+        let inputs = operation
+            .input_names()
+            .into_iter()
+            .map(|name| FunctionInput {
+                name,
+                width: input_width,
+            })
+            .collect();
+        let outputs = operation
+            .output_names()
+            .into_iter()
+            .enumerate()
+            .map(|(i, name)| FunctionInput {
+                name,
+                width: match operation {
+                    StandardOp::Demux { widths } => widths[i],
+                    _ => realization.as_ref().map_or(0, |r| r.c.len()),
+                },
+            })
+            .collect();
+        (inputs, outputs)
+    } else if let Some(d) = definition {
         (d.inputs.clone(), d.outputs.clone())
     } else {
         let inputs = match &block.kind {
@@ -338,6 +384,9 @@ fn node<'a>(
                 .collect(),
         };
         let width = match &block.kind {
+            BlockKind::Inport {
+                data: Some(data), ..
+            } => data.values[0].len(),
             BlockKind::Constant { value } => value.len(),
             BlockKind::Step { before, .. } => before.len(),
             BlockKind::Integrator { initial }
@@ -448,7 +497,24 @@ fn infer_widths(nodes: &mut [Node<'_>]) -> Result<(), ModelError> {
                     .iter()
                     .map(|d| nodes[d.block].outputs[d.port].width)
                     .collect();
-                let width = if matches!(nodes[i].block.kind, BlockKind::Control { .. }) {
+                let width = if matches!(
+                    nodes[i].block.kind,
+                    BlockKind::Standard {
+                        operation: crate::authoring::StandardOp::Mux { .. }
+                    }
+                ) {
+                    if widths.contains(&0) {
+                        0
+                    } else {
+                        widths.iter().sum()
+                    }
+                } else if matches!(
+                    nodes[i].block.kind,
+                    BlockKind::Control { .. }
+                        | BlockKind::Standard {
+                            operation: crate::authoring::StandardOp::Product { .. }
+                        }
+                ) {
                     if widths.contains(&0) {
                         0
                     } else {
@@ -458,6 +524,13 @@ fn infer_widths(nodes: &mut [Node<'_>]) -> Result<(), ModelError> {
                     widths[0]
                 };
                 if width > 0 {
+                    if width > 4096 && matches!(nodes[i].block.kind, BlockKind::Standard { .. }) {
+                        return Err(failure(
+                            nodes[i].block,
+                            "dimension",
+                            "signal width exceeds 4096",
+                        ));
+                    }
                     nodes[i].outputs[0].width = width;
                     changed = true;
                 }
@@ -467,6 +540,10 @@ fn infer_widths(nodes: &mut [Node<'_>]) -> Result<(), ModelError> {
             break;
         }
     }
+    validate_widths(nodes)
+}
+
+fn validate_widths(nodes: &mut [Node<'_>]) -> Result<(), ModelError> {
     let mut total = 0;
     for i in 0..nodes.len() {
         if nodes[i].outputs.iter().any(|p| p.width == 0) {
@@ -479,7 +556,13 @@ fn infer_widths(nodes: &mut [Node<'_>]) -> Result<(), ModelError> {
         for j in 0..nodes[i].inputs.len() {
             let wire = nodes[i].drivers[j];
             let actual = nodes[wire.block].outputs[wire.port].width;
-            let expected = if nodes[i].definition.is_some()
+            let expected = if let BlockKind::Standard { operation } = &nodes[i].block.kind {
+                match operation {
+                    crate::authoring::StandardOp::Mux { .. } => actual,
+                    crate::authoring::StandardOp::Product { .. } => nodes[i].outputs[0].width,
+                    _ => nodes[i].inputs[j].width,
+                }
+            } else if nodes[i].definition.is_some()
                 || matches!(nodes[i].block.kind, BlockKind::MFunction { .. })
             {
                 nodes[i].inputs[j].width
@@ -488,7 +571,13 @@ fn infer_widths(nodes: &mut [Node<'_>]) -> Result<(), ModelError> {
             } else {
                 actual
             };
-            let control = matches!(nodes[i].block.kind, BlockKind::Control { .. });
+            let control = matches!(
+                nodes[i].block.kind,
+                BlockKind::Control { .. }
+                    | BlockKind::Standard {
+                        operation: crate::authoring::StandardOp::Product { .. }
+                    }
+            );
             let expected = if matches!(
                 nodes[i].block.kind,
                 BlockKind::Control {
@@ -624,6 +713,15 @@ fn lower_builtin(node: &mut Node<'_>, sources: &SourceBundle) -> Result<(), Mode
     node.derivatives = None;
     node.update = None;
     node.scope = None;
+    if let BlockKind::Standard { operation } = &node.block.kind {
+        return standard::lower(node, operation);
+    }
+    if let BlockKind::Inport {
+        data: Some(data), ..
+    } = &node.block.kind
+    {
+        return standard::input(node, data);
+    }
     match &node.block.kind {
         BlockKind::Integrator { initial }
         | BlockKind::ResetIntegrator {
@@ -815,7 +913,13 @@ fn lower_builtin(node: &mut Node<'_>, sources: &SourceBundle) -> Result<(), Mode
                 (1..start).collect()
             }
         }
-        BlockKind::Component { .. } => unreachable!(),
+        BlockKind::Component { .. }
+        | BlockKind::Standard { .. }
+        | BlockKind::Inport { .. }
+        | BlockKind::Outport { .. }
+        | BlockKind::Subsystem { .. } => {
+            unreachable!("authoring nodes are flattened or lowered before builtin dispatch")
+        }
     };
     node.signals.push(program(count, ops, output)?);
     Ok(())

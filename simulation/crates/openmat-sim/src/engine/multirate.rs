@@ -96,7 +96,12 @@ impl<K: Kernel> Runner<K> {
                 .find(|t| *t > self.time)
                 .unwrap_or(f64::INFINITY)
         } else {
-            f64::INFINITY
+            self.plan
+                .input_knots
+                .iter()
+                .copied()
+                .find(|t| *t > self.time)
+                .unwrap_or(f64::INFINITY)
         };
         let boundary = settings.stop_time.min(hit).min(event);
         let mut next = ((current.base_tick + 1) as f64 * settings.max_step).min(boundary);
@@ -190,7 +195,7 @@ impl<K: Kernel> Runner<K> {
         let event_hit = event.is_finite() && near(next, event);
         let mut candidate_sampling = current.clone();
         candidate_sampling.hits = hits;
-        if self.solver.is_none() {
+        if self.solver.is_none() && near(next, (current.base_tick + 1) as f64 * settings.max_step) {
             candidate_sampling.base_tick += 1;
         }
         candidate_sampling.extra[sampling.cache_count..].fill(0.0);

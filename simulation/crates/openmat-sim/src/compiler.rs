@@ -38,6 +38,7 @@ pub struct CompiledModel {
     pub(crate) origins: Vec<Port>,
     pub(crate) execution_order: Vec<String>,
     pub(crate) time_events: Vec<f64>,
+    pub(crate) input_knots: Vec<f64>,
     pub(crate) sampling: Option<crate::sampling::SamplingPlan>,
     pub(crate) events: Option<crate::hybrid::EventPlan>,
 }
@@ -108,9 +109,17 @@ pub fn compile_with_sources(
 ) -> Result<CompiledModel, ModelError> {
     validate_model(model)?;
     m_function::validate_bundle(sources)?;
+    if model.schema_version == crate::model::AUTHORING_SCHEMA_VERSION {
+        let flat = crate::authoring::flatten(model)?;
+        return crate::component_compiler::compile(&flat, sources);
+    }
     if model.schema_version >= COMPONENT_SCHEMA_VERSION {
         return crate::component_compiler::compile(model, sources);
     }
+    compile_legacy(model, sources)
+}
+
+fn compile_legacy(model: &Model, sources: &SourceBundle) -> Result<CompiledModel, ModelError> {
     let graph = build_graph(model)?;
     let mut continuous_initial = Vec::new();
     let mut discrete_initial = Vec::new();
@@ -193,6 +202,7 @@ pub fn compile_with_sources(
         update_program: None,
         update_origins: Vec::new(),
         time_events: Vec::new(),
+        input_knots: Vec::new(),
         sampling: None,
         events: None,
         continuous_initial,
@@ -328,6 +338,10 @@ fn lower_signals(
             }
             BlockKind::Scope => Vec::new(),
             BlockKind::Control { .. }
+            | BlockKind::Subsystem { .. }
+            | BlockKind::Inport { .. }
+            | BlockKind::Outport { .. }
+            | BlockKind::Standard { .. }
             | BlockKind::ResetIntegrator { .. }
             | BlockKind::Component { .. }
             | BlockKind::Step { .. }
@@ -362,6 +376,10 @@ fn check_signal_budget(
         BlockKind::Scope => (0, 0),
         BlockKind::MFunction { output_width, .. } => (*output_width, 0),
         BlockKind::Control { .. }
+        | BlockKind::Subsystem { .. }
+        | BlockKind::Inport { .. }
+        | BlockKind::Outport { .. }
+        | BlockKind::Standard { .. }
         | BlockKind::ResetIntegrator { .. }
         | BlockKind::Component { .. }
         | BlockKind::Step { .. }
@@ -417,6 +435,7 @@ fn validate_model(model: &Model) -> Result<(), ModelError> {
         CONTROL_SCHEMA_VERSION,
         MULTIRATE_SCHEMA_VERSION,
         HYBRID_SCHEMA_VERSION,
+        crate::model::AUTHORING_SCHEMA_VERSION,
     ]
     .contains(&model.schema_version)
     {
@@ -451,6 +470,22 @@ fn validate_model(model: &Model) -> Result<(), ModelError> {
     let mut components = 0;
     let mut ids = BTreeSet::new();
     for block in &model.blocks {
+        if model.schema_version < 7
+            && (block.parent.is_some()
+                || matches!(
+                    block.kind,
+                    BlockKind::Subsystem { .. }
+                        | BlockKind::Inport { .. }
+                        | BlockKind::Outport { .. }
+                        | BlockKind::Standard { .. }
+                ))
+        {
+            return Err(ModelError::new(
+                "schema_version",
+                "hierarchy, external data and standard blocks require schema 7",
+            )
+            .at(&block.id, None));
+        }
         if block.id.is_empty()
             || block.id.len() > 128
             || !block
@@ -479,6 +514,43 @@ fn validate_model(model: &Model) -> Result<(), ModelError> {
             );
         }
         let values = match &block.kind {
+            BlockKind::Subsystem { inputs, outputs } => {
+                if *inputs > 64 || *outputs > 64 {
+                    return Err(ModelError::new(
+                        "subsystem_ports",
+                        "subsystem supports at most 64 inputs and outputs",
+                    )
+                    .at(&block.id, None));
+                }
+                None
+            }
+            BlockKind::Inport { port, data } => {
+                if !(1..=64).contains(port) {
+                    return Err(
+                        ModelError::new("port_number", "Inport number must be 1..64")
+                            .at(&block.id, None),
+                    );
+                }
+                if let Some(data) = data {
+                    data.validate().map_err(|e| e.at(&block.id, None))?;
+                    components +=
+                        data.times.len() + data.values.iter().map(Vec::len).sum::<usize>();
+                }
+                None
+            }
+            BlockKind::Outport { port } => {
+                if !(1..=64).contains(port) {
+                    return Err(
+                        ModelError::new("port_number", "Outport number must be 1..64")
+                            .at(&block.id, None),
+                    );
+                }
+                None
+            }
+            BlockKind::Standard { operation } => {
+                components += operation.validate().map_err(|e| e.at(&block.id, None))?;
+                None
+            }
             BlockKind::Control { operation, .. } => {
                 if model.schema_version < 6 {
                     return Err(ModelError::new(
@@ -618,6 +690,12 @@ fn validate_model(model: &Model) -> Result<(), ModelError> {
                     "too many parameter and state components",
                 ));
             }
+        }
+        if components > MAX_COMPONENTS {
+            return Err(ModelError::new(
+                "model_limit",
+                "too many parameter and data values",
+            ));
         }
     }
     Ok(())

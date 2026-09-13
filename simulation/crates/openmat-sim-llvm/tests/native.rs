@@ -26,6 +26,42 @@ fn missing_native_library_is_an_error() {
 
 #[test]
 #[ignore = "explicit native acceptance requires LLVM 22; CI runs with --ignored"]
+fn native_hierarchical_experiment_matches_reference() {
+    let document: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../examples/experiment-control.omsim.json"
+    ))
+    .unwrap();
+    let model: Model = serde_json::from_value(document["model"].clone()).unwrap();
+    let plan = compile(&model).unwrap();
+    let reference = Runner::new_with_update(
+        plan.clone(),
+        ReferenceKernel::new(plan.program().clone()),
+        plan.update_program().cloned().map(ReferenceKernel::new),
+    )
+    .unwrap()
+    .collect(CollectionLimits::default())
+    .unwrap();
+    let native = LlvmKernel::compile(plan.program().clone(), &library()).unwrap();
+    let update = plan
+        .update_program()
+        .cloned()
+        .map(|p| LlvmKernel::compile(p, &library()).unwrap());
+    let actual = Runner::new_with_update(plan, native, update)
+        .unwrap()
+        .collect(CollectionLimits::default())
+        .unwrap();
+    assert_eq!(actual.scopes, reference.scopes);
+    assert_eq!(actual.frames.len(), reference.frames.len());
+    for (a, b) in actual.frames.iter().zip(&reference.frames) {
+        assert_eq!(a.time.to_bits(), b.time.to_bits());
+        for (x, y) in a.values.iter().zip(&b.values) {
+            assert!((x - y).abs() < 1e-12);
+        }
+    }
+}
+
+#[test]
+#[ignore = "explicit native acceptance requires LLVM 22; CI runs with --ignored"]
 fn native_trajectories_match_reference_for_continuous_discrete_and_mixed_models() {
     let mut models: Vec<Model> = [
         include_str!("../../../examples/first-order.omsim.json"),

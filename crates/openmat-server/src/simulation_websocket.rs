@@ -24,6 +24,7 @@ const PROTOCOL_V2: &str = "openmat-simulation-v2";
 const PROTOCOL_V3: &str = "openmat-simulation-v3";
 const PROTOCOL_V4: &str = "openmat-simulation-v4";
 const PROTOCOL_V6: &str = "openmat-simulation-v6";
+const PROTOCOL_V7: &str = "openmat-simulation-v7";
 const PROTOCOL_V5: &str = "openmat-simulation-v5";
 const MAX_MESSAGE: usize = 8 * 1024 * 1024;
 const MAX_SLX: usize = 2 * 1024 * 1024;
@@ -443,7 +444,8 @@ fn import_slx_profile(
 #[allow(clippy::too_many_lines)] // Keep both protocol versions and connection-owned job dispatch together.
 fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
     let id = &request.id;
-    let v6 = request.protocol == PROTOCOL_V6;
+    let v7 = request.protocol == PROTOCOL_V7;
+    let v6 = request.protocol == PROTOCOL_V6 || v7;
     let v5 = request.protocol == PROTOCOL_V5 || v6;
     let v4 = request.protocol == PROTOCOL_V4 || v5;
     let v3 = request.protocol == PROTOCOL_V3 || v4;
@@ -488,6 +490,15 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
                     json!({"type":"resetIntegrator","label":"Reset Integrator","category":"Control","icon":"resetIntegrator","inputs":["in","reset"],"outputs":["out"],"parameter":"initial","default":[0]})
                 ]);
             }
+            if v7 {
+                result["schemaVersion"] = json!(7);
+                result["blocks"].as_array_mut().expect("catalog").extend([
+                    json!({"type":"standard","label":"Standard","category":"Math","icon":"standard","inputs":["in"],"outputs":["out"]}),
+                    json!({"type":"subsystem","label":"Subsystem","category":"Hierarchy","icon":"subsystem","inputs":[],"outputs":[]}),
+                    json!({"type":"inport","label":"Inport","category":"Hierarchy","icon":"inport","inputs":[],"outputs":["out"]}),
+                    json!({"type":"outport","label":"Outport","category":"Hierarchy","icon":"outport","inputs":["in"],"outputs":[]})
+                ]);
+            }
             response(id, result)
         }
         Operation::Check {
@@ -496,6 +507,12 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
             sources,
             execution,
         } => {
+            if !v7 && model.schema_version >= 7 {
+                return Some(failure(
+                    id,
+                    error("protocol", "native hierarchy models require /simulation/v7"),
+                ));
+            }
             if !v6 && model.schema_version >= 6 {
                 return Some(failure(
                     id,
@@ -556,6 +573,12 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
             sources,
             execution,
         } => {
+            if !v7 && model.schema_version >= 7 {
+                return Some(failure(
+                    id,
+                    error("protocol", "native hierarchy models require /simulation/v7"),
+                ));
+            }
             if !v6 && model.schema_version >= 6 {
                 return Some(failure(
                     id,
@@ -717,6 +740,7 @@ pub(crate) fn serve(socket: &mut WebSocket<TcpStream>, version: u32) -> Result<(
     let protocol = match version {
         5 => PROTOCOL_V5,
         6 => PROTOCOL_V6,
+        7 => PROTOCOL_V7,
         4 => PROTOCOL_V4,
         3 => PROTOCOL_V3,
         2 => PROTOCOL_V2,
@@ -810,6 +834,59 @@ pub(crate) fn serve(socket: &mut WebSocket<TcpStream>, version: u32) -> Result<(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn native_authoring_has_an_explicit_protocol_boundary() {
+        let doc: Value = serde_json::from_str(include_str!(
+            "../../../simulation/examples/experiment-control.omsim.json"
+        ))
+        .unwrap();
+        for protocol in [
+            PROTOCOL,
+            PROTOCOL_V2,
+            PROTOCOL_V3,
+            PROTOCOL_V4,
+            PROTOCOL_V5,
+            PROTOCOL_V6,
+        ] {
+            for operation in ["check", "run"] {
+                let request=serde_json::from_value(json!({"protocol":protocol,"requestId":"authoring","operation":operation,"model":doc["model"],"revision":"1"})).unwrap();
+                assert_eq!(
+                    handle(request, &mut None).unwrap()["error"]["code"],
+                    "protocol"
+                );
+            }
+        }
+        let request=serde_json::from_value(json!({"protocol":PROTOCOL_V7,"requestId":"authoring","operation":"check","model":doc["model"],"revision":"1"})).unwrap();
+        let response = handle(request, &mut None).unwrap();
+        assert_eq!(response["ok"], true, "{response}");
+        assert!(
+            response["result"]["plan"]["scopes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|s| s["block"] == "output")
+        );
+        let catalog = handle(
+            Request {
+                protocol: PROTOCOL_V7.into(),
+                id: "catalog".into(),
+                operation: Operation::Catalog,
+            },
+            &mut None,
+        )
+        .unwrap();
+        assert_eq!(catalog["result"]["schemaVersion"], 7);
+        for kind in ["subsystem", "inport", "outport", "standard"] {
+            assert!(
+                catalog["result"]["blocks"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|b| b["type"] == kind)
+            );
+        }
+    }
 
     #[test]
     fn multirate_schema_and_import_have_an_explicit_protocol_boundary() {

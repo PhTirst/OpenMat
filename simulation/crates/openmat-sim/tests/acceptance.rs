@@ -277,6 +277,7 @@ fn connect(from: &str, to: &str, port: &str) -> Connection {
 fn constant_model(width: usize) -> Model {
     let mut model = first_order();
     model.blocks = vec![Block {
+        parent: None,
         id: "source".into(),
         kind: BlockKind::Constant {
             value: vec![1.0; width],
@@ -291,6 +292,7 @@ fn constant_model(width: usize) -> Model {
 fn compiler_bounds_large_operations_before_lowering_them() {
     let mut model = constant_model(20_000);
     model.blocks.push(Block {
+        parent: None,
         id: "wide_sum".into(),
         kind: BlockKind::Sum { signs: vec![1; 64] },
         position: None,
@@ -319,6 +321,7 @@ fn compiler_bounds_fanout_observations_and_alias_signal_storage() {
                 },
             ));
             model.blocks.push(Block {
+                parent: None,
                 id,
                 kind: kind.clone(),
                 position: None,

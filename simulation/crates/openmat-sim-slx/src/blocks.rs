@@ -84,6 +84,7 @@ fn translate_inner(block: &Block) -> Result<RuntimeBlock, Issue> {
         })
         .transpose()?;
     Ok(RuntimeBlock {
+        parent: None,
         id: runtime_id(&block.sid)?,
         kind,
         position,

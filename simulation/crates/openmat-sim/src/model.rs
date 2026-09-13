@@ -9,6 +9,7 @@ pub const COMPONENT_SCHEMA_VERSION: u32 = 3;
 pub const CONTROL_SCHEMA_VERSION: u32 = 4;
 pub const MULTIRATE_SCHEMA_VERSION: u32 = 5;
 pub const HYBRID_SCHEMA_VERSION: u32 = 6;
+pub const AUTHORING_SCHEMA_VERSION: u32 = 7;
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
@@ -49,6 +50,8 @@ pub struct Block {
     pub id: String,
     pub kind: BlockKind,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub position: Option<Position>,
 }
 
@@ -62,6 +65,21 @@ pub struct Position {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
 pub enum BlockKind {
+    Subsystem {
+        inputs: usize,
+        outputs: usize,
+    },
+    Inport {
+        port: usize,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        data: Option<crate::authoring::TimeSeries>,
+    },
+    Outport {
+        port: usize,
+    },
+    Standard {
+        operation: crate::authoring::StandardOp,
+    },
     Control {
         operation: crate::hybrid::ControlOp,
         #[serde(rename = "zeroCrossing")]
@@ -135,6 +153,9 @@ pub struct FunctionParameter {
 impl BlockKind {
     pub(crate) fn inputs(&self) -> Vec<String> {
         match self {
+            Self::Subsystem { inputs, .. } => (1..=*inputs).map(|i| format!("in{i}")).collect(),
+            Self::Inport { .. } => vec![],
+            Self::Standard { operation } => operation.input_names(),
             Self::Control { operation, .. } => (0..operation.input_count())
                 .map(|i| format!("in{i}"))
                 .collect(),

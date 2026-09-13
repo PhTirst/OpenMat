@@ -123,7 +123,8 @@ pub(super) fn resolve(
             ));
         }
         let configured = model.sample_times.get(&node.block.id).copied();
-        let declared = if !node.x.is_empty() {
+        let declared = if !node.x.is_empty() || matches!(node.block.kind, BlockKind::Inport { .. })
+        {
             Some(SampleTime::Continuous)
         } else if let Some(period) = node
             .definition
@@ -149,7 +150,9 @@ pub(super) fn resolve(
             base,
         )
         .map_err(|e| e.at(&node.block.id, None))?;
-        if !node.x.is_empty() && rate != SampleTime::Continuous {
+        if (!node.x.is_empty() || matches!(node.block.kind, BlockKind::Inport { .. }))
+            && rate != SampleTime::Continuous
+        {
             return Err(failure(
                 node.block,
                 "sample_time",

@@ -204,7 +204,7 @@ fn read_model(path: &Path) -> Result<Model, Value> {
         serde_json::from_slice(&bytes).map_err(|e| failure("model_json", e.to_string()))?;
     let model = if raw.get("format").is_some() {
         if raw["format"] != "openmat-simulation"
-            || !matches!(raw["schemaVersion"].as_u64(), Some(1..=6))
+            || !matches!(raw["schemaVersion"].as_u64(), Some(1..=7))
         {
             return Err(failure("model_json", "unsupported authoring document"));
         }
@@ -221,7 +221,7 @@ fn read_model(path: &Path) -> Result<Model, Value> {
             ));
         }
         if let Some(asset) = raw.get("slx")
-            && (!matches!(raw["schemaVersion"].as_u64(), Some(4..=6))
+            && (!matches!(raw["schemaVersion"].as_u64(), Some(4..=7))
                 || asset["runnable"] != true
                 || !asset["parameters"].is_string()
                 || asset["parameters"] != asset["appliedParameters"])
@@ -246,11 +246,11 @@ fn read_sources(model: &Model, path: &Path) -> Result<SourceBundle, Value> {
             .map_err(|e| failure("model_json", e.to_string()))?;
         if let Some(value) = document.get("sources") {
             if document["format"] != "openmat-simulation"
-                || !matches!(document["schemaVersion"].as_u64(), Some(4..=6))
+                || !matches!(document["schemaVersion"].as_u64(), Some(4..=7))
             {
                 return Err(failure(
                     "model_json",
-                    "embedded sources require authoring schema 4 or 5",
+                    "embedded sources require authoring schema 4..7",
                 ));
             }
             embedded = serde_json::from_value(value.clone())

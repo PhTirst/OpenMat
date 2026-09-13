@@ -20,6 +20,114 @@ fn missing_runtime_and_invalid_options_are_explicit_errors() {
 
 #[test]
 #[ignore = "requires pinned SUNDIALS runtime"]
+fn hierarchical_experiment_runs_with_both_cvode_methods() {
+    let doc: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../examples/experiment-control.omsim.json"
+    ))
+    .unwrap();
+    let mut model: Model = serde_json::from_value(doc["model"].clone()).unwrap();
+    if let BlockKind::Inport {
+        data: Some(data), ..
+    } = &mut model.blocks[0].kind
+    {
+        data.times = vec![0., 0.137, 0.413, 4.];
+        data.values = vec![vec![1., 0.], vec![1., 0.2], vec![1., 0.3], vec![1., 0.9]];
+    }
+    let plan = compile(&model).unwrap();
+    for method in [Method::Adams, Method::Bdf] {
+        let solver = Cvode::new(
+            &directory(),
+            plan.continuous_state_count(),
+            Options {
+                method,
+                relative_tolerance: 1e-9,
+                absolute_tolerance: 1e-11,
+            },
+        )
+        .unwrap();
+        let actual = Runner::new_with_update(
+            plan.clone(),
+            ReferenceKernel::new(plan.program().clone()),
+            plan.update_program().cloned().map(ReferenceKernel::new),
+        )
+        .unwrap()
+        .with_solver(Box::new(solver))
+        .unwrap()
+        .collect(CollectionLimits::default())
+        .unwrap();
+        // CVODE publishes its accepted steps; only input knots and clock hits are mandatory boundaries.
+        for t in [0.137, 0.413, 4.] {
+            assert!(actual.frames.iter().any(|a| (a.time - t).abs() < 1e-14));
+        }
+        let output = actual
+            .scopes
+            .iter()
+            .find(|s| s.block == "output")
+            .unwrap()
+            .offset;
+        let a = (-3.0_f64).midpoint(5.0_f64.sqrt());
+        let b = (-3.0_f64).midpoint(-5.0_f64.sqrt());
+        let c = (2.0 + b) / (a - b);
+        for f in &actual.frames {
+            let expected = 1.0 + c * (a * f.time).exp() + (-1.0 - c) * (b * f.time).exp();
+            assert!(
+                (f.values[output] - expected).abs() < 2e-7,
+                "{method:?} at {}",
+                f.time
+            );
+        }
+    }
+}
+
+#[test]
+#[ignore = "requires pinned SUNDIALS runtime"]
+fn irregular_piecewise_input_is_integrated_without_crossing_knots() {
+    let model:Model=serde_json::from_value(serde_json::json!({
+        "schemaVersion":7,"name":"triangle-area","settings":{"startTime":0,"stopTime":1,"maxStep":0.1},
+        "blocks":[
+            {"id":"data","kind":{"type":"inport","port":1,"data":{"times":[0,0.137,0.413,1],"values":[[0],[1],[0],[0]]}}},
+            {"id":"integral","kind":{"type":"integrator","initial":[0]}},
+            {"id":"output","kind":{"type":"outport","port":1}}
+        ],"connections":[
+            {"from":{"block":"data","port":"out"},"to":{"block":"integral","port":"in"}},
+            {"from":{"block":"integral","port":"out"},"to":{"block":"output","port":"in"}}
+        ]
+    })).unwrap();
+    let plan = compile(&model).unwrap();
+    for method in [Method::Adams, Method::Bdf] {
+        let solver = Cvode::new(
+            &directory(),
+            1,
+            Options {
+                method,
+                relative_tolerance: 1e-9,
+                absolute_tolerance: 1e-11,
+            },
+        )
+        .unwrap();
+        let actual = Runner::new_with_update(
+            plan.clone(),
+            ReferenceKernel::new(plan.program().clone()),
+            plan.update_program().cloned().map(ReferenceKernel::new),
+        )
+        .unwrap()
+        .with_solver(Box::new(solver))
+        .unwrap()
+        .collect(CollectionLimits::default())
+        .unwrap();
+        assert!(
+            (actual.frames.last().unwrap().values[0] - 0.2065).abs() < 2e-8,
+            "{method:?}"
+        );
+        for t in [0.137, 0.413] {
+            assert!(actual.frames.iter().any(|a| (a.time - t).abs() < 1e-14));
+        }
+        assert!(actual.frames.iter().all(|f| !f.sample_hit));
+    }
+}
+
+#[test]
+#[ignore = "requires pinned SUNDIALS runtime"]
 fn multirate_hold_boundaries_restart_cvode_without_creating_extra_samples() {
     for method in [Method::Adams, Method::Bdf] {
         let model: Model = serde_json::from_value(serde_json::json!({
