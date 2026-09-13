@@ -5,7 +5,7 @@
 param(
     [string]$MatlabPath = 'matlab',
     [string]$OutputDirectory,
-    [ValidateSet('legacy', 'control')][string]$Profile = 'legacy',
+    [ValidateSet('legacy', 'control', 'multirate')][string]$Profile = 'legacy',
     [ValidateRange(30, 3600)][int]$TimeoutSeconds = 600
 )
 
@@ -29,7 +29,11 @@ $oldTools = $env:OPENMAT_SLX_TOOL_DIR
 try {
     $env:OPENMAT_SLX_ORACLE_DIR = $outputPath
     $env:OPENMAT_SLX_TOOL_DIR = $toolDirectory
-    $oracleEntry = if ($Profile -eq 'control') { 'slx_control_oracle' } else { 'slx_oracle' }
+    $oracleEntry = switch ($Profile) {
+        'control' { 'slx_control_oracle' }
+        'multirate' { 'slx_multirate_oracle' }
+        default { 'slx_oracle' }
+    }
     $oracleCommand = '"addpath(getenv(''OPENMAT_SLX_TOOL_DIR'')); ' + $oracleEntry + '(getenv(''OPENMAT_SLX_ORACLE_DIR''))"'
     $process = Start-Process -FilePath $matlab -ArgumentList @(
         '-wait', '-batch', $oracleCommand

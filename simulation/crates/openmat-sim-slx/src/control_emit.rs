@@ -21,6 +21,7 @@ pub(crate) fn emit(
 ) -> Result<(Model, SourceBundle), Issue> {
     let mut model = Model {
         schema_version: 4,
+        sample_times: BTreeMap::new(),
         name: name.into(),
         settings,
         blocks: vec![],

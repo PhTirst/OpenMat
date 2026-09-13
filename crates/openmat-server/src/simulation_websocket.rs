@@ -23,6 +23,7 @@ const PROTOCOL: &str = "openmat-simulation-v1";
 const PROTOCOL_V2: &str = "openmat-simulation-v2";
 const PROTOCOL_V3: &str = "openmat-simulation-v3";
 const PROTOCOL_V4: &str = "openmat-simulation-v4";
+const PROTOCOL_V5: &str = "openmat-simulation-v5";
 const MAX_MESSAGE: usize = 8 * 1024 * 1024;
 const MAX_SLX: usize = 2 * 1024 * 1024;
 const MAX_SAMPLES: usize = 100_000;
@@ -67,6 +68,12 @@ enum Operation {
         bytes: Vec<u8>,
     },
     ImportSlxControl {
+        name: String,
+        bytes: Vec<u8>,
+        #[serde(default)]
+        parameters: String,
+    },
+    ImportSlxMultirate {
         name: String,
         bytes: Vec<u8>,
         #[serde(default)]
@@ -134,10 +141,14 @@ fn error(code: &str, message: &str) -> Value {
 }
 
 fn summary(plan: &CompiledModel) -> Value {
-    json!({"scopes": plan.scopes(), "settings": plan.settings(),
+    let mut value = json!({"scopes": plan.scopes(), "settings": plan.settings(),
         "continuousStates": plan.continuous_state_count(),
         "discreteStates": plan.discrete_state_count(),
-        "executionOrder": plan.execution_order(), "backend": "reference"})
+        "executionOrder": plan.execution_order(), "backend": "reference"});
+    if let Some(sampling) = plan.sampling() {
+        value["sampling"] = json!(sampling);
+    }
+    value
 }
 
 fn catalog() -> Value {
@@ -369,6 +380,15 @@ fn import_slx(name: &str, bytes: &[u8]) -> Result<Value, Value> {
 }
 
 fn import_slx_control(name: &str, bytes: &[u8], parameters: &str) -> Result<Value, Value> {
+    import_slx_profile(name, bytes, parameters, false)
+}
+
+fn import_slx_profile(
+    name: &str,
+    bytes: &[u8],
+    parameters: &str,
+    multirate: bool,
+) -> Result<Value, Value> {
     if bytes.len() > MAX_SLX
         || name.len() > 1024
         || parameters.len() > openmat_sim_slx::MAX_PARAMETER_TEXT
@@ -379,12 +399,26 @@ fn import_slx_control(name: &str, bytes: &[u8], parameters: &str) -> Result<Valu
         ));
     }
     let imported = ImportedSlx::read(bytes, name).map_err(|issue| json!(issue))?;
-    Ok(match imported.lower_control(parameters) {
+    let profile = if multirate {
+        "multirate-v1"
+    } else {
+        "control-v1"
+    };
+    let lowered = if multirate {
+        imported.lower_multirate(parameters)
+    } else {
+        imported.lower_control(parameters)
+    };
+    Ok(match lowered {
         Ok(result) => {
-            json!({"runnable":true,"profile":"control-v1","model":result.model,"sources":result.sources,"parameters":result.parameters,"blockPaths":result.block_paths,"document":imported.document(),"issues":[]})
+            let mut value = json!({"runnable":true,"profile":profile,"model":result.model,"sources":result.sources,"parameters":result.parameters,"blockPaths":result.block_paths,"document":imported.document(),"issues":[]});
+            if let Some(sampling) = result.sampling {
+                value["sampling"] = json!(sampling);
+            }
+            value
         }
         Err(issues) => {
-            json!({"runnable":false,"profile":"control-v1","blockPaths":imported.block_paths(),"document":imported.document(),"issues":issues})
+            json!({"runnable":false,"profile":profile,"blockPaths":imported.block_paths(),"document":imported.document(),"issues":issues})
         }
     })
 }
@@ -392,7 +426,8 @@ fn import_slx_control(name: &str, bytes: &[u8], parameters: &str) -> Result<Valu
 #[allow(clippy::too_many_lines)] // Keep both protocol versions and connection-owned job dispatch together.
 fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
     let id = &request.id;
-    let v4 = request.protocol == PROTOCOL_V4;
+    let v5 = request.protocol == PROTOCOL_V5;
+    let v4 = request.protocol == PROTOCOL_V4 || v5;
     let v3 = request.protocol == PROTOCOL_V3 || v4;
     let v2 = request.protocol == PROTOCOL_V2 || v3;
     if (request.protocol != PROTOCOL && !v2) || id.is_empty() || id.len() > 128 {
@@ -420,6 +455,14 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
                 result["schemaVersion"] = json!(4);
                 result["blocks"].as_array_mut().expect("catalog array").push(json!({"type":"step","label":"Step","category":"Sources","icon":"step","inputs":[],"outputs":["out"]}));
             }
+            if v5 {
+                result["schemaVersion"] = json!(5);
+                result["blocks"].as_array_mut().expect("catalog array").extend([
+                    json!({"type":"zeroOrderHold","label":"Zero-Order Hold","category":"Discrete","icon":"zeroOrderHold","inputs":["in"],"outputs":["out"]}),
+                    json!({"type":"discreteIntegrator","label":"Discrete Integrator","category":"Discrete","icon":"discreteIntegrator","inputs":["in"],"outputs":["out"],"parameter":"initial","default":[0]}),
+                    json!({"type":"rateTransition","label":"Rate Transition","category":"Discrete","icon":"rateTransition","inputs":["in"],"outputs":["out"],"parameter":"initial","default":[0]})
+                ]);
+            }
             response(id, result)
         }
         Operation::Check {
@@ -428,6 +471,12 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
             sources,
             execution,
         } => {
+            if !v5 && model.schema_version >= 5 {
+                return Some(failure(
+                    id,
+                    error("protocol", "multirate models require /simulation/v5"),
+                ));
+            }
             if !v4 && model.schema_version >= 4 {
                 return Some(failure(
                     id,
@@ -476,6 +525,12 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
             sources,
             execution,
         } => {
+            if !v5 && model.schema_version >= 5 {
+                return Some(failure(
+                    id,
+                    error("protocol", "multirate models require /simulation/v5"),
+                ));
+            }
             if !v4 && model.schema_version >= 4 {
                 return Some(failure(
                     id,
@@ -559,6 +614,28 @@ fn handle(request: Request, job: &mut Option<Job>) -> Option<Value> {
                 }
             }
         }
+        Operation::ImportSlxMultirate {
+            name,
+            bytes,
+            parameters,
+        } => {
+            if !v5 {
+                failure(
+                    id,
+                    error("protocol", "multirate-v1 import requires /simulation/v5"),
+                )
+            } else if job.is_some() {
+                failure(
+                    id,
+                    error("busy", "Stop the active run before importing a model."),
+                )
+            } else {
+                match import_slx_profile(&name, &bytes, &parameters, true) {
+                    Ok(value) => response(id, value),
+                    Err(err) => failure(id, err),
+                }
+            }
+        }
     })
 }
 
@@ -579,6 +656,7 @@ fn send(
 
 pub(crate) fn serve(socket: &mut WebSocket<TcpStream>, version: u32) -> Result<(), ServerError> {
     let protocol = match version {
+        5 => PROTOCOL_V5,
         4 => PROTOCOL_V4,
         3 => PROTOCOL_V3,
         2 => PROTOCOL_V2,
@@ -672,6 +750,35 @@ pub(crate) fn serve(socket: &mut WebSocket<TcpStream>, version: u32) -> Result<(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn multirate_schema_and_import_have_an_explicit_protocol_boundary() {
+        let mut model = model();
+        model.schema_version = 5;
+        for protocol in [PROTOCOL, PROTOCOL_V2, PROTOCOL_V3, PROTOCOL_V4] {
+            for operation in ["check", "run"] {
+                let request: Request = serde_json::from_value(json!({"protocol":protocol,"requestId":"new","operation":operation,"model":model,"revision":"r"})).unwrap();
+                assert_eq!(
+                    handle(request, &mut None).unwrap()["error"]["code"],
+                    "protocol"
+                );
+            }
+            let request: Request = serde_json::from_value(json!({"protocol":protocol,"requestId":"new","operation":"importSlxMultirate","name":"bad","bytes":[]})).unwrap();
+            assert_eq!(
+                handle(request, &mut None).unwrap()["error"]["code"],
+                "protocol"
+            );
+        }
+        let request: Request = serde_json::from_value(json!({"protocol":PROTOCOL_V5,"requestId":"new","operation":"check","model":model,"revision":"r"})).unwrap();
+        let result = handle(request, &mut None).unwrap();
+        assert_eq!(result["ok"], true);
+        assert!(result["result"]["plan"]["sampling"]["blocks"].is_object());
+        assert!(
+            summary(&compile_with_sources(&self::model(), &SourceBundle::new()).unwrap())
+                .get("sampling")
+                .is_none()
+        );
+    }
 
     #[test]
     fn component_protocol_keeps_older_routes_strict() {

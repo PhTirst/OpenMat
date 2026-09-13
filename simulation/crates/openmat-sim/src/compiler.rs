@@ -5,7 +5,7 @@ use serde::Serialize;
 use crate::ModelError;
 use crate::model::{
     Block, BlockKind, COMPONENT_SCHEMA_VERSION, CONTROL_SCHEMA_VERSION, FUNCTION_SCHEMA_VERSION,
-    Model, Port, SCHEMA_VERSION, Settings,
+    MULTIRATE_SCHEMA_VERSION, Model, Port, SCHEMA_VERSION, Settings,
 };
 use crate::numeric::{Instruction, MAX_VALUES, Program};
 use crate::{SourceBundle, m_function};
@@ -14,13 +14,15 @@ const MAX_BLOCKS: usize = 10_000;
 const MAX_COMPONENTS: usize = 262_144;
 const MAX_SUM_INPUTS: usize = 64;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScopeInfo {
     pub block: String,
     /// Offset relative to the flattened scope values in a frame.
     pub offset: usize,
     pub width: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sample_time: Option<crate::model::SampleTime>,
 }
 
 #[derive(Clone, Debug)]
@@ -36,6 +38,7 @@ pub struct CompiledModel {
     pub(crate) origins: Vec<Port>,
     pub(crate) execution_order: Vec<String>,
     pub(crate) time_events: Vec<f64>,
+    pub(crate) sampling: Option<crate::sampling::SamplingPlan>,
 }
 
 impl CompiledModel {
@@ -70,6 +73,10 @@ impl CompiledModel {
     #[must_use]
     pub fn execution_order(&self) -> &[String] {
         &self.execution_order
+    }
+    #[must_use]
+    pub fn sampling(&self) -> Option<&crate::sampling::SamplingPlan> {
+        self.sampling.as_ref()
     }
 }
 
@@ -158,6 +165,7 @@ pub fn compile_with_sources(
                 block: block.id.clone(),
                 offset: scope_width,
                 width: input.len(),
+                sample_time: None,
             });
             scope_width += input.len();
             outputs.extend(input);
@@ -180,6 +188,7 @@ pub fn compile_with_sources(
         update_program: None,
         update_origins: Vec::new(),
         time_events: Vec::new(),
+        sampling: None,
         continuous_initial,
         discrete_initial,
         scopes,
@@ -215,6 +224,7 @@ fn check_source_work(graph: &Graph<'_>, sources: &SourceBundle) -> Result<(), Mo
     Ok(())
 }
 
+#[allow(clippy::too_many_lines)] // Preserve the legacy schema-1/2 lowering path as a single exhaustive match.
 fn lower_signals(
     graph: &Graph<'_>,
     continuous_count: usize,
@@ -311,7 +321,11 @@ fn lower_signals(
                 m_function::lower(block, &input_signals, sources, &mut instructions)?
             }
             BlockKind::Scope => Vec::new(),
-            BlockKind::Component { .. } | BlockKind::Step { .. } => {
+            BlockKind::Component { .. }
+            | BlockKind::Step { .. }
+            | BlockKind::ZeroOrderHold
+            | BlockKind::RateTransition { .. }
+            | BlockKind::DiscreteIntegrator { .. } => {
                 unreachable!("schemas 3-4 use the component compiler")
             }
         };
@@ -339,7 +353,11 @@ fn check_signal_budget(
         ),
         BlockKind::Scope => (0, 0),
         BlockKind::MFunction { output_width, .. } => (*output_width, 0),
-        BlockKind::Component { .. } | BlockKind::Step { .. } => {
+        BlockKind::Component { .. }
+        | BlockKind::Step { .. }
+        | BlockKind::ZeroOrderHold
+        | BlockKind::RateTransition { .. }
+        | BlockKind::DiscreteIntegrator { .. } => {
             unreachable!("schemas 3-4 use the component compiler")
         }
     };
@@ -387,6 +405,7 @@ fn validate_model(model: &Model) -> Result<(), ModelError> {
         FUNCTION_SCHEMA_VERSION,
         COMPONENT_SCHEMA_VERSION,
         CONTROL_SCHEMA_VERSION,
+        MULTIRATE_SCHEMA_VERSION,
     ]
     .contains(&model.schema_version)
     {
@@ -399,6 +418,12 @@ fn validate_model(model: &Model) -> Result<(), ModelError> {
         return Err(ModelError::new(
             "schema_version",
             "component definitions require model schema version 3",
+        ));
+    }
+    if model.schema_version < MULTIRATE_SCHEMA_VERSION && !model.sample_times.is_empty() {
+        return Err(ModelError::new(
+            "schema_version",
+            "sampleTimes requires model schema version 5",
         ));
     }
     if model.blocks.is_empty()
@@ -443,6 +468,30 @@ fn validate_model(model: &Model) -> Result<(), ModelError> {
             );
         }
         let values = match &block.kind {
+            BlockKind::DiscreteIntegrator { initial, gain } => {
+                if model.schema_version < MULTIRATE_SCHEMA_VERSION || !gain.is_finite() {
+                    return Err(ModelError::new(
+                        "discrete_integrator",
+                        "DiscreteIntegrator requires schema 5 and finite gain",
+                    )
+                    .at(&block.id, None));
+                }
+                Some(initial)
+            }
+            BlockKind::ZeroOrderHold | BlockKind::RateTransition { .. } => {
+                if model.schema_version < MULTIRATE_SCHEMA_VERSION {
+                    return Err(ModelError::new(
+                        "schema_version",
+                        "sampled routing requires model schema version 5",
+                    )
+                    .at(&block.id, None));
+                }
+                if let BlockKind::RateTransition { initial, .. } = &block.kind {
+                    Some(initial)
+                } else {
+                    None
+                }
+            }
             BlockKind::Step {
                 time,
                 before,
@@ -470,7 +519,7 @@ fn validate_model(model: &Model) -> Result<(), ModelError> {
             BlockKind::Gain { gain } => Some(gain),
             BlockKind::Integrator { initial } => Some(initial),
             BlockKind::UnitDelay { initial } => {
-                if s.sample_time.is_none() {
+                if model.schema_version < MULTIRATE_SCHEMA_VERSION && s.sample_time.is_none() {
                     return Err(ModelError::new(
                         "sample_time",
                         "UnitDelay requires settings.sampleTime",

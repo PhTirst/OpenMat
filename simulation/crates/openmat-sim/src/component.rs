@@ -52,6 +52,18 @@ pub struct ComponentDefinition {
 }
 
 impl ComponentDefinition {
+    /// Validate inherited discrete periods only in the versioned multirate profile.
+    /// # Errors
+    /// Rejects invalid metadata, preserving the old explicit-period contract.
+    pub(crate) fn validate_for_schema(&self, schema: u32) -> Result<(), ModelError> {
+        if schema >= 5 && self.sample_time == Some(-1.0) {
+            let mut resolved = self.clone();
+            resolved.sample_time = Some(1.0);
+            resolved.validate()
+        } else {
+            self.validate()
+        }
+    }
     #[must_use]
     pub fn callbacks(&self) -> Vec<&Callback> {
         self.initialize

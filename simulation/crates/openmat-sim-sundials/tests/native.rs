@@ -20,6 +20,81 @@ fn missing_runtime_and_invalid_options_are_explicit_errors() {
 
 #[test]
 #[ignore = "requires pinned SUNDIALS runtime"]
+fn multirate_hold_boundaries_restart_cvode_without_creating_extra_samples() {
+    for method in [Method::Adams, Method::Bdf] {
+        let model: Model = serde_json::from_value(serde_json::json!({
+            "schemaVersion":5,"name":"sampled-step-integration",
+            "settings":{"startTime":0,"stopTime":0.5,"maxStep":0.01},
+            "sampleTimes":{"source":{"kind":"discrete","period":0.1},"monitor":{"kind":"discrete","period":0.2}},
+            "blocks":[
+                {"id":"source","kind":{"type":"step","time":0.05,"before":[0],"after":[1]}},
+                {"id":"state","kind":{"type":"integrator","initial":[0]}},
+                {"id":"monitor","kind":{"type":"zeroOrderHold"}},
+                {"id":"scope","kind":{"type":"scope"}},
+                {"id":"sample_scope","kind":{"type":"scope"}}
+            ],
+            "connections":[
+                {"from":{"block":"source","port":"out"},"to":{"block":"state","port":"in"}},
+                {"from":{"block":"state","port":"out"},"to":{"block":"scope","port":"in"}},
+                {"from":{"block":"state","port":"out"},"to":{"block":"monitor","port":"in"}},
+                {"from":{"block":"monitor","port":"out"},"to":{"block":"sample_scope","port":"in"}}
+            ]
+        })).unwrap();
+        let plan = compile(&model).unwrap();
+        let continuous = plan
+            .scopes()
+            .iter()
+            .find(|s| s.block == "scope")
+            .unwrap()
+            .offset;
+        let sampled = plan
+            .scopes()
+            .iter()
+            .find(|s| s.block == "sample_scope")
+            .unwrap()
+            .offset;
+        let update = plan.update_program().cloned().map(ReferenceKernel::new);
+        let solver = Cvode::new(
+            &directory(),
+            1,
+            Options {
+                method,
+                relative_tolerance: 1e-9,
+                absolute_tolerance: 1e-11,
+            },
+        )
+        .unwrap();
+        let mut runner = Runner::new_with_update(
+            plan.clone(),
+            ReferenceKernel::new(plan.program().clone()),
+            update,
+        )
+        .unwrap()
+        .with_solver(Box::new(solver))
+        .unwrap();
+        let mut hits = [1, 1];
+        let mut held = 0.0;
+        while let Some(frame) = runner.advance().unwrap() {
+            assert!(
+                (frame.values[continuous] - (frame.time - 0.1).max(0.0)).abs() < 2e-8,
+                "{method:?} t={}",
+                frame.time
+            );
+            for &id in &frame.sample_hits {
+                hits[id] += 1;
+            }
+            if frame.sample_hits.contains(&1) {
+                held = (frame.time - 0.1).max(0.0);
+            }
+            assert!((frame.values[sampled] - held).abs() < 2e-8);
+        }
+        assert_eq!(hits, [6, 3]);
+        assert_eq!(runner.solver_statistics().unwrap().reinitializations, 4);
+    }
+}
+
+#[test]
+#[ignore = "requires pinned SUNDIALS runtime"]
 fn scheduled_steps_use_left_limit_restart_and_do_not_create_discrete_ticks() {
     for event_time in [0.15_f64, 0.2, 0.5] {
         for method in [Method::Adams, Method::Bdf] {

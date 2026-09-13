@@ -9,6 +9,7 @@ mod engine;
 mod m_function;
 pub mod model;
 pub mod numeric;
+pub mod sampling;
 pub mod solver;
 mod static_function;
 

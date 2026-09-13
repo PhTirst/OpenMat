@@ -7,12 +7,15 @@ use crate::model::Port;
 use crate::numeric::Kernel;
 use crate::solver::{ContinuousSolver, OdeStep, SolverStats};
 use crate::{CompiledModel, ScopeInfo};
+mod multirate;
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Frame {
     pub time: f64,
     pub sample_hit: bool,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub sample_hits: Vec<usize>,
     pub values: Vec<f64>,
 }
 
@@ -23,6 +26,8 @@ pub struct SimulationResult {
     pub model: String,
     pub scopes: Vec<ScopeInfo>,
     pub frames: Vec<Frame>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sampling: Option<crate::sampling::SamplingPlan>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -90,12 +95,28 @@ impl Scratch {
         discrete: &[f64],
         cancel: &AtomicBool,
     ) -> Result<(), RunError> {
+        self.evaluate_with_extra(kernel, origins, time, continuous, discrete, &[], cancel)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn evaluate_with_extra<K: Kernel>(
+        &mut self,
+        kernel: &mut K,
+        origins: &[Port],
+        time: f64,
+        continuous: &[f64],
+        discrete: &[f64],
+        extra: &[f64],
+        cancel: &AtomicBool,
+    ) -> Result<(), RunError> {
         if cancel.load(Ordering::Relaxed) {
             return Err(RunError::new("cancelled", "simulation was cancelled"));
         }
         self.inputs[0] = time;
         self.inputs[1..=continuous.len()].copy_from_slice(continuous);
-        self.inputs[1 + continuous.len()..].copy_from_slice(discrete);
+        let end = 1 + continuous.len() + discrete.len();
+        self.inputs[1 + continuous.len()..end].copy_from_slice(discrete);
+        self.inputs[end..].copy_from_slice(extra);
         if self.inputs.iter().any(|v| !v.is_finite()) {
             return Err(RunError::new(
                 "non_finite_state",
@@ -140,6 +161,7 @@ pub struct Runner<K> {
     event_hit: bool,
     failed: bool,
     solver: Option<Box<dyn ContinuousSolver>>,
+    sampling: Option<multirate::SampledState>,
 }
 
 impl<K: Kernel> Runner<K> {
@@ -201,10 +223,15 @@ impl<K: Kernel> Runner<K> {
             next_tick: 1,
             failed: false,
             solver: None,
+            sampling: plan.sampling.as_ref().map(multirate::SampledState::new),
             plan,
             kernel,
             update_kernel,
         };
+        if runner.sampling.is_some() {
+            runner.initialize_sampling()?;
+            return Ok(runner);
+        }
         runner.evaluate_current(&AtomicBool::new(false))?;
         if let Some(kernel) = &mut runner.update_kernel {
             runner.update_scratch.evaluate(
@@ -268,6 +295,10 @@ impl<K: Kernel> Runner<K> {
         Frame {
             time: self.time,
             sample_hit: self.sample_hit,
+            sample_hits: self
+                .sampling
+                .as_ref()
+                .map_or_else(Vec::new, |s| s.hits.clone()),
             values: self.observations.clone(),
         }
     }
@@ -299,6 +330,9 @@ impl<K: Kernel> Runner<K> {
 
     #[allow(clippy::too_many_lines)] // Validate every candidate before the single state commit.
     fn advance_inner(&mut self, cancel: &AtomicBool) -> Result<Option<Frame>, RunError> {
+        if self.sampling.is_some() {
+            return self.advance_sampled(cancel);
+        }
         if cancel.load(Ordering::Relaxed) {
             return Err(RunError::new("cancelled", "simulation was cancelled"));
         }
@@ -430,12 +464,13 @@ impl<K: Kernel> Runner<K> {
     }
 
     fn evaluate_current(&mut self, cancel: &AtomicBool) -> Result<(), RunError> {
-        self.scratch.evaluate(
+        self.scratch.evaluate_with_extra(
             &mut self.kernel,
             &self.plan.origins,
             self.time,
             &self.continuous,
             &self.held,
+            self.sampling.as_ref().map_or(&[], |s| s.extra.as_slice()),
             cancel,
         )
     }
@@ -464,12 +499,13 @@ impl<K: Kernel> Runner<K> {
             for (index, value) in self.trial.iter_mut().enumerate() {
                 *value = self.continuous[index] + fraction * step * self.slopes[stage - 1][index];
             }
-            self.scratch.evaluate(
+            self.scratch.evaluate_with_extra(
                 &mut self.kernel,
                 &self.plan.origins,
                 self.time + fraction * step,
                 &self.trial,
                 &self.held,
+                self.sampling.as_ref().map_or(&[], |s| s.extra.as_slice()),
                 cancel,
             )?;
             self.slopes[stage].copy_from_slice(&self.scratch.outputs[..count]);
@@ -531,7 +567,8 @@ impl<K: Kernel> Runner<K> {
             }
         }
         Ok(SimulationResult {
-            schema_version: 1,
+            schema_version: if self.plan.sampling.is_some() { 2 } else { 1 },
+            sampling: self.plan.sampling,
             model: self.plan.name,
             scopes: self.plan.scopes,
             frames,

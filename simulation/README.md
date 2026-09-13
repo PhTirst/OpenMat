@@ -19,6 +19,10 @@ and the [SLX import guide](docs/slx-import.md). Loading an SLX document and
 supporting its simulation semantics are separate checks; this is not full
 Simulink compatibility.
 
+Schema 5 and the `multirate-v1` SLX profile add
+[synchronous multirate simulation](docs/multirate.md), including sample-time
+inference, discrete control blocks, rate transitions, and Scope sampling diagnostics.
+
 The editor and streaming service are described by
 [RFC 0012](../docs/rfcs/0012-simulation-editor-v0.md). The editor opens the raw
 `.omsim.json` models below and saves `.omsim` authoring documents containing the

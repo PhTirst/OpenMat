@@ -11,6 +11,7 @@ mod control_graph;
 mod document;
 mod literal;
 mod lower;
+mod multirate;
 mod parameters;
 
 use openmat_opc::{Limits, Package};

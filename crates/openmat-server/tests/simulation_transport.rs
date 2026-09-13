@@ -103,6 +103,57 @@ fn request_v4(socket: &mut Socket, id: &str, operation: &str, data: Value) {
 }
 
 #[test]
+fn v5_streams_independent_clock_hits_and_v4_rejects_the_same_model() {
+    let mut server = Server::start();
+    server.url = server.url.replace("/simulation/v1", "/simulation/v4");
+    let mut legacy = server.connect();
+    let model: Value = serde_json::from_str(include_str!(
+        "../../../simulation/examples/multirate-control.omsim.json"
+    ))
+    .unwrap();
+    request_v4(
+        &mut legacy,
+        "old",
+        "check",
+        json!({"model":model,"revision":"r"}),
+    );
+    assert_eq!(read(&mut legacy)["error"]["code"], "protocol");
+    server.url = server.url.replace("/simulation/v4", "/simulation/v5");
+    let mut socket = server.connect();
+    socket.send(Message::text(json!({"protocol":"openmat-simulation-v5","requestId":"new","operation":"run","model":model,"revision":"rates"}).to_string())).unwrap();
+    let started = read(&mut socket);
+    assert_eq!(started["protocol"], "openmat-simulation-v5");
+    assert_eq!(started["ok"], true);
+    assert_eq!(
+        started["result"]["sampling"]["clocks"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
+    let mut counts = [0; 2];
+    let mut frames = 0;
+    loop {
+        let event = read(&mut socket);
+        assert_eq!(event["protocol"], "openmat-simulation-v5");
+        if event["event"] == "finished" {
+            break;
+        }
+        assert_eq!(event["event"], "samples", "{event}");
+        for frame in event["data"]["frames"].as_array().unwrap() {
+            frames += 1;
+            if let Some(hits) = frame["sampleHits"].as_array() {
+                for id in hits {
+                    counts[usize::try_from(id.as_u64().unwrap()).unwrap()] += 1;
+                }
+            }
+        }
+    }
+    assert_eq!(frames, 1001);
+    assert_eq!(counts, [101, 11]);
+}
+
+#[test]
 fn v4_imports_explicit_parameters_and_runs_the_embedded_source_snapshot() {
     let mut server = Server::start();
     server.url = server.url.replace("/simulation/v1", "/simulation/v3");

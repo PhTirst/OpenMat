@@ -15,6 +15,8 @@ pub struct ControlModel {
     pub sources: SourceBundle,
     pub parameters: Parameters,
     pub block_paths: BTreeMap<String, String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sampling: Option<openmat_sim::sampling::SamplingPlan>,
 }
 
 impl ImportedSlx {
@@ -132,6 +134,7 @@ impl ImportedSlx {
             sources,
             parameters,
             block_paths: self.block_paths(),
+            sampling: None,
         })
     }
 

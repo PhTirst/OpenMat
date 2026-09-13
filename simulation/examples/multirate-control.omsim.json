@@ -1,0 +1,347 @@
+{
+  "schemaVersion": 5,
+  "name": "Multirate PI - 10 ms control, 100 ms monitor",
+  "settings": {
+    "startTime": 0,
+    "stopTime": 1,
+    "maxStep": 0.001
+  },
+  "blocks": [
+    {
+      "id": "reference",
+      "kind": {
+        "type": "step",
+        "time": 0.03,
+        "before": [
+          0
+        ],
+        "after": [
+          1
+        ]
+      },
+      "position": {
+        "x": 30,
+        "y": 100
+      }
+    },
+    {
+      "id": "error",
+      "kind": {
+        "type": "sum",
+        "signs": [
+          1,
+          -1
+        ]
+      },
+      "position": {
+        "x": 240,
+        "y": 100
+      }
+    },
+    {
+      "id": "proportional",
+      "kind": {
+        "type": "gain",
+        "gain": [
+          2
+        ]
+      },
+      "position": {
+        "x": 450,
+        "y": 30
+      }
+    },
+    {
+      "id": "integral",
+      "kind": {
+        "type": "discreteIntegrator",
+        "initial": [
+          0
+        ],
+        "gain": 3
+      },
+      "position": {
+        "x": 450,
+        "y": 200
+      }
+    },
+    {
+      "id": "control",
+      "kind": {
+        "type": "sum",
+        "signs": [
+          1,
+          1
+        ]
+      },
+      "position": {
+        "x": 665,
+        "y": 100
+      }
+    },
+    {
+      "id": "derivative",
+      "kind": {
+        "type": "sum",
+        "signs": [
+          1,
+          -1
+        ]
+      },
+      "position": {
+        "x": 880,
+        "y": 100
+      }
+    },
+    {
+      "id": "plant",
+      "kind": {
+        "type": "integrator",
+        "initial": [
+          0
+        ]
+      },
+      "position": {
+        "x": 1095,
+        "y": 100
+      }
+    },
+    {
+      "id": "damping",
+      "kind": {
+        "type": "gain",
+        "gain": [
+          2
+        ]
+      },
+      "position": {
+        "x": 880,
+        "y": 340
+      }
+    },
+    {
+      "id": "sample",
+      "kind": {
+        "type": "zeroOrderHold"
+      },
+      "position": {
+        "x": 665,
+        "y": 450
+      }
+    },
+    {
+      "id": "monitor",
+      "kind": {
+        "type": "rateTransition",
+        "initial": [
+          0
+        ],
+        "deterministic": true
+      },
+      "position": {
+        "x": 880,
+        "y": 560
+      }
+    },
+    {
+      "id": "plant_scope",
+      "kind": {
+        "type": "scope"
+      },
+      "position": {
+        "x": 1310,
+        "y": 100
+      }
+    },
+    {
+      "id": "control_scope",
+      "kind": {
+        "type": "scope"
+      },
+      "position": {
+        "x": 880,
+        "y": -90
+      }
+    },
+    {
+      "id": "monitor_scope",
+      "kind": {
+        "type": "scope"
+      },
+      "position": {
+        "x": 1095,
+        "y": 560
+      }
+    }
+  ],
+  "connections": [
+    {
+      "from": {
+        "block": "reference",
+        "port": "out"
+      },
+      "to": {
+        "block": "error",
+        "port": "in0"
+      }
+    },
+    {
+      "from": {
+        "block": "sample",
+        "port": "out"
+      },
+      "to": {
+        "block": "error",
+        "port": "in1"
+      }
+    },
+    {
+      "from": {
+        "block": "error",
+        "port": "out"
+      },
+      "to": {
+        "block": "proportional",
+        "port": "in"
+      }
+    },
+    {
+      "from": {
+        "block": "error",
+        "port": "out"
+      },
+      "to": {
+        "block": "integral",
+        "port": "in"
+      }
+    },
+    {
+      "from": {
+        "block": "proportional",
+        "port": "out"
+      },
+      "to": {
+        "block": "control",
+        "port": "in0"
+      }
+    },
+    {
+      "from": {
+        "block": "integral",
+        "port": "out"
+      },
+      "to": {
+        "block": "control",
+        "port": "in1"
+      }
+    },
+    {
+      "from": {
+        "block": "control",
+        "port": "out"
+      },
+      "to": {
+        "block": "derivative",
+        "port": "in0"
+      }
+    },
+    {
+      "from": {
+        "block": "damping",
+        "port": "out"
+      },
+      "to": {
+        "block": "derivative",
+        "port": "in1"
+      }
+    },
+    {
+      "from": {
+        "block": "derivative",
+        "port": "out"
+      },
+      "to": {
+        "block": "plant",
+        "port": "in"
+      }
+    },
+    {
+      "from": {
+        "block": "plant",
+        "port": "out"
+      },
+      "to": {
+        "block": "damping",
+        "port": "in"
+      }
+    },
+    {
+      "from": {
+        "block": "plant",
+        "port": "out"
+      },
+      "to": {
+        "block": "sample",
+        "port": "in"
+      }
+    },
+    {
+      "from": {
+        "block": "sample",
+        "port": "out"
+      },
+      "to": {
+        "block": "monitor",
+        "port": "in"
+      }
+    },
+    {
+      "from": {
+        "block": "plant",
+        "port": "out"
+      },
+      "to": {
+        "block": "plant_scope",
+        "port": "in"
+      }
+    },
+    {
+      "from": {
+        "block": "control",
+        "port": "out"
+      },
+      "to": {
+        "block": "control_scope",
+        "port": "in"
+      }
+    },
+    {
+      "from": {
+        "block": "monitor",
+        "port": "out"
+      },
+      "to": {
+        "block": "monitor_scope",
+        "port": "in"
+      }
+    }
+  ],
+  "sampleTimes": {
+    "reference": {
+      "kind": "discrete",
+      "period": 0.01
+    },
+    "sample": {
+      "kind": "discrete",
+      "period": 0.01
+    },
+    "integral": {
+      "kind": "discrete",
+      "period": 0.01
+    },
+    "monitor": {
+      "kind": "discrete",
+      "period": 0.1
+    }
+  }
+}

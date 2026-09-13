@@ -81,6 +81,7 @@ pub(crate) fn lower(document: &Document, package: &Package) -> Result<Model, Vec
         return Err(vec![error]);
     }
     let model = Model {
+        sample_times: std::collections::BTreeMap::new(),
         components: Vec::new(),
         schema_version: 1,
         name: document.name.clone(),

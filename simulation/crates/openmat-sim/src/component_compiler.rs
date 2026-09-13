@@ -6,6 +6,7 @@ use crate::model::{Block, BlockKind, FunctionInput, Model, Port};
 use crate::numeric::{Comparison, Instruction, Kernel, MAX_VALUES, Program, ReferenceKernel};
 use crate::static_function::{self, Signature};
 use crate::{CompiledModel, ModelError, ScopeInfo, SourceBundle, m_function};
+mod rates;
 
 #[derive(Clone, Copy)]
 struct Wire {
@@ -27,6 +28,8 @@ struct Node<'a> {
     derivatives: Option<Program>,
     update: Option<Program>,
     scope: Option<Program>,
+    transition_period: Option<f64>,
+    sampling_period: Option<f64>,
 }
 
 fn failure(block: &Block, code: &str, message: &str) -> ModelError {
@@ -53,7 +56,7 @@ pub(crate) fn compile(model: &Model, sources: &SourceBundle) -> Result<CompiledM
         ));
     }
     for definition in &model.components {
-        definition.validate()?;
+        definition.validate_for_schema(model.schema_version)?;
         if definitions
             .insert(definition.id.as_str(), definition)
             .is_some()
@@ -94,7 +97,8 @@ pub(crate) fn compile(model: &Model, sources: &SourceBundle) -> Result<CompiledM
             ));
         }
         if let Some(definition) = node.definition {
-            if definition.sample_time.is_some()
+            if model.schema_version < 5
+                && definition.sample_time.is_some()
                 && definition.sample_time != model.settings.sample_time
             {
                 return Err(failure(
@@ -127,8 +131,35 @@ pub(crate) fn compile(model: &Model, sources: &SourceBundle) -> Result<CompiledM
             ));
         }
     }
-    let input_count = 1 + x.len() + q.len();
+    let sampling = if model.schema_version >= 5 {
+        let resolved = rates::resolve(model, &mut nodes)?;
+        x.clear();
+        q.clear();
+        for node in &mut nodes {
+            node.x_offset = x.len();
+            node.q_offset = q.len();
+            x.extend(&node.x);
+            q.extend(&node.q);
+        }
+        if x.len() + q.len() > 262_144 {
+            return Err(ModelError::new(
+                "model_limit",
+                "combined state budget exceeded",
+            ));
+        }
+        Some(rates::layout(model, &nodes, &resolved)?)
+    } else {
+        None
+    };
+    let input_count = 1
+        + x.len()
+        + q.len()
+        + sampling
+            .as_ref()
+            .map_or(0, |s| s.cache_count + s.clocks.len());
     let mut flow = Emitter::new(&nodes, x.len(), input_count);
+    flow.sampling = sampling.as_ref();
+    flow.cache_start = 1 + x.len() + q.len();
     // Validate all output dependencies, including disconnected components.
     for (block, node) in nodes.iter().enumerate() {
         for port in 0..node.outputs.len() {
@@ -158,6 +189,7 @@ pub(crate) fn compile(model: &Model, sources: &SourceBundle) -> Result<CompiledM
                 block: node.block.id.clone(),
                 offset,
                 width: values.len(),
+                sample_time: sampling.as_ref().map(|s| s.blocks[&node.block.id]),
             });
             offset += values.len();
             origins.extend((0..values.len()).map(|_| origin(node, "in")));
@@ -170,22 +202,56 @@ pub(crate) fn compile(model: &Model, sources: &SourceBundle) -> Result<CompiledM
             "too many state and scope components",
         ));
     }
-    let execution_order = flow
+    let mut execution_order: Vec<_> = flow
         .order
         .iter()
         .map(|&i| nodes[i].block.id.clone())
         .collect();
     let flow_program = program(input_count, flow.instructions, outputs)?;
     let mut update = Emitter::new(&nodes, x.len(), input_count);
+    update.sampling = sampling.as_ref();
+    update.cache_start = 1 + x.len() + q.len();
+    update.sampled = true;
     let mut next = Vec::new();
     let mut update_origins = Vec::new();
+    if let Some(sampling) = &sampling {
+        for (i, node) in nodes.iter().enumerate() {
+            for (port, offset) in sampling.output_offsets[i].iter().enumerate() {
+                if offset.is_some() {
+                    let values = update.signal(Wire { block: i, port }, 0)?;
+                    update_origins
+                        .extend((0..values.len()).map(|_| origin(node, &node.outputs[port].name)));
+                    next.extend(values);
+                }
+            }
+        }
+    }
     for (i, node) in nodes.iter().enumerate() {
         if let Some(p) = &node.update {
-            next.extend(update.callback(i, p, 0)?);
+            let values = update.callback(i, p, 0)?;
+            if let Some(sampling) = &sampling {
+                for (j, value) in values.into_iter().enumerate() {
+                    let clock = sampling.state_clocks[node.q_offset + j];
+                    let hit = update.push(Instruction::Input(
+                        update.cache_start + sampling.cache_count + clock,
+                    ))?;
+                    let old = update.push(Instruction::Input(1 + x.len() + node.q_offset + j))?;
+                    next.push(update.push(Instruction::Select(hit, value, old))?);
+                }
+            } else {
+                next.extend(values);
+            }
             update_origins.extend((0..node.q.len()).map(|_| origin(node, "update")));
         }
     }
-    let update_program = if q.is_empty() {
+    if sampling.is_some() {
+        for &i in &update.order {
+            if !execution_order.contains(&nodes[i].block.id) {
+                execution_order.push(nodes[i].block.id.clone());
+            }
+        }
+    }
+    let update_program = if next.is_empty() {
         None
     } else {
         Some(program(input_count, update.instructions, next)?)
@@ -195,8 +261,12 @@ pub(crate) fn compile(model: &Model, sources: &SourceBundle) -> Result<CompiledM
         .iter()
         .filter_map(|b| {
             if let BlockKind::Step { time, .. } = b.kind {
-                (time > model.settings.start_time && time <= model.settings.stop_time)
-                    .then_some(time)
+                (time > model.settings.start_time
+                    && time <= model.settings.stop_time
+                    && sampling
+                        .as_ref()
+                        .is_none_or(|s| s.blocks[&b.id] == crate::model::SampleTime::Continuous))
+                .then_some(time)
             } else {
                 None
             }
@@ -216,6 +286,7 @@ pub(crate) fn compile(model: &Model, sources: &SourceBundle) -> Result<CompiledM
         origins,
         execution_order,
         time_events,
+        sampling,
     })
 }
 
@@ -256,7 +327,9 @@ fn node<'a>(
         let width = match &block.kind {
             BlockKind::Constant { value } => value.len(),
             BlockKind::Step { before, .. } => before.len(),
-            BlockKind::Integrator { initial } | BlockKind::UnitDelay { initial } => initial.len(),
+            BlockKind::Integrator { initial }
+            | BlockKind::UnitDelay { initial }
+            | BlockKind::DiscreteIntegrator { initial, .. } => initial.len(),
             BlockKind::MFunction { output_width, .. } => *output_width,
             _ => 0,
         };
@@ -284,6 +357,8 @@ fn node<'a>(
         derivatives: None,
         update: None,
         scope: None,
+        transition_period: None,
+        sampling_period: None,
     })
 }
 
@@ -497,9 +572,30 @@ fn lower_component(node: &mut Node<'_>, sources: &SourceBundle) -> Result<(), Mo
 
 #[allow(clippy::too_many_lines)] // One checked adapter per supported builtin, sharing local signal offsets.
 fn lower_builtin(node: &mut Node<'_>, sources: &SourceBundle) -> Result<(), ModelError> {
+    node.signals.clear();
+    node.derivatives = None;
+    node.update = None;
+    node.scope = None;
     match &node.block.kind {
         BlockKind::Integrator { initial } => node.x.clone_from(initial),
-        BlockKind::UnitDelay { initial } => node.q.clone_from(initial),
+        BlockKind::UnitDelay { initial } | BlockKind::DiscreteIntegrator { initial, .. } => {
+            node.q.clone_from(initial);
+        }
+        BlockKind::RateTransition { initial, .. } if node.transition_period.is_some() => {
+            let width = node.outputs[0].width;
+            if initial.len() != 1 && initial.len() != width {
+                return Err(failure(
+                    node.block,
+                    "signal_width",
+                    "RateTransition initial width must be scalar or match its signal",
+                ));
+            }
+            node.q = if initial.len() == 1 {
+                vec![initial[0]; width]
+            } else {
+                initial.clone()
+            };
+        }
         _ => {}
     }
     let start = 1 + node.x.len() + node.q.len();
@@ -553,6 +649,22 @@ fn lower_builtin(node: &mut Node<'_>, sources: &SourceBundle) -> Result<(), Mode
             node.update = Some(program(count, ops.clone(), inputs[0].clone())?);
             (1..start).collect()
         }
+        BlockKind::DiscreteIntegrator { gain, .. } => {
+            let scale = push(
+                &mut ops,
+                Instruction::Constant(gain * node.sampling_period.unwrap_or(0.0)),
+            );
+            let next = inputs[0]
+                .iter()
+                .enumerate()
+                .map(|(i, &u)| {
+                    let delta = push(&mut ops, Instruction::Multiply(scale, u));
+                    push(&mut ops, Instruction::Add(1 + i, delta))
+                })
+                .collect();
+            node.update = Some(program(count, ops.clone(), next)?);
+            (1..start).collect()
+        }
         BlockKind::Gain { gain } => {
             if gain.len() != 1 && gain.len() != inputs[0].len() {
                 return Err(failure(
@@ -603,6 +715,14 @@ fn lower_builtin(node: &mut Node<'_>, sources: &SourceBundle) -> Result<(), Mode
             node.scope = Some(program(count, ops, inputs[0].clone())?);
             return Ok(());
         }
+        BlockKind::ZeroOrderHold | BlockKind::RateTransition { .. } => {
+            if node.q.is_empty() {
+                inputs[0].clone()
+            } else {
+                node.update = Some(program(count, ops.clone(), inputs[0].clone())?);
+                (1..start).collect()
+            }
+        }
         BlockKind::Component { .. } => unreachable!(),
     };
     node.signals.push(program(count, ops, output)?);
@@ -617,6 +737,9 @@ struct Emitter<'a> {
     cache: Vec<Vec<Option<Vec<usize>>>>,
     visiting: BTreeSet<(usize, usize)>,
     order: Vec<usize>,
+    sampling: Option<&'a crate::sampling::SamplingPlan>,
+    sampled: bool,
+    cache_start: usize,
 }
 
 impl<'a> Emitter<'a> {
@@ -629,6 +752,9 @@ impl<'a> Emitter<'a> {
             cache: nodes.iter().map(|n| vec![None; n.outputs.len()]).collect(),
             visiting: BTreeSet::new(),
             order: vec![],
+            sampling: None,
+            sampled: false,
+            cache_start: 0,
         }
     }
     fn push(&mut self, instruction: Instruction) -> Result<usize, ModelError> {
@@ -647,6 +773,18 @@ impl<'a> Emitter<'a> {
             return Ok(values.clone());
         }
         let node = &self.nodes[wire.block];
+        let offset = self
+            .sampling
+            .and_then(|s| s.output_offsets[wire.block][wire.port]);
+        if !self.sampled
+            && let Some(offset) = offset
+        {
+            let values = (0..node.outputs[wire.port].width)
+                .map(|i| self.push(Instruction::Input(self.cache_start + offset + i)))
+                .collect::<Result<Vec<_>, _>>()?;
+            self.cache[wire.block][wire.port] = Some(values.clone());
+            return Ok(values);
+        }
         if !self.visiting.insert((wire.block, wire.port)) {
             return Err(ModelError::new(
                 "algebraic_loop",
@@ -661,7 +799,20 @@ impl<'a> Emitter<'a> {
                 "output dependency depth exceeds 128",
             ));
         }
-        let values = self.callback(wire.block, &node.signals[wire.port], depth + 1)?;
+        let mut values = self.callback(wire.block, &node.signals[wire.port], depth + 1)?;
+        if self.sampled
+            && let Some(offset) = offset
+        {
+            let sampling = self.sampling.expect("sampled plan");
+            let clock = sampling.node_clocks[wire.block].expect("sampled output clock");
+            let hit = self.push(Instruction::Input(
+                self.cache_start + sampling.cache_count + clock,
+            ))?;
+            for (i, value) in values.iter_mut().enumerate() {
+                let old = self.push(Instruction::Input(self.cache_start + offset + i))?;
+                *value = self.push(Instruction::Select(hit, *value, old))?;
+            }
+        }
         self.cache[wire.block][wire.port] = Some(values.clone());
         self.visiting.remove(&(wire.block, wire.port));
         if !self.order.contains(&wire.block) {

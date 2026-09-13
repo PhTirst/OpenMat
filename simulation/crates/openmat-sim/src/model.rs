@@ -7,6 +7,16 @@ pub const SCHEMA_VERSION: u32 = 1;
 pub const FUNCTION_SCHEMA_VERSION: u32 = 2;
 pub const COMPONENT_SCHEMA_VERSION: u32 = 3;
 pub const CONTROL_SCHEMA_VERSION: u32 = 4;
+pub const MULTIRATE_SCHEMA_VERSION: u32 = 5;
+
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
+pub enum SampleTime {
+    Inherited,
+    Continuous,
+    Constant,
+    Discrete { period: f64 },
+}
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -18,6 +28,8 @@ pub struct Model {
     pub connections: Vec<Connection>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub components: Vec<ComponentDefinition>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub sample_times: BTreeMap<String, SampleTime>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -49,6 +61,15 @@ pub struct Position {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
 pub enum BlockKind {
+    ZeroOrderHold,
+    DiscreteIntegrator {
+        initial: Vec<f64>,
+        gain: f64,
+    },
+    RateTransition {
+        initial: Vec<f64>,
+        deterministic: bool,
+    },
     Step {
         time: f64,
         before: Vec<f64>,
