@@ -26,6 +26,10 @@ inference, discrete control blocks, rate transitions, and Scope sampling diagnos
 Schema 6 and `hybrid-v1` add [nonlinear controls and reset events](docs/hybrid-control.md),
 including CVODE root location and self-contained interactive examples.
 
+Schema 7 adds [native virtual subsystems and experiment data](docs/native-authoring.md):
+group/ungroup editing, Product/Mux/Demux/State-Space/Transfer Fcn, embedded CSV
+inputs, root outputs and explicit export to the ordinary m workspace.
+
 The editor and streaming service are described by
 [RFC 0012](../docs/rfcs/0012-simulation-editor-v0.md). The editor opens the raw
 `.omsim.json` models below and saves `.omsim` authoring documents containing the
@@ -58,6 +62,7 @@ serialized buffer layout does not change m-language one-based indexing.
 | [switched-control](examples/switched-control.omsim.json) | Switch selects feedback gains at 2 seconds | Piecewise closed-loop response |
 | [periodic-reset](examples/periodic-reset.omsim.json) | Continuous and 50 ms discrete reset integrators | Event-marked sawtooth trajectories |
 | [pi-control](examples/pi-control.omsim.json) | Sampled PI driving a continuous plant | Held command, saturation and continuous response |
+| [experiment-control](examples/experiment-control.omsim.json) | Native PI subsystem, Transfer Fcn plant and embedded two-channel data | Reference/simulation/synthetic observation comparison and m workspace export |
 
 The first model can be read as:
 

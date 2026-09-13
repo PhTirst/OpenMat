@@ -67,6 +67,14 @@ connections expose a draggable bend handle; their context menu can reset routing
 Moving nodes or changing parameters is undoable. Keyboard movement of a focused
 selected node is saved as an authoring change.
 
+Native models can now group selected blocks with **创建子系统**, navigate into
+their children, and reconnect them with **展开子系统**. The library includes
+Subsystem/Inport/Outport and native Product/Mux/Demux/State-Space/Transfer Fcn.
+The **实验数据 · 子系统 PI 控制** example demonstrates embedded CSV input, native
+hierarchy and **写入 m 工作区** for plotting results in ordinary m code. See
+[native authoring](../../simulation/docs/native-authoring.md) for the complete
+walkthrough, matrix controls, data interpolation and current limits.
+
 | Shortcut | Action |
 | --- | --- |
 | F5 | Run the visible model; does not reload the page |
@@ -131,7 +139,7 @@ uploads are limited to 2 MiB and parameter text to 64 KiB.
 
 ## Runs and results
 
-`/simulation/v4` (with legacy `/simulation/v1`, `/simulation/v2` and `/simulation/v3`) shares the native server's existing configured port. A separate
+`/simulation/v7` (with legacy `/simulation/v1` through `/simulation/v6`) shares the native server's existing configured port. A separate
 WebSocket carries catalog/check/run/cancel/import requests; no extra server
 listener is started. Each connection owns one job. Disconnect cancels its job;
 a different connection cannot cancel it. The native worker evaluates an immutable

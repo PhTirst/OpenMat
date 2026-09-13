@@ -1,3 +1,4 @@
+import experimentControl from "../../../../simulation/examples/experiment-control.omsim.json";
 import saturatedPi from "../../../../simulation/examples/saturated-pi.omsim.json";
 import switchedControl from "../../../../simulation/examples/switched-control.omsim.json";
 import periodicReset from "../../../../simulation/examples/periodic-reset.omsim.json";
@@ -53,8 +54,11 @@ export type Example =
     | "multirate"
     | "saturatedPi"
     | "switchedControl"
+    | "experimentControl"
     | "periodicReset";
 export function example(name: Example): ModelDocument {
+    if (name === "experimentControl")
+        return parseDocument(JSON.stringify(experimentControl));
     if (name === "saturatedPi")
         return parseDocument(JSON.stringify(saturatedPi));
     if (name === "switchedControl")

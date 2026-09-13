@@ -278,12 +278,13 @@
     min-width: 0;
     min-height: 0;
     display: grid;
-    grid-template-rows: 27px minmax(120px, 1fr) 6px minmax(
+    grid-template-rows: auto minmax(120px, 1fr) 6px minmax(
             100px,
             var(--sim-bottom)
         );
 }
 .sim-canvas-header {
+    height: 27px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -777,7 +778,7 @@
 }
 @media (max-height: 760px) {
     .sim-center {
-        grid-template-rows: 27px minmax(100px, 1fr) 6px minmax(
+        grid-template-rows: auto minmax(100px, 1fr) 6px minmax(
                 100px,
                 min(var(--sim-bottom), 28vh)
             );
@@ -991,6 +992,52 @@
     padding: 10px;
     margin: 12px 14px;
     min-width: 0;
+}
+
+.sim-system-path {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    font-size: 12px;
+}
+.sim-system-path button {
+    font-size: 12px;
+    padding: 4px 8px;
+}
+.sim-hybrid-fields textarea {
+    width: 100%;
+    min-height: 44px;
+    resize: vertical;
+    color: var(--text);
+    background: var(--bg-pane);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 7px;
+    font-family: var(--font-mono, monospace);
+    font-size: 12px;
+}
+.sim-workspace-export {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    border-top: 1px solid var(--border);
+    padding: 5px 12px;
+    font-size: 11px;
+}
+.sim-workspace-export label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.sim-workspace-export input {
+    width: 110px;
+}
+.sim-workspace-export span {
+    color: var(--text-muted);
 }
 .sim-hybrid-fields legend {
     color: var(--text-muted);

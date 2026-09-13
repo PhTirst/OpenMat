@@ -1,4 +1,5 @@
 import type { SamplingPlan } from "./sampling";
+import { ResultWorkspaceExport } from "./result-workspace";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { ScopeInfo, SimulationFrame } from "./client";
 import { envelope, scopeFrames } from "./scope-data";
@@ -19,6 +20,8 @@ export const ScopePanel = memo(function ScopePanel({
     version,
     names,
     dark,
+    onExecuteM,
+    exportDisabled = false,
 }: {
     frames: readonly SimulationFrame[];
     scopes: readonly ScopeInfo[];
@@ -26,6 +29,8 @@ export const ScopePanel = memo(function ScopePanel({
     version: number;
     names: Record<string, string>;
     dark: boolean;
+    onExecuteM?: ((code: string) => Promise<boolean>) | undefined;
+    exportDisabled?: boolean;
 }) {
     const canvas = useRef<HTMLCanvasElement>(null);
     const [selected, setSelected] = useState("");
@@ -341,6 +346,14 @@ export const ScopePanel = memo(function ScopePanel({
                 </div>
             )}
             <canvas ref={canvas} aria-label="Scope 仿真结果曲线" role="img" />
+            {onExecuteM && (
+                <ResultWorkspaceExport
+                    frames={observed}
+                    scope={scope}
+                    disabled={exportDisabled}
+                    onExecute={onExecuteM}
+                />
+            )}
         </div>
     );
 });

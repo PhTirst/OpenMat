@@ -1,0 +1,128 @@
+import {
+    act,
+    fireEvent,
+    render,
+    screen,
+    waitFor,
+} from "@testing-library/react";
+import { createRef } from "react";
+import { beforeEach, expect, it, vi } from "vitest";
+import ModelEditor from "./ModelEditor";
+import { example } from "./examples";
+import { parseDocument, serializeDocument } from "./model";
+import { MockWorkspaceClient } from "../workspace/mock-workspace-client";
+import { PendingOperations } from "../platform/pending-operations";
+import type { ModelEditorSession } from "./session";
+
+const native = vi.hoisted(() => ({ run: vi.fn(), check: vi.fn() }));
+vi.mock("./use-simulation-run", async (original) => {
+    const state = {
+        client: { current: {} },
+        connected: true,
+        connectionError: null,
+        reconnect: vi.fn(),
+        status: "idle",
+        info: null,
+        diagnostics: [],
+        setDiagnostics: vi.fn(),
+        frames: { current: [] },
+        version: 0,
+        elapsed: 0,
+        capabilities: undefined,
+        solverStats: null,
+        source: { current: "" },
+        run: native.run,
+        check: native.check,
+        cancel: vi.fn(),
+        reset: vi.fn(),
+        busy: false,
+    };
+    return {
+        ...(await original<typeof import("./use-simulation-run")>()),
+        useSimulationRun: () => state,
+    };
+});
+vi.mock("./SimulationCanvas", () => ({
+    SimulationCanvas: () => <div>Numerical canvas</div>,
+}));
+vi.mock("./ScopePanel", () => ({ ScopePanel: () => <div>Scope</div> }));
+beforeEach(() => {
+    localStorage.clear();
+    vi.clearAllMocks();
+});
+
+it("groups feedback, edits inside, undoes, saves, reopens and runs the nested document", async () => {
+    const workspace = new MockWorkspaceClient();
+    await workspace.connect();
+    const root = await workspace.currentDirectory();
+    await workspace.create("native.omsim", "file");
+    const file = await workspace.read("native.omsim"),
+        content = serializeDocument(example("feedback"));
+    const write = await workspace.write(
+        file.path,
+        content,
+        file.revision,
+        root.generation,
+    );
+    localStorage.setItem(
+        `openmat.simulation.draft.v1:${root.path}`,
+        JSON.stringify({
+            content,
+            saved: content,
+            file: { path: file.path, revision: write.revision },
+        }),
+    );
+    const session = createRef<ModelEditorSession>();
+    const mount = () =>
+        render(
+            <ModelEditor
+                workspace={workspace}
+                rootPath={root.path}
+                rootGeneration={root.generation}
+                visible
+                theme="modern-light"
+                onClose={vi.fn()}
+                onSaved={vi.fn()}
+                pendingSaves={new PendingOperations()}
+                sessionRef={session}
+            />,
+        );
+    let view = mount();
+    fireEvent.click(await screen.findByRole("treeitem", { name: /State/ }));
+    fireEvent.click(screen.getByRole("button", { name: "创建子系统" }));
+    expect(
+        screen.queryByRole("treeitem", { name: /State/ }),
+    ).not.toBeInTheDocument();
+    const container = screen.getByRole("treeitem", { name: /Subsystem/ });
+    fireEvent.doubleClick(container);
+    expect(
+        screen.getByRole("navigation", { name: "当前子系统" }),
+    ).toHaveTextContent("Subsystem");
+    fireEvent.click(screen.getByRole("treeitem", { name: /State/ }));
+    const parameter = screen.getByRole("textbox", { name: "方块参数" });
+    fireEvent.change(parameter, { target: { value: "0.5" } });
+    fireEvent.blur(parameter);
+    fireEvent.click(screen.getByRole("button", { name: "返回上层" }));
+    // Undo is available while browsing any level; it restores the state parameter.
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+    fireEvent.keyDown(window, { key: "y", ctrlKey: true });
+    await act(async () => {
+        expect(await session.current!.save()).toBe(true);
+    });
+    const saved = parseDocument((await workspace.read(file.path)).content);
+    expect(saved.model.schemaVersion).toBe(7);
+    expect(saved.model.blocks.find((b) => b.id === "state")?.kind).toEqual({
+        type: "integrator",
+        initial: [0.5],
+    });
+    expect(
+        saved.model.blocks.find((b) => b.id === "state")?.parent,
+    ).toBeTruthy();
+    view.unmount();
+    view = mount();
+    await screen.findByRole("treeitem", { name: /Subsystem/ });
+    fireEvent.click(screen.getByRole("button", { name: /▶ 运行/ }));
+    await waitFor(() => expect(native.run).toHaveBeenCalledOnce());
+    expect(native.run.mock.calls[0]?.[0]).toEqual(saved.model);
+    view.unmount();
+});

@@ -27,6 +27,12 @@ export function SamplingInspector({
         block.kind.type === "integrator" ||
         (block.kind.type === "resetIntegrator" && !block.kind.discrete) ||
         block.kind.type === "scope" ||
+        block.kind.type === "outport" ||
+        block.kind.type === "inport" ||
+        (block.kind.type === "standard" &&
+            (block.kind.operation.type === "stateSpace" ||
+                (block.kind.operation.type === "transferFcn" &&
+                    block.kind.operation.denominator.length > 1))) ||
         (definition &&
             (definition.continuousStates > 0 ||
                 (definition.sampleTime ?? -1) > 0));
@@ -50,11 +56,12 @@ export function SamplingInspector({
             </p>
             {fixed ? (
                 <p className="sim-help">
-                    {block.kind.type === "scope"
+                    {block.kind.type === "scope" ||
+                    block.kind.type === "outport"
                         ? "跟随输入信号的采样时刻记录。"
                         : definition?.sampleTime && definition.sampleTime > 0
                           ? `组件状态更新周期：${definition.sampleTime} s`
-                          : "连续状态输出；使用 Zero-Order Hold 对信号采样。"}
+                          : "连续信号输出；使用 Zero-Order Hold 对信号采样。"}
                 </p>
             ) : (
                 <>

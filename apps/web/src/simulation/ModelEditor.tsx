@@ -1,3 +1,15 @@
+import {
+    STANDARD_PRESETS,
+    STANDARD_LABELS,
+    type AuthoringKind,
+} from "./authoring";
+import { AuthoringInspector } from "./AuthoringInspector";
+import {
+    groupBlocks,
+    ungroupBlock,
+    renumberBoundaries,
+    cleanBends,
+} from "./hierarchy";
 import { CONTROL_PRESETS, CONTROL_LABELS, parseEventPlan } from "./hybrid";
 import { HybridInspector } from "./HybridInspector";
 import { CommitField } from "./CommitField";
@@ -146,6 +158,8 @@ interface Props {
     onClose(): void;
     onSaved(): void;
     onOpenNative?(): void;
+    onExecuteM?(code: string): Promise<boolean>;
+    kernelReady?: boolean;
     openRequest?: { path: string; serial: number } | null;
     sessionRef: RefObject<ModelEditorSession | null>;
     pendingSaves: PendingOperations;
@@ -296,6 +310,42 @@ function Editor(props: Props) {
     const [filter, setFilter] = useState("");
     const [selected, setSelected] = useState<string[]>([]),
         [selectedEdges, setSelectedEdges] = useState<string[]>([]);
+    const [system, setSystem] = useState<string | undefined>();
+    const parent =
+        system &&
+        doc.model.blocks.some(
+            (b) => b.id === system && b.kind.type === "subsystem",
+        )
+            ? system
+            : undefined;
+    const visibleBlocks = useMemo(
+        () => doc.model.blocks.filter((b) => b.parent === parent),
+        [doc.model.blocks, parent],
+    );
+    const visibleIds = useMemo(
+        () => new Set(visibleBlocks.map((b) => b.id)),
+        [visibleBlocks],
+    );
+    const navigateSystem = useCallback(
+        (id?: string) => {
+            setSystem(id);
+            setSelected([]);
+            setSelectedEdges([]);
+            requestAnimationFrame(() =>
+                requestAnimationFrame(
+                    () => void flow.fitView({ padding: 0.25, maxZoom: 1.1 }),
+                ),
+            );
+        },
+        [flow],
+    );
+    const ancestry: Block[] = [];
+    for (let at = parent; at;) {
+        const b = doc.model.blocks.find((b) => b.id === at);
+        if (!b) break;
+        ancestry.unshift(b);
+        at = b.parent;
+    }
     const selectedRef = useRef(selected);
     selectedRef.current = selected;
     const [flowNodes, setFlowNodes] = useState<FlowBlock[]>([]);
@@ -416,11 +466,21 @@ function Editor(props: Props) {
         if (
             next.model.blocks.some(
                 (b) =>
+                    b.parent ||
+                    ["standard", "subsystem", "inport", "outport"].includes(
+                        b.kind.type,
+                    ),
+            )
+        )
+            version = 7;
+        if (
+            next.model.blocks.some(
+                (b) =>
                     b.kind.type === "control" ||
                     b.kind.type === "resetIntegrator",
             )
         )
-            version = 6;
+            version = Math.max(version, 6) as ModelDocument["schemaVersion"];
         if (
             next.model.sampleTimes ||
             next.model.blocks.some((b) =>
@@ -507,7 +567,7 @@ function Editor(props: Props) {
     }, [cache, dirty]);
     useEffect(() => {
         setFlowNodes(
-            doc.model.blocks.map((block) => ({
+            visibleBlocks.map((block) => ({
                 id: block.id,
                 type: "block",
                 position: block.position ?? { x: 0, y: 0 },
@@ -524,7 +584,7 @@ function Editor(props: Props) {
             })),
         );
     }, [
-        doc.model.blocks,
+        visibleBlocks,
         doc.model.components,
         doc.editor.labels,
         selected,
@@ -549,6 +609,7 @@ function Editor(props: Props) {
             setFile(location);
             setSelected([]);
             setSelectedEdges([]);
+            setSystem(undefined);
             setPreview(null);
             setSlxView(Boolean(next.slx));
             setSlxSystem(0);
@@ -565,18 +626,20 @@ function Editor(props: Props) {
                 file: location,
             };
             runRef.current.reset();
-            requestAnimationFrame(() => {
-                if (next.editor.viewport)
-                    void flow.setViewport(next.editor.viewport);
-                else if (!next.model.blocks.length)
-                    void flow.setViewport({ x: 60, y: 50, zoom: 1 });
-                else
-                    void flow.fitView({
-                        padding: 0.2,
-                        maxZoom: 1.15,
-                        duration: 180,
-                    });
-            });
+            requestAnimationFrame(() =>
+                requestAnimationFrame(() => {
+                    if (next.editor.viewport)
+                        void flow.setViewport(next.editor.viewport);
+                    else if (!next.model.blocks.length)
+                        void flow.setViewport({ x: 60, y: 50, zoom: 1 });
+                    else
+                        void flow.fitView({
+                            padding: 0.2,
+                            maxZoom: 1.15,
+                            duration: 180,
+                        });
+                }),
+            );
         },
         [flow],
     );
@@ -1092,9 +1155,30 @@ function Editor(props: Props) {
                 });
             const id = uid();
             const blockKind = structuredClone(
-                CONTROL_PRESETS.find((p) => p.id === preset)?.kind ??
+                STANDARD_PRESETS.find((p) => p.id === preset)?.kind ??
+                    CONTROL_PRESETS.find((p) => p.id === preset)?.kind ??
                     kind(type),
             );
+            if (blockKind.type === "inport" || blockKind.type === "outport") {
+                const type = blockKind.type;
+                blockKind.port =
+                    1 +
+                    Math.max(
+                        0,
+                        ...docRef.current.model.blocks
+                            .filter(
+                                (b) =>
+                                    b.parent === parent && b.kind.type === type,
+                            )
+                            .map((b) => (b.kind as { port: number }).port),
+                    );
+                if (blockKind.port > 64) {
+                    setError("每个系统最多 64 个输入或输出端口。");
+                    return;
+                }
+                if (blockKind.type === "inport" && parent)
+                    delete blockKind.data;
+            }
             if (blockKind.type === "mFunction") {
                 const name = `fn_${id.slice(6)}`;
                 blockKind.source = `${name}.m`;
@@ -1130,16 +1214,18 @@ function Editor(props: Props) {
                 next.model.blocks.push({
                     id,
                     kind: blockKind,
+                    ...(parent ? { parent } : {}),
                     position: {
                         x: Math.round(at.x / 10) * 10,
                         y: Math.round(at.y / 10) * 10,
                     },
                 });
+                renumberBoundaries(next);
             });
             setSelected([id]);
             setSelectedEdges([]);
         },
-        [change, editable, flow],
+        [change, editable, flow, parent],
     );
     const deleteSelected = useCallback(
         (nodes = selectedRef.current, edges = selectedEdges) => {
@@ -1235,6 +1321,7 @@ function Editor(props: Props) {
             const id = uid();
             next.model.blocks.push({
                 id,
+                ...(parent ? { parent } : {}),
                 kind: {
                     type: "component",
                     component: definition.id,
@@ -1414,6 +1501,7 @@ function Editor(props: Props) {
                 clipboard.current,
                 uid,
                 40 * ++pasteCount.current,
+                parent,
             );
             edit(pasted.document);
             setSelected(pasted.ids);
@@ -1422,7 +1510,7 @@ function Editor(props: Props) {
         } catch (error) {
             report(error);
         }
-    }, [edit, editable, report]);
+    }, [edit, editable, report, parent]);
     const commitBend = useCallback(
         (id: string, point: Point) =>
             change((next) => {
@@ -1432,23 +1520,35 @@ function Editor(props: Props) {
     );
     const edges = useMemo<SignalEdge[]>(
         () =>
-            doc.model.connections.map((edge) => ({
-                id: edgeId(edge),
-                type: "signal",
-                source: edge.from.block,
-                sourceHandle: edge.from.port,
-                target: edge.to.block,
-                targetHandle: edge.to.port,
-                selected: selectedEdges.includes(edgeId(edge)),
-                markerEnd: {
-                    type: MarkerType.ArrowClosed,
-                    width: 16,
-                    height: 16,
-                    color: "var(--text-muted)",
-                },
-                data: { bend: doc.editor.bends[edgeId(edge)], commitBend },
-            })),
-        [commitBend, doc.model.connections, doc.editor.bends, selectedEdges],
+            doc.model.connections
+                .filter(
+                    (edge) =>
+                        visibleIds.has(edge.from.block) &&
+                        visibleIds.has(edge.to.block),
+                )
+                .map((edge) => ({
+                    id: edgeId(edge),
+                    type: "signal",
+                    source: edge.from.block,
+                    sourceHandle: edge.from.port,
+                    target: edge.to.block,
+                    targetHandle: edge.to.port,
+                    selected: selectedEdges.includes(edgeId(edge)),
+                    markerEnd: {
+                        type: MarkerType.ArrowClosed,
+                        width: 16,
+                        height: 16,
+                        color: "var(--text-muted)",
+                    },
+                    data: { bend: doc.editor.bends[edgeId(edge)], commitBend },
+                })),
+        [
+            commitBend,
+            doc.model.connections,
+            doc.editor.bends,
+            selectedEdges,
+            visibleIds,
+        ],
     );
     const connect = useCallback(
         (connection: FlowConnection) => {
@@ -1480,6 +1580,7 @@ function Editor(props: Props) {
             return Boolean(
                 from &&
                 to &&
+                from.parent === to.parent &&
                 connection.sourceHandle &&
                 connection.targetHandle &&
                 ports(from, model.components).outputs.includes(
@@ -1501,6 +1602,21 @@ function Editor(props: Props) {
         (id: string) => {
             setSelected([id]);
             setSelectedEdges([]);
+            const block = docRef.current.model.blocks.find((b) => b.id === id);
+            if (block && block.parent !== parent) {
+                setSystem(block.parent);
+                requestAnimationFrame(() =>
+                    requestAnimationFrame(
+                        () =>
+                            void flow.fitView({
+                                nodes: [{ id }],
+                                maxZoom: 1.2,
+                                padding: 0.8,
+                            }),
+                    ),
+                );
+                return;
+            }
             const node = flow.getNode(id);
             if (node)
                 void flow.fitView({
@@ -1510,7 +1626,7 @@ function Editor(props: Props) {
                     padding: 0.8,
                 });
         },
-        [flow],
+        [flow, parent],
     );
     const executeModel = useCallback(
         async (check = false) => {
@@ -1677,7 +1793,9 @@ function Editor(props: Props) {
             } else if (control && event.key.toLowerCase() === "a") {
                 event.preventDefault();
                 setSelected(
-                    docRef.current.model.blocks.map((block) => block.id),
+                    docRef.current.model.blocks
+                        .filter((b) => b.parent === parent)
+                        .map((block) => block.id),
                 );
             } else if (event.key === "Delete" || event.key === "Backspace") {
                 event.preventDefault();
@@ -1693,6 +1811,7 @@ function Editor(props: Props) {
         return () => window.removeEventListener("keydown", keyboard, true);
     }, [
         copy,
+        parent,
         deleteSelected,
         editable,
         modal,
@@ -1767,23 +1886,31 @@ function Editor(props: Props) {
                 return [...next];
             });
     }, []);
-    const onMoveEnd = useCallback((event: unknown, viewport: Viewport) => {
-        if (
-            event &&
-            JSON.stringify(docRef.current.editor.viewport) !==
-                JSON.stringify(viewport)
-        ) {
-            const next = {
-                ...docRef.current,
-                editor: { ...docRef.current.editor, viewport },
-            };
-            docRef.current = next;
-            setHistory((current) => ({ ...current, present: next }));
-        }
-    }, []);
+    const onMoveEnd = useCallback(
+        (event: unknown, viewport: Viewport) => {
+            if (
+                event &&
+                !parent &&
+                JSON.stringify(docRef.current.editor.viewport) !==
+                    JSON.stringify(viewport)
+            ) {
+                const next = {
+                    ...docRef.current,
+                    editor: { ...docRef.current.editor, viewport },
+                };
+                docRef.current = next;
+                setHistory((current) => ({ ...current, present: next }));
+            }
+        },
+        [parent],
+    );
     const onNodeDoubleClick = useCallback(
         (_event: unknown, node: FlowBlock) => {
             setSelected([node.id]);
+            if (node.data.block.kind.type === "subsystem") {
+                navigateSystem(node.id);
+                return;
+            }
             if (node.data.block.kind.type === "scope") setPane("scope");
             else if (
                 node.data.block.kind.type === "mFunction" ||
@@ -1799,7 +1926,7 @@ function Editor(props: Props) {
                         ?.focus(),
                 );
         },
-        [openFunction],
+        [openFunction, navigateSystem],
     );
     const onNodeContextMenu = useCallback(
         (event: React.MouseEvent, node: FlowBlock) =>
@@ -1816,6 +1943,31 @@ function Editor(props: Props) {
         [showMenu],
     );
     const onPaneClick = useCallback(() => setMenu(null), []);
+    const groupSelected = () => {
+        try {
+            const result = groupBlocks(
+                docRef.current,
+                new Set(selectedRef.current),
+                uid,
+            );
+            edit(result.document);
+            setSelected([result.id]);
+            setSelectedEdges([]);
+            setMenu(null);
+        } catch (e) {
+            report(e);
+        }
+    };
+    const ungroupSelected = () => {
+        try {
+            edit(ungroupBlock(docRef.current, selectedRef.current[0]!));
+            setSelected([]);
+            setSelectedEdges([]);
+            setMenu(null);
+        } catch (e) {
+            report(e);
+        }
+    };
     const menuGroups: MenuGroup[] = menu?.edge
         ? [
               {
@@ -1852,6 +2004,30 @@ function Editor(props: Props) {
                                 copy();
                                 paste();
                             },
+                        },
+                        {
+                            label: "创建子系统",
+                            run: groupSelected,
+                        },
+                        {
+                            label: "进入子系统",
+                            disabled:
+                                doc.model.blocks.find(
+                                    (b) => b.id === menu?.node,
+                                )?.kind.type !== "subsystem",
+                            run: () => {
+                                navigateSystem(menu!.node);
+                                setMenu(null);
+                            },
+                        },
+                        {
+                            label: "展开子系统",
+                            disabled:
+                                selected.length !== 1 ||
+                                doc.model.blocks.find(
+                                    (b) => b.id === menu?.node,
+                                )?.kind.type !== "subsystem",
+                            run: ungroupSelected,
                         },
                         {
                             label: "重命名",
@@ -1955,7 +2131,11 @@ function Editor(props: Props) {
                     type === "step" ||
                     type === "zeroOrderHold" ||
                     type === "control" ||
-                    type === "resetIntegrator"
+                    type === "resetIntegrator" ||
+                    type === "standard" ||
+                    type === "subsystem" ||
+                    type === "inport" ||
+                    type === "outport"
                 )
                     return;
                 node.kind =
@@ -2221,6 +2401,9 @@ function Editor(props: Props) {
                     <option value="multirate">
                         多速率 PI · 10 ms / 100 ms
                     </option>
+                    <option value="experimentControl">
+                        实验数据 · 子系统 PI 控制
+                    </option>
                     <option value="saturatedPi">饱和 PI · 抗积分饱和</option>
                     <option value="switchedControl">Switch · 双增益反馈</option>
                     <option value="periodicReset">
@@ -2428,8 +2611,7 @@ function Editor(props: Props) {
                         ) : (
                             <section className="sim-tree">
                                 <div className="sim-pane-title">
-                                    模型对象{" "}
-                                    <span>{doc.model.blocks.length}</span>
+                                    模型对象 <span>{visibleBlocks.length}</span>
                                 </div>
                                 <div
                                     className="sim-tree-scroll"
@@ -2437,9 +2619,17 @@ function Editor(props: Props) {
                                     aria-label="模型对象树"
                                 >
                                     <div className="sim-tree-root">
-                                        ◇ {doc.model.name}
+                                        ◇{" "}
+                                        {parent
+                                            ? label(
+                                                  doc,
+                                                  doc.model.blocks.find(
+                                                      (b) => b.id === parent,
+                                                  )!,
+                                              )
+                                            : doc.model.name}
                                     </div>
-                                    {doc.model.blocks.map((block) => (
+                                    {visibleBlocks.map((block) => (
                                         <button
                                             role="treeitem"
                                             aria-selected={selected.includes(
@@ -2472,7 +2662,9 @@ function Editor(props: Props) {
                                                 setSelectedEdges([]);
                                             }}
                                             onDoubleClick={() =>
-                                                focusBlock(block.id)
+                                                block.kind.type === "subsystem"
+                                                    ? navigateSystem(block.id)
+                                                    : focusBlock(block.id)
                                             }
                                             onContextMenu={(event) =>
                                                 showMenu(event, {
@@ -2529,19 +2721,72 @@ function Editor(props: Props) {
                     onChange={setLeft}
                 />
                 <main className="sim-center">
-                    <div className="sim-canvas-header">
-                        <span>
-                            {structure
-                                ? "SLX 结构检查"
-                                : `${doc.model.blocks.length} blocks · ${doc.model.connections.length} connections`}
-                        </span>
-                        <span>
-                            {structure
-                                ? doc.slx?.snapshotEdited
-                                    ? "原始结构 · 数值模型已有独立修改"
-                                    : "双击子系统进入 · 左侧编辑模型参数"
-                                : "双击方块编辑参数 · 空格拖动画布"}
-                        </span>
+                    <div className="sim-canvas-navigation">
+                        {!structure && (
+                            <nav
+                                className="sim-system-path"
+                                aria-label="当前子系统"
+                            >
+                                <button onClick={() => navigateSystem()}>
+                                    ◇ {doc.model.name}
+                                </button>
+                                {ancestry.map((b) => (
+                                    <span key={b.id}>
+                                        {" "}
+                                        /{" "}
+                                        <button
+                                            onClick={() => navigateSystem(b.id)}
+                                        >
+                                            {label(doc, b)}
+                                        </button>
+                                    </span>
+                                ))}
+                                <span className="sim-toolbar-spacer" />
+                                <button
+                                    disabled={!editable || !selected.length}
+                                    onClick={groupSelected}
+                                >
+                                    创建子系统
+                                </button>
+                                <button
+                                    disabled={
+                                        !editable ||
+                                        selected.length !== 1 ||
+                                        chosen?.kind.type !== "subsystem"
+                                    }
+                                    onClick={ungroupSelected}
+                                >
+                                    展开子系统
+                                </button>
+                                {parent && (
+                                    <button
+                                        onClick={() =>
+                                            navigateSystem(
+                                                doc.model.blocks.find(
+                                                    (b) => b.id === parent,
+                                                )?.parent,
+                                            )
+                                        }
+                                    >
+                                        返回上层
+                                    </button>
+                                )}
+                            </nav>
+                        )}
+                        <div className="sim-canvas-header">
+                            <span>
+                                {structure
+                                    ? "SLX 结构检查"
+                                    : `${visibleBlocks.length} blocks · ${edges.length} connections`}
+                            </span>
+                            <span>
+                                {structure
+                                    ? doc.slx?.snapshotEdited
+                                        ? "原始结构 · 数值模型已有独立修改"
+                                        : "双击子系统进入 · 左侧编辑模型参数"
+                                    : "双击方块编辑参数 · 空格拖动画布"}
+                            </span>
+                        </div>
                     </div>
                     <div
                         className="sim-canvas"
@@ -2705,6 +2950,11 @@ function Editor(props: Props) {
                                 version={run.version}
                                 names={doc.editor.labels}
                                 dark={theme === "modern-dark"}
+                                onExecuteM={props.onExecuteM}
+                                exportDisabled={
+                                    run.status !== "finished" ||
+                                    !props.kernelReady
+                                }
                             />
                         ) : (
                             <div className="sim-diagnostics" aria-live="polite">
@@ -2835,12 +3085,17 @@ function Editor(props: Props) {
                                     <strong>
                                         {componentFor(doc.model, chosen)
                                             ?.name ??
-                                            (chosen.kind.type === "control"
-                                                ? CONTROL_LABELS[
+                                            (chosen.kind.type === "standard"
+                                                ? STANDARD_LABELS[
                                                       chosen.kind.operation.type
                                                   ]
-                                                : definition(chosen.kind.type)
-                                                      .label)}
+                                                : chosen.kind.type === "control"
+                                                  ? CONTROL_LABELS[
+                                                        chosen.kind.operation
+                                                            .type
+                                                    ]
+                                                  : definition(chosen.kind.type)
+                                                        .label)}
                                     </strong>
                                     <small>{chosen.id}</small>
                                 </div>
@@ -2903,6 +3158,47 @@ function Editor(props: Props) {
                                     )
                                 );
                             })()}
+                            {[
+                                "standard",
+                                "subsystem",
+                                "inport",
+                                "outport",
+                            ].includes(chosen.kind.type) && (
+                                <AuthoringInspector
+                                    key={chosen.id}
+                                    kind={chosen.kind as AuthoringKind}
+                                    parent={chosen.parent}
+                                    disabled={!editable}
+                                    onEnter={() => navigateSystem(chosen.id)}
+                                    onError={setError}
+                                    onChange={(value) =>
+                                        change((next) => {
+                                            const b = next.model.blocks.find(
+                                                (b) => b.id === chosen.id,
+                                            )!;
+                                            b.kind = value;
+                                            const valid = ports(
+                                                b,
+                                                next.model.components,
+                                            );
+                                            next.model.connections =
+                                                next.model.connections.filter(
+                                                    (e) =>
+                                                        (e.to.block !== b.id ||
+                                                            valid.inputs.includes(
+                                                                e.to.port,
+                                                            )) &&
+                                                        (e.from.block !==
+                                                            b.id ||
+                                                            valid.outputs.includes(
+                                                                e.from.port,
+                                                            )),
+                                                );
+                                            cleanBends(next);
+                                        })
+                                    }
+                                />
+                            )}
                             <HybridInspector
                                 kind={chosen.kind}
                                 disabled={!editable}
@@ -2949,53 +3245,61 @@ function Editor(props: Props) {
                                     })
                                 }
                             />
-                            <SamplingInspector
-                                key={`sampling-${chosen.id}`}
-                                model={doc.model}
-                                block={chosen}
-                                resolved={
-                                    (run.checkedSampling?.source === numerical
-                                        ? run.checkedSampling.plan
-                                        : run.info &&
-                                            run.source.current === numerical
-                                          ? run.info.sampling
-                                          : doc.slx?.runnable &&
-                                              !doc.slx.snapshotEdited &&
-                                              doc.slx.parameters ===
-                                                  doc.slx.appliedParameters
-                                            ? doc.slx.sampling
-                                            : undefined
-                                    )?.blocks[chosen.id]
-                                }
-                                onError={setError}
-                                onChange={(rate) =>
-                                    change((next) => {
-                                        next.model.sampleTimes ??= {};
-                                        if (rate)
-                                            Object.defineProperty(
-                                                next.model.sampleTimes,
-                                                chosen.id,
-                                                {
-                                                    value: rate,
-                                                    enumerable: true,
-                                                    writable: true,
-                                                    configurable: true,
-                                                },
-                                            );
-                                        else
-                                            delete next.model.sampleTimes[
-                                                chosen.id
-                                            ];
-                                    })
-                                }
-                                onKindChange={(value) =>
-                                    change((next) => {
-                                        next.model.blocks.find(
-                                            (b) => b.id === chosen.id,
-                                        )!.kind = value;
-                                    })
-                                }
-                            />
+                            {!(
+                                chosen.kind.type === "subsystem" ||
+                                (chosen.parent &&
+                                    (chosen.kind.type === "inport" ||
+                                        chosen.kind.type === "outport"))
+                            ) && (
+                                <SamplingInspector
+                                    key={`sampling-${chosen.id}`}
+                                    model={doc.model}
+                                    block={chosen}
+                                    resolved={
+                                        (run.checkedSampling?.source ===
+                                        numerical
+                                            ? run.checkedSampling.plan
+                                            : run.info &&
+                                                run.source.current === numerical
+                                              ? run.info.sampling
+                                              : doc.slx?.runnable &&
+                                                  !doc.slx.snapshotEdited &&
+                                                  doc.slx.parameters ===
+                                                      doc.slx.appliedParameters
+                                                ? doc.slx.sampling
+                                                : undefined
+                                        )?.blocks[chosen.id]
+                                    }
+                                    onError={setError}
+                                    onChange={(rate) =>
+                                        change((next) => {
+                                            next.model.sampleTimes ??= {};
+                                            if (rate)
+                                                Object.defineProperty(
+                                                    next.model.sampleTimes,
+                                                    chosen.id,
+                                                    {
+                                                        value: rate,
+                                                        enumerable: true,
+                                                        writable: true,
+                                                        configurable: true,
+                                                    },
+                                                );
+                                            else
+                                                delete next.model.sampleTimes[
+                                                    chosen.id
+                                                ];
+                                        })
+                                    }
+                                    onKindChange={(value) =>
+                                        change((next) => {
+                                            next.model.blocks.find(
+                                                (b) => b.id === chosen.id,
+                                            )!.kind = value;
+                                        })
+                                    }
+                                />
+                            )}
                             {chosen.kind.type === "mFunction" && (
                                 <FunctionInspector
                                     value={chosen.kind}
@@ -3221,7 +3525,13 @@ function Editor(props: Props) {
                                         }}
                                     />
                                 )}
-                            {chosen.kind.type !== "control" &&
+                            {![
+                                "standard",
+                                "subsystem",
+                                "inport",
+                                "outport",
+                            ].includes(chosen.kind.type) &&
+                                chosen.kind.type !== "control" &&
                                 chosen.kind.type !== "resetIntegrator" &&
                                 chosen.kind.type !== "zeroOrderHold" &&
                                 chosen.kind.type !== "scope" &&

@@ -1,4 +1,17 @@
 import {
+    STANDARD_PRESETS,
+    STANDARD_LABELS,
+    authoringPorts,
+    parseAuthoringKind,
+    type AuthoringKind,
+    type StandardOperation,
+} from "./authoring";
+import {
+    validateHierarchy,
+    descendants,
+    renumberBoundaries,
+} from "./hierarchy";
+import {
     CONTROL_LABELS,
     CONTROL_PRESETS,
     controlInputs,
@@ -24,6 +37,10 @@ import {
     type ComponentKind,
 } from "./components";
 export type BlockType =
+    | "standard"
+    | "subsystem"
+    | "inport"
+    | "outport"
     | "control"
     | "resetIntegrator"
     | "step"
@@ -153,6 +170,7 @@ export function parseExecution(raw: unknown): ExecutionOptions {
     return structuredClone(e) as unknown as ExecutionOptions;
 }
 export type BlockKind =
+    | AuthoringKind
     | ControlKind
     | ResetKind
     | { type: "step"; time: number; before: number[]; after: number[] }
@@ -171,6 +189,7 @@ export interface Point {
     y: number;
 }
 export interface Block {
+    parent?: string;
     id: string;
     kind: BlockKind;
     position?: Point;
@@ -184,7 +203,7 @@ export interface Connection {
     to: Port;
 }
 export interface Model {
-    schemaVersion: 1 | 2 | 3 | 4 | 5 | 6;
+    schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7;
     name: string;
     settings: {
         startTime: number;
@@ -199,7 +218,7 @@ export interface Model {
 }
 export interface ModelDocument {
     format: "openmat-simulation";
-    schemaVersion: 1 | 2 | 3 | 4 | 5 | 6;
+    schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7;
     sources?: Record<string, string>;
     slx?: SlxAsset;
     execution?: ExecutionOptions;
@@ -214,7 +233,11 @@ export interface BlockDefinition {
     type: BlockType;
     label: string;
     category: string;
-    icon: BlockType | ControlOperation["type"] | "resetDiscrete";
+    icon:
+        | BlockType
+        | ControlOperation["type"]
+        | StandardOperation["type"]
+        | "resetDiscrete";
     preset?: string;
     inputs: string[];
     outputs: string[];
@@ -223,6 +246,38 @@ export interface BlockDefinition {
 }
 // Offline authoring baseline; the native catalog is verified against these renderers.
 export const DEFINITIONS: readonly BlockDefinition[] = [
+    {
+        type: "standard",
+        label: "Standard",
+        category: "数学运算",
+        icon: "standard",
+        inputs: ["in"],
+        outputs: ["out"],
+    },
+    {
+        type: "subsystem",
+        label: "Subsystem",
+        category: "模型层级",
+        icon: "subsystem",
+        inputs: [],
+        outputs: [],
+    },
+    {
+        type: "inport",
+        label: "Inport",
+        category: "模型层级",
+        icon: "inport",
+        inputs: [],
+        outputs: ["out"],
+    },
+    {
+        type: "outport",
+        label: "Outport",
+        category: "模型层级",
+        icon: "outport",
+        inputs: ["in"],
+        outputs: [],
+    },
     {
         type: "control",
         label: "Control",
@@ -358,8 +413,19 @@ export const isBlockType = (value: string): value is BlockType =>
     DEFINITIONS.some((item) => item.type === value);
 export const PALETTE_DEFINITIONS: readonly BlockDefinition[] = [
     ...DEFINITIONS.filter(
-        (d) => d.type !== "control" && d.type !== "resetIntegrator",
+        (d) =>
+            d.type !== "control" &&
+            d.type !== "resetIntegrator" &&
+            d.type !== "standard",
     ),
+    ...STANDARD_PRESETS.map((p) => ({
+        type: "standard" as const,
+        preset: p.id,
+        label: p.label,
+        icon: p.id,
+        category: "标准控制",
+        ...authoringPorts(p.kind),
+    })),
     ...CONTROL_PRESETS.map((p) => ({
         type: p.kind.type,
         preset: p.id,
@@ -377,16 +443,22 @@ export const PALETTE_DEFINITIONS: readonly BlockDefinition[] = [
     })),
 ];
 export function kindIcon(k: BlockKind): BlockDefinition["icon"] {
-    return k.type === "control"
+    return k.type === "standard"
         ? k.operation.type
-        : k.type === "resetIntegrator" && k.discrete
-          ? "resetDiscrete"
-          : k.type;
+        : k.type === "control"
+          ? k.operation.type
+          : k.type === "resetIntegrator" && k.discrete
+            ? "resetDiscrete"
+            : k.type;
 }
 export function ports(
     block: Block,
     components?: ComponentDefinition[],
 ): { inputs: string[]; outputs: string[] } {
+    if (
+        ["standard", "subsystem", "inport", "outport"].includes(block.kind.type)
+    )
+        return authoringPorts(block.kind as AuthoringKind);
     if (block.kind.type === "control")
         return {
             inputs: Array.from(
@@ -419,6 +491,18 @@ export function ports(
 }
 export function kind(type: BlockType): BlockKind {
     switch (type) {
+        case "standard":
+            return structuredClone(STANDARD_PRESETS[0]!.kind);
+        case "subsystem":
+            return { type, inputs: 0, outputs: 0 };
+        case "inport":
+            return {
+                type,
+                port: 1,
+                data: { times: [0, 1], values: [[0], [1]] },
+            };
+        case "outport":
+            return { type, port: 1 };
         case "control":
             return structuredClone(CONTROL_PRESETS[0]!.kind);
         case "resetIntegrator":
@@ -468,13 +552,20 @@ export const label = (doc: ModelDocument, block: Block): string =>
     Object.hasOwn(doc.editor.labels, block.id)
         ? doc.editor.labels[block.id]!
         : (componentFor(doc.model, block)?.name ??
-          (block.kind.type === "control"
-              ? CONTROL_LABELS[block.kind.operation.type]
-              : block.kind.type === "resetIntegrator" && block.kind.discrete
-                ? "Reset Discrete Integrator"
-                : definition(block.kind.type).label));
+          (block.kind.type === "standard"
+              ? STANDARD_LABELS[block.kind.operation.type]
+              : block.kind.type === "control"
+                ? CONTROL_LABELS[block.kind.operation.type]
+                : block.kind.type === "resetIntegrator" && block.kind.discrete
+                  ? "Reset Discrete Integrator"
+                  : definition(block.kind.type).label));
 export function parameterText(block: Block): string {
     const data = block.kind;
+    if (data.type === "standard") return STANDARD_LABELS[data.operation.type];
+    if (data.type === "subsystem")
+        return `${data.inputs} in · ${data.outputs} out`;
+    if (data.type === "inport" || data.type === "outport")
+        return `Port ${data.port}`;
     if (data.type === "control") return CONTROL_LABELS[data.operation.type];
     if (data.type === "resetIntegrator")
         return `${data.discrete ? "Σ" : "∫"} · reset ${data.reset}`;
@@ -594,7 +685,8 @@ export function parseModel(value: unknown): Model {
         data.schemaVersion !== 3 &&
         data.schemaVersion !== 4 &&
         data.schemaVersion !== 5 &&
-        data.schemaVersion !== 6
+        data.schemaVersion !== 6 &&
+        data.schemaVersion !== 7
     )
         throw new Error("不支持的模型版本。");
     if (
@@ -626,7 +718,9 @@ export function parseModel(value: unknown): Model {
     const ids = new Set<string>();
     const blocks: Block[] = data.blocks.map((raw) => {
         const block = object(raw, "方块");
-        keys(block, ["id", "kind", "position"], "方块");
+        keys(block, ["id", "kind", "position", "parent"], "方块");
+        if (block.parent !== undefined && schemaVersion < 7)
+            throw new Error("子系统需要模型版本 7。");
         const id = text(block.id, "方块 ID");
         if (ids.has(id)) throw new Error(`重复的方块 ID：${id}`);
         ids.add(id);
@@ -634,7 +728,10 @@ export function parseModel(value: unknown): Model {
         if (typeof k.type !== "string" || !isBlockType(k.type))
             throw new Error(`不支持的方块类型：${String(k.type)}`);
         const def = definition(k.type);
-        if (k.type === "component") {
+        if (["standard", "subsystem", "inport", "outport"].includes(k.type)) {
+            if (schemaVersion < 7) throw new Error("此方块需要模型版本 7。");
+            Object.assign(k, parseAuthoringKind(k));
+        } else if (k.type === "component") {
             if (schemaVersion < 3)
                 throw new Error("自定义组件需要模型版本 3。");
             Object.assign(k, validateComponentKind(k, components));
@@ -713,11 +810,15 @@ export function parseModel(value: unknown): Model {
         return {
             id,
             kind: structuredClone(k) as BlockKind,
+            ...(block.parent === undefined
+                ? {}
+                : { parent: text(block.parent, "父系统") }),
             ...(block.position === undefined
                 ? {}
                 : { position: point(block.position) }),
         };
     });
+    validateHierarchy(blocks);
     const byId = new Map(blocks.map((block) => [block.id, block]));
     const inputDrivers = new Set<string>();
     const connections = data.connections.map((raw) => {
@@ -740,6 +841,13 @@ export function parseModel(value: unknown): Model {
             from: readPort(e.from, "outputs"),
             to: readPort(e.to, "inputs"),
         };
+        if (
+            byId.get(edge.from.block)!.parent !==
+            byId.get(edge.to.block)!.parent
+        )
+            throw new Error(
+                "连接不能跨越子系统边界，请使用 Inport / Outport。",
+            );
         const target = JSON.stringify(edge.to);
         if (inputDrivers.has(target))
             throw new Error(
@@ -794,7 +902,8 @@ export function parseDocument(source: string): ModelDocument {
             raw.schemaVersion !== 3 &&
             raw.schemaVersion !== 4 &&
             raw.schemaVersion !== 5 &&
-            raw.schemaVersion !== 6)
+            raw.schemaVersion !== 6 &&
+            raw.schemaVersion !== 7)
     )
         throw new Error("不支持的编辑器文件格式或版本。");
     const doc = fromModel(parseModel(raw.model));
@@ -803,7 +912,8 @@ export function parseDocument(source: string): ModelDocument {
         if (
             raw.schemaVersion !== 4 &&
             raw.schemaVersion !== 5 &&
-            raw.schemaVersion !== 6
+            raw.schemaVersion !== 6 &&
+            raw.schemaVersion !== 7
         )
             throw new Error("内嵌源码和 SLX 层级需要文件版本 4。");
         if (raw.sources !== undefined)
@@ -854,6 +964,7 @@ export function removeSelection(
     nodes: ReadonlySet<string>,
     edges: ReadonlySet<string>,
 ): ModelDocument {
+    nodes = descendants(doc.model.blocks, nodes);
     const next = structuredClone(doc);
     next.model.blocks = next.model.blocks.filter(
         (block) => !nodes.has(block.id),
@@ -868,6 +979,7 @@ export function removeSelection(
         delete next.editor.labels[id];
         if (next.model.sampleTimes) delete next.model.sampleTimes[id];
     }
+    renumberBoundaries(next);
     const kept = new Set(next.model.connections.map(edgeId));
     for (const id of Object.keys(next.editor.bends))
         if (!kept.has(id)) delete next.editor.bends[id];
@@ -877,6 +989,7 @@ export function copySelection(
     doc: ModelDocument,
     selected: ReadonlySet<string>,
 ): ModelDocument {
+    selected = descendants(doc.model.blocks, selected);
     const fragment = structuredClone(doc);
     fragment.model.blocks = fragment.model.blocks.filter((block) =>
         selected.has(block.id),
@@ -899,6 +1012,8 @@ export function copySelection(
                 selected.has(id),
             ),
         );
+    for (const b of fragment.model.blocks)
+        if (b.parent && !selected.has(b.parent)) delete b.parent;
     delete fragment.editor.viewport;
     delete fragment.slx;
     if (fragment.sources) {
@@ -916,6 +1031,7 @@ export function pasteFragment(
     fragment: ModelDocument,
     idFactory: () => string,
     offset = 40,
+    parent?: string,
 ): { document: ModelDocument; ids: string[] } {
     const next = structuredClone(doc),
         remap = new Map(
@@ -948,8 +1064,34 @@ export function pasteFragment(
     }
     for (const block of fragment.model.blocks) {
         const id = remap.get(block.id)!;
+        const destination = block.parent ? remap.get(block.parent) : parent;
+        const copiedKind = structuredClone(block.kind);
+        if (
+            !block.parent &&
+            (copiedKind.type === "inport" || copiedKind.type === "outport")
+        ) {
+            const kindType = copiedKind.type;
+            copiedKind.port =
+                1 +
+                Math.max(
+                    0,
+                    ...next.model.blocks
+                        .filter(
+                            (b) =>
+                                b.parent === destination &&
+                                b.kind.type === kindType,
+                        )
+                        .map((b) => (b.kind as { port: number }).port),
+                );
+            if (copiedKind.type === "inport") {
+                if (destination) delete copiedKind.data;
+                else copiedKind.data ??= { times: [0, 1], values: [[0], [0]] };
+            }
+        }
         next.model.blocks.push({
             ...structuredClone(block),
+            kind: copiedKind,
+            ...(destination ? { parent: destination } : {}),
             id,
             position: {
                 x: (block.position?.x ?? 0) + offset,
@@ -959,7 +1101,11 @@ export function pasteFragment(
         next.editor.labels[id] = `${label(fragment, block)} copy`;
         if (
             fragment.model.sampleTimes &&
-            Object.hasOwn(fragment.model.sampleTimes, block.id)
+            Object.hasOwn(fragment.model.sampleTimes, block.id) &&
+            !(
+                destination &&
+                (copiedKind.type === "inport" || copiedKind.type === "outport")
+            )
         ) {
             next.model.sampleTimes ??= {};
             Object.defineProperty(next.model.sampleTimes, id, {
@@ -983,7 +1129,14 @@ export function pasteFragment(
                 y: bend.y + offset,
             };
     }
-    return { document: next, ids: [...remap.values()] };
+    renumberBoundaries(next);
+    validateHierarchy(next.model.blocks);
+    return {
+        document: next,
+        ids: fragment.model.blocks
+            .filter((b) => !b.parent)
+            .map((b) => remap.get(b.id)!),
+    };
 }
 export interface History {
     past: ModelDocument[];

@@ -20,6 +20,7 @@ import {
     type Point,
 } from "./model";
 import type { ControlOperation } from "./hybrid";
+import type { StandardOperation } from "./authoring";
 import type { ComponentDefinition, ComponentIcon } from "./components";
 
 export function BlockIcon({
@@ -30,11 +31,48 @@ export function BlockIcon({
         | BlockType
         | ComponentIcon
         | ControlOperation["type"]
+        | StandardOperation["type"]
         | "resetDiscrete"
         | "unknown";
     size?: number;
 }) {
     const shapes = {
+        standard: <path d="M3 4h18v16H3zM7 8h10M7 12h10M7 16h6" />,
+        subsystem: (
+            <>
+                <rect x="3" y="3" width="18" height="18" rx="3" />
+                <path d="M1 8h5v8H1m22-8h-5v8h5M9 9h6v6H9z" />
+            </>
+        ),
+        inport: (
+            <>
+                <path d="M3 5h12l6 7-6 7H3zM6 12h11m-4-3 3 3-3 3" />
+            </>
+        ),
+        outport: (
+            <>
+                <path d="M9 5h12v14H9l-6-7zM7 12h10m-4-3 3 3-3 3" />
+            </>
+        ),
+        product: (
+            <>
+                <circle cx="12" cy="12" r="9" />
+                <path d="m8 8 8 8m0-8-8 8" />
+            </>
+        ),
+        mux: <path d="M2 5h6l7 7H8L2 19m0-7h13m0-10v20m0-10h7" />,
+        demux: <path d="M22 5h-6l-7 7h7l6 7m0-7H9M9 2v20m0-10H2" />,
+        stateSpace: (
+            <>
+                <rect x="2" y="3" width="20" height="18" rx="2" />
+                <path d="M9 7H6v10h3m6-10h3v10h-3M10 9h4m-4 6h4" />
+            </>
+        ),
+        transferFcn: (
+            <>
+                <path d="M3 12h18M8 6h8M5 18h14m-7-3v6" />
+            </>
+        ),
         step: (
             <>
                 <path d="M3 20h18M4 19v-1h7V6h9" />
@@ -212,6 +250,7 @@ export const BlockNode = memo(function BlockNode({
     selected,
 }: NodeProps<FlowBlock>) {
     const namedPorts =
+        data.block.kind.type === "subsystem" ||
         data.block.kind.type === "resetIntegrator" ||
         (data.block.kind.type === "control" &&
             data.block.kind.operation.type === "switch");
@@ -228,7 +267,7 @@ export const BlockNode = memo(function BlockNode({
                 minHeight: data.component
                     ? Math.max(p.inputs.length, p.outputs.length) * 28 + 82
                     : namedPorts
-                      ? 116 + p.inputs.length * 24
+                      ? 116 + Math.max(p.inputs.length, p.outputs.length) * 24
                       : Math.max(
                             92,
                             Math.max(p.inputs.length, p.outputs.length) * 28 +
@@ -280,7 +319,8 @@ export const BlockNode = memo(function BlockNode({
                             ? data.block.kind.signs[i] === 1
                                 ? "+"
                                 : "−"
-                            : data.block.kind.type === "resetIntegrator"
+                            : data.block.kind.type === "resetIntegrator" ||
+                                data.block.kind.type === "subsystem"
                               ? name
                               : data.block.kind.type === "control" &&
                                   data.block.kind.operation.type === "switch"
@@ -308,7 +348,8 @@ export const BlockNode = memo(function BlockNode({
                     title={`${data.label}.${name} · 输出`}
                     aria-label={`${data.label} 输出 ${name}`}
                 >
-                    {data.component && (
+                    {(data.component ||
+                        data.block.kind.type === "subsystem") && (
                         <span className="sim-port-name output">{name}</span>
                     )}
                 </Handle>

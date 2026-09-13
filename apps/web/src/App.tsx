@@ -747,7 +747,7 @@ function AppWorkbench({
         state.kernelStatus === "busy" ||
         state.capabilities?.executionModes.includes(mode) !== true
       ) {
-        return;
+        return false;
       }
 
       closeAllVariableEditors();
@@ -772,7 +772,7 @@ function AppWorkbench({
         const response = await transport.request(request);
         if (!response.ok) {
           dispatch({ type: "executionFailed", message: response.error.message });
-          return;
+          return false;
         }
         dispatch({ type: "executionFinished", requestId });
         if (response.result.data.interrupted) {
@@ -792,8 +792,10 @@ function AppWorkbench({
             dispatch({ type: "operationFailed", message: toErrorMessage(error) });
           }
         }
+        return !response.result.data.interrupted;
       } catch (error: unknown) {
         dispatch({ type: "executionFailed", message: toErrorMessage(error) });
+        return false;
       }
     },
     [
@@ -3371,6 +3373,8 @@ function AppWorkbench({
           <ModelEditor key={`${folder.rootPath}:${folder.rootGeneration}`} workspace={workspaceClient}
             rootPath={folder.rootPath} rootGeneration={folder.rootGeneration} wsUrl={wsUrl ?? kernelWebSocketUrl()}
             theme={theme} visible={simulationVisible} openRequest={simulationOpenRequest}
+            kernelReady={state.connection === "connected" && state.activeRequestId === null && state.kernelStatus !== "busy"}
+            onExecuteM={(code) => executeSource(code, "OpenMat Simulation result", "cell")}
             onClose={() => setSimulationVisible(false)} onSaved={() => void refreshCurrentFolder()}
             onOpenNative={() => void openNativeFile()} sessionRef={simulationSession} pendingSaves={pendingSaves} sourceWorkspace={designerSourceWorkspace} />
         </Suspense>
