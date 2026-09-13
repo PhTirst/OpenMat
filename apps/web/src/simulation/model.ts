@@ -1,3 +1,12 @@
+import {
+    CONTROL_LABELS,
+    CONTROL_PRESETS,
+    controlInputs,
+    parseHybridKind,
+    type ControlKind,
+    type ResetKind,
+    type ControlOperation,
+} from "./hybrid";
 import { parseSampleTimes, type SampleTime } from "./sampling";
 /** OpenMat authoring data. No React Flow implementation fields are persisted. */
 import {
@@ -15,6 +24,8 @@ import {
     type ComponentKind,
 } from "./components";
 export type BlockType =
+    | "control"
+    | "resetIntegrator"
     | "step"
     | "constant"
     | "sum"
@@ -142,6 +153,8 @@ export function parseExecution(raw: unknown): ExecutionOptions {
     return structuredClone(e) as unknown as ExecutionOptions;
 }
 export type BlockKind =
+    | ControlKind
+    | ResetKind
     | { type: "step"; time: number; before: number[]; after: number[] }
     | { type: "constant"; value: number[] }
     | { type: "sum"; signs: number[] }
@@ -171,7 +184,7 @@ export interface Connection {
     to: Port;
 }
 export interface Model {
-    schemaVersion: 1 | 2 | 3 | 4 | 5;
+    schemaVersion: 1 | 2 | 3 | 4 | 5 | 6;
     name: string;
     settings: {
         startTime: number;
@@ -186,7 +199,7 @@ export interface Model {
 }
 export interface ModelDocument {
     format: "openmat-simulation";
-    schemaVersion: 1 | 2 | 3 | 4 | 5;
+    schemaVersion: 1 | 2 | 3 | 4 | 5 | 6;
     sources?: Record<string, string>;
     slx?: SlxAsset;
     execution?: ExecutionOptions;
@@ -201,7 +214,8 @@ export interface BlockDefinition {
     type: BlockType;
     label: string;
     category: string;
-    icon: BlockType;
+    icon: BlockType | ControlOperation["type"] | "resetDiscrete";
+    preset?: string;
     inputs: string[];
     outputs: string[];
     parameter?: string;
@@ -209,6 +223,24 @@ export interface BlockDefinition {
 }
 // Offline authoring baseline; the native catalog is verified against these renderers.
 export const DEFINITIONS: readonly BlockDefinition[] = [
+    {
+        type: "control",
+        label: "Control",
+        category: "控制逻辑",
+        icon: "control",
+        inputs: ["in0"],
+        outputs: ["out"],
+    },
+    {
+        type: "resetIntegrator",
+        label: "Reset Integrator",
+        category: "控制逻辑",
+        icon: "resetIntegrator",
+        inputs: ["in", "reset"],
+        outputs: ["out"],
+        parameter: "initial",
+        default: [0],
+    },
     {
         type: "step",
         label: "Step",
@@ -324,10 +356,45 @@ export const definition = (type: BlockType): BlockDefinition =>
     DEFINITIONS.find((item) => item.type === type)!;
 export const isBlockType = (value: string): value is BlockType =>
     DEFINITIONS.some((item) => item.type === value);
+export const PALETTE_DEFINITIONS: readonly BlockDefinition[] = [
+    ...DEFINITIONS.filter(
+        (d) => d.type !== "control" && d.type !== "resetIntegrator",
+    ),
+    ...CONTROL_PRESETS.map((p) => ({
+        type: p.kind.type,
+        preset: p.id,
+        label: p.label,
+        icon: p.icon,
+        category: "控制逻辑",
+        inputs:
+            p.kind.type === "control"
+                ? Array.from(
+                      { length: controlInputs(p.kind.operation) },
+                      (_, i) => `in${i}`,
+                  )
+                : ["in", "reset"],
+        outputs: ["out"],
+    })),
+];
+export function kindIcon(k: BlockKind): BlockDefinition["icon"] {
+    return k.type === "control"
+        ? k.operation.type
+        : k.type === "resetIntegrator" && k.discrete
+          ? "resetDiscrete"
+          : k.type;
+}
 export function ports(
     block: Block,
     components?: ComponentDefinition[],
 ): { inputs: string[]; outputs: string[] } {
+    if (block.kind.type === "control")
+        return {
+            inputs: Array.from(
+                { length: controlInputs(block.kind.operation) },
+                (_, i) => `in${i}`,
+            ),
+            outputs: ["out"],
+        };
     if (block.kind.type === "component") {
         const d = componentFor(
             { ...(components ? { components } : {}) },
@@ -352,6 +419,16 @@ export function ports(
 }
 export function kind(type: BlockType): BlockKind {
     switch (type) {
+        case "control":
+            return structuredClone(CONTROL_PRESETS[0]!.kind);
+        case "resetIntegrator":
+            return {
+                type,
+                initial: [0],
+                gain: 1,
+                discrete: false,
+                reset: "rising",
+            };
         case "step":
             return { type, time: 1, before: [0], after: [1] };
         case "component":
@@ -391,9 +468,16 @@ export const label = (doc: ModelDocument, block: Block): string =>
     Object.hasOwn(doc.editor.labels, block.id)
         ? doc.editor.labels[block.id]!
         : (componentFor(doc.model, block)?.name ??
-          definition(block.kind.type).label);
+          (block.kind.type === "control"
+              ? CONTROL_LABELS[block.kind.operation.type]
+              : block.kind.type === "resetIntegrator" && block.kind.discrete
+                ? "Reset Discrete Integrator"
+                : definition(block.kind.type).label));
 export function parameterText(block: Block): string {
     const data = block.kind;
+    if (data.type === "control") return CONTROL_LABELS[data.operation.type];
+    if (data.type === "resetIntegrator")
+        return `${data.discrete ? "Σ" : "∫"} · reset ${data.reset}`;
     if (data.type === "step")
         return `t ≥ ${data.time}: ${data.after.join(", ")}`;
     if (data.type === "component") return data.component;
@@ -509,7 +593,8 @@ export function parseModel(value: unknown): Model {
         data.schemaVersion !== 2 &&
         data.schemaVersion !== 3 &&
         data.schemaVersion !== 4 &&
-        data.schemaVersion !== 5
+        data.schemaVersion !== 5 &&
+        data.schemaVersion !== 6
     )
         throw new Error("不支持的模型版本。");
     if (
@@ -519,7 +604,7 @@ export function parseModel(value: unknown): Model {
         throw new Error("模型组件定义列表无效。");
     const schemaVersion = data.schemaVersion;
     const components = ((data.components ?? []) as unknown[]).map((d) =>
-        validateComponent(d, data.schemaVersion === 5),
+        validateComponent(d, schemaVersion >= 5),
     );
     if (components.length && data.schemaVersion < 3)
         throw new Error("组件定义需要模型版本 3。");
@@ -553,6 +638,10 @@ export function parseModel(value: unknown): Model {
             if (schemaVersion < 3)
                 throw new Error("自定义组件需要模型版本 3。");
             Object.assign(k, validateComponentKind(k, components));
+        } else if (k.type === "control" || k.type === "resetIntegrator") {
+            if (schemaVersion < 6)
+                throw new Error("控制和复位方块需要模型版本 6。");
+            Object.assign(k, parseHybridKind(k));
         } else if (k.type === "step") {
             if (schemaVersion < 4) throw new Error("Step 需要模型版本 4。");
             keys(k, ["type", "time", "before", "after"], "Step 参数");
@@ -573,7 +662,7 @@ export function parseModel(value: unknown): Model {
                 k.type,
             )
         ) {
-            if (data.schemaVersion !== 5)
+            if (Number(data.schemaVersion) < 5)
                 throw new Error("此离散方块需要模型版本 5。");
             keys(
                 k,
@@ -659,7 +748,7 @@ export function parseModel(value: unknown): Model {
         inputDrivers.add(target);
         return edge;
     });
-    if (data.sampleTimes !== undefined && data.schemaVersion !== 5)
+    if (data.sampleTimes !== undefined && Number(data.schemaVersion) < 5)
         throw new Error("逐方块采样时间需要模型版本 5。");
     return {
         schemaVersion: data.schemaVersion,
@@ -704,13 +793,18 @@ export function parseDocument(source: string): ModelDocument {
             raw.schemaVersion !== 2 &&
             raw.schemaVersion !== 3 &&
             raw.schemaVersion !== 4 &&
-            raw.schemaVersion !== 5)
+            raw.schemaVersion !== 5 &&
+            raw.schemaVersion !== 6)
     )
         throw new Error("不支持的编辑器文件格式或版本。");
     const doc = fromModel(parseModel(raw.model));
     doc.schemaVersion = raw.schemaVersion;
     if (raw.sources !== undefined || raw.slx !== undefined) {
-        if (raw.schemaVersion !== 4 && raw.schemaVersion !== 5)
+        if (
+            raw.schemaVersion !== 4 &&
+            raw.schemaVersion !== 5 &&
+            raw.schemaVersion !== 6
+        )
             throw new Error("内嵌源码和 SLX 层级需要文件版本 4。");
         if (raw.sources !== undefined)
             doc.sources = validateEmbeddedSources(raw.sources);

@@ -1,3 +1,5 @@
+import { CONTROL_PRESETS, CONTROL_LABELS, parseEventPlan } from "./hybrid";
+import { HybridInspector } from "./HybridInspector";
 import { CommitField } from "./CommitField";
 import { SamplingInspector } from "./SamplingInspector";
 import { sampleTimeText } from "./sampling";
@@ -89,13 +91,14 @@ import {
 } from "./examples";
 import { useSimulationRun, numericalSource } from "./use-simulation-run";
 import {
-    DEFINITIONS,
     DEFAULT_EXECUTION,
     commit,
     copySelection,
     definition,
     edgeId,
     isBlockType,
+    PALETTE_DEFINITIONS,
+    kindIcon,
     kind,
     label,
     numericLiteral,
@@ -411,6 +414,14 @@ function Editor(props: Props) {
     const edit = useCallback((next: ModelDocument, regenerated = false) => {
         let version = next.model.schemaVersion;
         if (
+            next.model.blocks.some(
+                (b) =>
+                    b.kind.type === "control" ||
+                    b.kind.type === "resetIntegrator",
+            )
+        )
+            version = 6;
+        if (
             next.model.sampleTimes ||
             next.model.blocks.some((b) =>
                 [
@@ -420,7 +431,7 @@ function Editor(props: Props) {
                 ].includes(b.kind.type),
             )
         )
-            version = 5;
+            version = version < 5 ? 5 : version;
         else if (
             version < 4 &&
             (next.sources ||
@@ -835,6 +846,9 @@ function Editor(props: Props) {
                 ...asset,
                 profile: result.profile ?? "control-v1",
                 ...(result.sampling ? { sampling: result.sampling } : {}),
+                ...(result.eventPlan
+                    ? { eventPlan: parseEventPlan(result.eventPlan) }
+                    : {}),
                 appliedParameters: asset.parameters,
                 runnable: result.runnable,
                 issues: result.issues,
@@ -887,11 +901,15 @@ function Editor(props: Props) {
                 ...asset,
                 profile: result.profile ?? asset.profile ?? "control-v1",
                 ...(result.sampling ? { sampling: result.sampling } : {}),
+                ...(result.eventPlan
+                    ? { eventPlan: parseEventPlan(result.eventPlan) }
+                    : {}),
                 runnable: result.runnable,
                 issues: result.issues,
                 document: result.document,
             };
             if (!result.sampling) delete next.slx.sampling;
+            if (!result.eventPlan) delete next.slx.eventPlan;
             if (result.runnable && result.model) {
                 const imported = parseDocument(JSON.stringify(result.model));
                 const oldPositions = new Map(
@@ -1054,7 +1072,7 @@ function Editor(props: Props) {
         }
     };
     const add = useCallback(
-        (type: BlockType, position?: Point) => {
+        (type: BlockType, position?: Point, preset?: string) => {
             if (!editable) return;
             if (type === "component") {
                 setComponentDraft({
@@ -1073,7 +1091,10 @@ function Editor(props: Props) {
                     y: (bounds?.top ?? 100) + (bounds?.height ?? 400) / 2 - 45,
                 });
             const id = uid();
-            const blockKind = kind(type);
+            const blockKind = structuredClone(
+                CONTROL_PRESETS.find((p) => p.id === preset)?.kind ??
+                    kind(type),
+            );
             if (blockKind.type === "mFunction") {
                 const name = `fn_${id.slice(6)}`;
                 blockKind.source = `${name}.m`;
@@ -1095,7 +1116,8 @@ function Editor(props: Props) {
                         "zeroOrderHold",
                         "discreteIntegrator",
                         "rateTransition",
-                    ].includes(type)
+                    ].includes(type) ||
+                    (blockKind.type === "resetIntegrator" && blockKind.discrete)
                 ) {
                     next.model.sampleTimes ??= {};
                     next.model.sampleTimes[id] = {
@@ -1874,9 +1896,9 @@ function Editor(props: Props) {
                 },
                 {
                     label: "添加方块",
-                    actions: DEFINITIONS.map((def) => ({
+                    actions: PALETTE_DEFINITIONS.map((def) => ({
                         label: def.label,
-                        icon: <BlockIcon type={def.type} size={16} />,
+                        icon: <BlockIcon type={def.icon} size={16} />,
                         run: () => {
                             add(
                                 def.type,
@@ -1884,6 +1906,7 @@ function Editor(props: Props) {
                                     x: menu?.x ?? 0,
                                     y: menu?.y ?? 0,
                                 }),
+                                def.preset,
                             );
                             setMenu(null);
                         },
@@ -1930,7 +1953,9 @@ function Editor(props: Props) {
                     type === "mFunction" ||
                     type === "component" ||
                     type === "step" ||
-                    type === "zeroOrderHold"
+                    type === "zeroOrderHold" ||
+                    type === "control" ||
+                    type === "resetIntegrator"
                 )
                     return;
                 node.kind =
@@ -2196,6 +2221,11 @@ function Editor(props: Props) {
                     <option value="multirate">
                         多速率 PI · 10 ms / 100 ms
                     </option>
+                    <option value="saturatedPi">饱和 PI · 抗积分饱和</option>
+                    <option value="switchedControl">Switch · 双增益反馈</option>
+                    <option value="periodicReset">
+                        周期复位 · 连续与离散积分
+                    </option>
                     <option value="stress">300 方块交互测试</option>
                 </select>
             </div>
@@ -2255,7 +2285,8 @@ function Editor(props: Props) {
                         ) : (
                             <section className="sim-palette">
                                 <div className="sim-pane-title">
-                                    方块库 <span>{DEFINITIONS.length}</span>
+                                    方块库{" "}
+                                    <span>{PALETTE_DEFINITIONS.length}</span>
                                 </div>
                                 <input
                                     aria-label="搜索方块"
@@ -2269,27 +2300,31 @@ function Editor(props: Props) {
                                 <div className="sim-palette-scroll">
                                     {[
                                         ...new Set(
-                                            DEFINITIONS.map(
+                                            PALETTE_DEFINITIONS.map(
                                                 (def) => def.category,
                                             ),
                                         ),
                                     ].map((category) => {
-                                        const items = DEFINITIONS.filter(
-                                            (def) =>
-                                                def.type !== "component" &&
-                                                def.category === category &&
-                                                `${def.label} ${def.category}`
-                                                    .toLowerCase()
-                                                    .includes(
-                                                        filter.toLowerCase(),
-                                                    ),
-                                        );
+                                        const items =
+                                            PALETTE_DEFINITIONS.filter(
+                                                (def) =>
+                                                    def.type !== "component" &&
+                                                    def.category === category &&
+                                                    `${def.label} ${def.category}`
+                                                        .toLowerCase()
+                                                        .includes(
+                                                            filter.toLowerCase(),
+                                                        ),
+                                            );
                                         return items.length ? (
                                             <section key={category}>
                                                 <h3>{category}</h3>
                                                 {items.map((def) => (
                                                     <button
-                                                        key={def.type}
+                                                        key={
+                                                            def.preset ??
+                                                            def.type
+                                                        }
                                                         draggable={editable}
                                                         disabled={!editable}
                                                         onDragStart={(
@@ -2299,16 +2334,25 @@ function Editor(props: Props) {
                                                                 "application/openmat-block",
                                                                 def.type,
                                                             );
+                                                            if (def.preset)
+                                                                event.dataTransfer.setData(
+                                                                    "application/openmat-control",
+                                                                    def.preset,
+                                                                );
                                                             event.dataTransfer.effectAllowed =
                                                                 "copy";
                                                         }}
                                                         onClick={() =>
-                                                            add(def.type)
+                                                            add(
+                                                                def.type,
+                                                                undefined,
+                                                                def.preset,
+                                                            )
                                                         }
                                                         title={`拖入画布或点击添加 ${def.label}`}
                                                     >
                                                         <BlockIcon
-                                                            type={def.type}
+                                                            type={def.icon}
                                                         />
                                                         <span>{def.label}</span>
                                                         <span className="sim-add-hint">
@@ -2463,7 +2507,8 @@ function Editor(props: Props) {
                                                     componentFor(
                                                         doc.model,
                                                         block,
-                                                    )?.icon ?? block.kind.type
+                                                    )?.icon ??
+                                                    kindIcon(block.kind)
                                                 }
                                                 size={17}
                                             />
@@ -2533,6 +2578,9 @@ function Editor(props: Props) {
                                         x: event.clientX,
                                         y: event.clientY,
                                     }),
+                                    event.dataTransfer.getData(
+                                        "application/openmat-control",
+                                    ),
                                 );
                         }}
                     >
@@ -2779,7 +2827,7 @@ function Editor(props: Props) {
                                 <BlockIcon
                                     type={
                                         componentFor(doc.model, chosen)?.icon ??
-                                        chosen.kind.type
+                                        kindIcon(chosen.kind)
                                     }
                                     size={30}
                                 />
@@ -2787,7 +2835,12 @@ function Editor(props: Props) {
                                     <strong>
                                         {componentFor(doc.model, chosen)
                                             ?.name ??
-                                            definition(chosen.kind.type).label}
+                                            (chosen.kind.type === "control"
+                                                ? CONTROL_LABELS[
+                                                      chosen.kind.operation.type
+                                                  ]
+                                                : definition(chosen.kind.type)
+                                                      .label)}
                                     </strong>
                                     <small>{chosen.id}</small>
                                 </div>
@@ -2823,6 +2876,79 @@ function Editor(props: Props) {
                                     }}
                                 />
                             </label>
+                            {(() => {
+                                const events =
+                                    run.checkedSampling?.source === numerical
+                                        ? run.checkedSampling.eventPlan
+                                        : run.source.current === numerical
+                                          ? run.info?.eventPlan
+                                          : undefined;
+                                return (
+                                    events && (
+                                        <p
+                                            className="sim-help"
+                                            aria-label="信号输出类型"
+                                        >
+                                            输出类型：
+                                            {events.signals[chosen.id] ??
+                                                "double"}{" "}
+                                            · 事件面：
+                                            {
+                                                events.events.filter(
+                                                    (e) =>
+                                                        e.block === chosen.id,
+                                                ).length
+                                            }
+                                        </p>
+                                    )
+                                );
+                            })()}
+                            <HybridInspector
+                                kind={chosen.kind}
+                                disabled={!editable}
+                                onError={setError}
+                                onChange={(value) =>
+                                    change((next) => {
+                                        const b = next.model.blocks.find(
+                                            (b) => b.id === chosen.id,
+                                        )!;
+                                        b.kind = value;
+                                        if (value.type === "resetIntegrator") {
+                                            if (value.discrete) {
+                                                next.model.sampleTimes ??= {};
+                                                if (
+                                                    next.model.sampleTimes[
+                                                        chosen.id
+                                                    ]?.kind !== "discrete"
+                                                )
+                                                    next.model.sampleTimes[
+                                                        chosen.id
+                                                    ] = {
+                                                        kind: "discrete",
+                                                        period:
+                                                            next.model.settings
+                                                                .sampleTime ??
+                                                            next.model.settings
+                                                                .maxStep,
+                                                    };
+                                            } else if (next.model.sampleTimes)
+                                                delete next.model.sampleTimes[
+                                                    chosen.id
+                                                ];
+                                        }
+                                        const valid = ports(
+                                            b,
+                                            next.model.components,
+                                        ).inputs;
+                                        next.model.connections =
+                                            next.model.connections.filter(
+                                                (e) =>
+                                                    e.to.block !== b.id ||
+                                                    valid.includes(e.to.port),
+                                            );
+                                    })
+                                }
+                            />
                             <SamplingInspector
                                 key={`sampling-${chosen.id}`}
                                 model={doc.model}
@@ -3095,7 +3221,9 @@ function Editor(props: Props) {
                                         }}
                                     />
                                 )}
-                            {chosen.kind.type !== "zeroOrderHold" &&
+                            {chosen.kind.type !== "control" &&
+                                chosen.kind.type !== "resetIntegrator" &&
+                                chosen.kind.type !== "zeroOrderHold" &&
                                 chosen.kind.type !== "scope" &&
                                 chosen.kind.type !== "mFunction" &&
                                 chosen.kind.type !== "step" &&
@@ -3325,7 +3453,7 @@ function Editor(props: Props) {
             {componentDraft && (
                 <ComponentDialog
                     value={componentDraft.definition}
-                    allowInherited={doc.model.schemaVersion === 5}
+                    allowInherited={doc.model.schemaVersion >= 5}
                     onApply={applyComponent}
                     onClose={() => setComponentDraft(null)}
                 />

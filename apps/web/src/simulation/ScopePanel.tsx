@@ -30,6 +30,19 @@ export const ScopePanel = memo(function ScopePanel({
     const canvas = useRef<HTMLCanvasElement>(null);
     const [selected, setSelected] = useState("");
     const [stairs, setStairs] = useState(false);
+    const [showEvents, setShowEvents] = useState(true);
+    const eventFrames = useMemo(
+        () => frames.filter((f) => f.events?.length),
+        [frames, version],
+    );
+    const eventCount = eventFrames.reduce(
+        (sum, f) => sum + f.events!.length,
+        0,
+    );
+    const recentEvents = eventFrames
+        .slice(-50)
+        .flatMap((f) => f.events!.map((event) => ({ ...event, time: f.time })))
+        .slice(-50);
     const [startChannel, setStartChannel] = useState(0);
     const scope = scopes.find((item) => item.block === selected) ?? scopes[0];
     const observed = useMemo(
@@ -167,6 +180,33 @@ export const ScopePanel = memo(function ScopePanel({
                 }
                 ctx.stroke();
             });
+            if (showEvents && eventFrames.length) {
+                const columns = new Map<number, boolean>();
+                for (const frame of eventFrames) {
+                    const x = Math.round(
+                        left + ((frame.time - begin) / dx) * (right - left),
+                    );
+                    columns.set(
+                        x,
+                        (columns.get(x) ?? false) ||
+                            frame.events!.some((e) => e.kind === "reset"),
+                    );
+                }
+                ctx.setLineDash([3, 4]);
+                ctx.lineWidth = 1;
+                for (const [x, reset] of columns) {
+                    ctx.strokeStyle = reset
+                        ? "#d65978"
+                        : dark
+                          ? "#98a8bb"
+                          : "#8694a4";
+                    ctx.beginPath();
+                    ctx.moveTo(x, top);
+                    ctx.lineTo(x, bottom);
+                    ctx.stroke();
+                }
+                ctx.setLineDash([]);
+            }
             ctx.restore();
             ctx.fillStyle = dark ? "#a3afbe" : "#667488";
             ctx.textAlign = "right";
@@ -183,7 +223,18 @@ export const ScopePanel = memo(function ScopePanel({
             observer.disconnect();
             cancelAnimationFrame(scheduled);
         };
-    }, [frames, observed, offset, width, shown, firstChannel, dark, stepped]);
+    }, [
+        frames,
+        observed,
+        offset,
+        width,
+        shown,
+        firstChannel,
+        dark,
+        stepped,
+        showEvents,
+        eventFrames,
+    ]);
     return (
         <div className="sim-scope">
             <div className="sim-scope-toolbar">
@@ -251,6 +302,44 @@ export const ScopePanel = memo(function ScopePanel({
                     <span>{frames.length.toLocaleString()} samples</span>
                 )}
             </div>
+            {eventCount > 0 && (
+                <div className="sim-event-toolbar">
+                    <label>
+                        <input
+                            type="checkbox"
+                            checked={showEvents}
+                            onChange={(e) => setShowEvents(e.target.checked)}
+                        />
+                        事件标记
+                    </label>
+                    <details>
+                        <summary>
+                            模型事件 {eventCount} 次 · 复位为红色虚线
+                        </summary>
+                        <ol aria-label="模型事件记录">
+                            {recentEvents.map((event, index) => (
+                                <li key={index}>
+                                    <time>
+                                        {Number(event.time.toPrecision(9))} s
+                                    </time>
+                                    {" · "}
+                                    {names[event.block] ?? event.block}
+                                    {" · "}
+                                    {event.kind === "reset" ? "复位" : "穿越"}
+                                    {event.direction > 0 ? " ↑" : " ↓"}
+                                    {" · "}
+                                    {event.surface}
+                                </li>
+                            ))}
+                        </ol>
+                        {eventCount > 50 && (
+                            <p>
+                                显示最近 50 次事件；仿真结果保留完整事件记录。
+                            </p>
+                        )}
+                    </details>
+                </div>
+            )}
             <canvas ref={canvas} aria-label="Scope 仿真结果曲线" role="img" />
         </div>
     );

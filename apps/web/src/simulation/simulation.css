@@ -984,3 +984,79 @@
     outline: 2px solid var(--accent);
     outline-offset: 2px;
 }
+
+.sim-hybrid-fields {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    margin: 12px 14px;
+    min-width: 0;
+}
+.sim-hybrid-fields legend {
+    color: var(--text-muted);
+    font-size: 12px;
+    padding: 0 4px;
+}
+.sim-event-toolbar {
+    display: flex;
+    gap: 16px;
+    padding: 4px 12px;
+    font-size: 12px;
+    align-items: baseline;
+}
+.sim-event-toolbar label {
+    white-space: nowrap;
+}
+.sim-event-toolbar details {
+    flex: 1;
+}
+.sim-event-toolbar summary {
+    cursor: pointer;
+}
+.sim-event-toolbar ol {
+    max-height: 120px;
+    overflow: auto;
+    margin: 6px 0;
+    padding-left: 24px;
+}
+.sim-event-toolbar time {
+    font-variant-numeric: tabular-nums;
+}
+
+.sim-hybrid-port-block .sim-block-value {
+    position: absolute;
+    bottom: 22px;
+    left: 16px;
+    right: 16px;
+    margin: 0;
+}
+.sim-hybrid-port-block .sim-block-kind {
+    position: absolute;
+    bottom: 9px;
+    left: 16px;
+}
+
+.sim-hybrid-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.sim-hybrid-fields label {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+}
+.sim-hybrid-fields label:has(input[type="checkbox"]) {
+    flex-direction: row;
+    align-items: center;
+}
+.sim-hybrid-fields input:not([type="checkbox"]),
+.sim-hybrid-fields select {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+}
+.sim-hybrid-fields .sim-help {
+    margin: 2px 0;
+}

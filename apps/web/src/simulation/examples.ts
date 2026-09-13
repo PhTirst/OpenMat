@@ -1,5 +1,9 @@
+import saturatedPi from "../../../../simulation/examples/saturated-pi.omsim.json";
+import switchedControl from "../../../../simulation/examples/switched-control.omsim.json";
+import periodicReset from "../../../../simulation/examples/periodic-reset.omsim.json";
 import multirateModel from "../../../../simulation/examples/multirate-control.omsim.json";
 import {
+    parseDocument,
     emptyDocument,
     fromModel,
     parseModel,
@@ -46,8 +50,17 @@ export type Example =
     | "customDelay"
     | "massSpring"
     | "piControl"
-    | "multirate";
+    | "multirate"
+    | "saturatedPi"
+    | "switchedControl"
+    | "periodicReset";
 export function example(name: Example): ModelDocument {
+    if (name === "saturatedPi")
+        return parseDocument(JSON.stringify(saturatedPi));
+    if (name === "switchedControl")
+        return parseDocument(JSON.stringify(switchedControl));
+    if (name === "periodicReset")
+        return parseDocument(JSON.stringify(periodicReset));
     if (name === "pendulum") return fromModel(parseModel(pendulumModel));
     if (name === "customDelay") return fromModel(parseModel(delayModel));
     if (name === "massSpring") return fromModel(parseModel(plantModel));

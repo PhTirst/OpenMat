@@ -12,19 +12,26 @@ import {
     type NodeProps,
 } from "@xyflow/react";
 import {
+    kindIcon,
     parameterText,
     ports,
     type Block,
     type BlockType,
     type Point,
 } from "./model";
+import type { ControlOperation } from "./hybrid";
 import type { ComponentDefinition, ComponentIcon } from "./components";
 
 export function BlockIcon({
     type,
     size = 24,
 }: {
-    type: BlockType | ComponentIcon | "unknown";
+    type:
+        | BlockType
+        | ComponentIcon
+        | ControlOperation["type"]
+        | "resetDiscrete"
+        | "unknown";
     size?: number;
 }) {
     const shapes = {
@@ -127,6 +134,46 @@ export function BlockIcon({
                 <path d="M5 14c3 0 2-7 5-7s2 7 5 7 2-5 4-5M8 22h8m-4-3v3" />
             </>
         ),
+        control: <path d="M3 18h5L16 6h5M12 3v18M3 12h18" />,
+        saturation: <path d="M2 18h6L16 6h6M12 2v20M2 12h20" />,
+        switch: (
+            <>
+                <path d="M2 6h5m-5 12h5m10-6h5M8 7l9 5M7 18h1M12 2v5" />
+                <circle cx="17" cy="12" r="1.5" />
+            </>
+        ),
+        relational: (
+            <>
+                <rect x="2" y="3" width="20" height="18" rx="3" />
+                <path d="m9 8 6 4-6 4M8 18h8" />
+            </>
+        ),
+        logical: (
+            <>
+                <path d="M7 3h4a9 9 0 0 1 0 18H7ZM2 7h5m-5 10h5m13-5h2" />
+            </>
+        ),
+        abs: (
+            <>
+                <path d="M3 4v16h18M6 6l6 12 6-12" />
+            </>
+        ),
+        minMax: (
+            <>
+                <path d="m4 9 4-5 4 5m-4-5v16m5-5 4 5 4-5m-4 5V4" />
+            </>
+        ),
+        resetIntegrator: (
+            <>
+                <path d="M14 4c-5-2-3 15-7 13M5 11h11M17 14a4 4 0 1 1-1 6m1-6v4h4" />
+                <path d="M2 3v17" />
+            </>
+        ),
+        resetDiscrete: (
+            <>
+                <path d="M14 3H5l5 7-5 7h8M18 14a4 4 0 1 1-1 6m1-6v4h4" />
+            </>
+        ),
         unknown: (
             <>
                 <rect x="3" y="3" width="18" height="18" rx="3" />
@@ -164,6 +211,10 @@ export const BlockNode = memo(function BlockNode({
     data,
     selected,
 }: NodeProps<FlowBlock>) {
+    const namedPorts =
+        data.block.kind.type === "resetIntegrator" ||
+        (data.block.kind.type === "control" &&
+            data.block.kind.operation.type === "switch");
     const p = ports(data.block, data.component ? [data.component] : undefined);
     const updateNodeInternals = useUpdateNodeInternals();
     const portLayout = `${data.block.kind.type}/${p.inputs.join(",")}/${p.outputs.join(",")}`;
@@ -172,19 +223,22 @@ export const BlockNode = memo(function BlockNode({
     }, [id, portLayout, updateNodeInternals]);
     return (
         <div
-            className={`sim-block ${data.component ? "sim-component-block" : ""} ${selected ? "is-selected" : ""} ${data.invalid ? "is-invalid" : ""}`}
+            className={`sim-block ${data.component ? "sim-component-block" : ""} ${namedPorts ? "sim-hybrid-port-block" : ""} ${selected ? "is-selected" : ""} ${data.invalid ? "is-invalid" : ""}`}
             style={{
                 minHeight: data.component
                     ? Math.max(p.inputs.length, p.outputs.length) * 28 + 82
-                    : Math.max(
-                          92,
-                          Math.max(p.inputs.length, p.outputs.length) * 28 + 36,
-                      ),
+                    : namedPorts
+                      ? 116 + p.inputs.length * 24
+                      : Math.max(
+                            92,
+                            Math.max(p.inputs.length, p.outputs.length) * 28 +
+                                36,
+                        ),
             }}
         >
             <div className="sim-block-title">
                 <BlockIcon
-                    type={data.component?.icon ?? data.block.kind.type}
+                    type={data.component?.icon ?? kindIcon(data.block.kind)}
                 />
                 <span title={data.label}>{data.label}</span>
             </div>
@@ -212,9 +266,11 @@ export const BlockNode = memo(function BlockNode({
                     id={name}
                     isConnectable={!data.readonly}
                     style={{
-                        top: data.component
-                            ? 60 + i * 28
-                            : `${((i + 1) / (p.inputs.length + 1)) * 100}%`,
+                        top: namedPorts
+                            ? 60 + i * 24
+                            : data.component
+                              ? 60 + i * 28
+                              : `${((i + 1) / (p.inputs.length + 1)) * 100}%`,
                     }}
                     title={`${data.label}.${name} · 输入`}
                     aria-label={`${data.label} 输入 ${name}`}
@@ -224,9 +280,14 @@ export const BlockNode = memo(function BlockNode({
                             ? data.block.kind.signs[i] === 1
                                 ? "+"
                                 : "−"
-                            : data.component
+                            : data.block.kind.type === "resetIntegrator"
                               ? name
-                              : ""}
+                              : data.block.kind.type === "control" &&
+                                  data.block.kind.operation.type === "switch"
+                                ? `u${i + 1}`
+                                : data.component
+                                  ? name
+                                  : ""}
                     </span>
                 </Handle>
             ))}
@@ -238,9 +299,11 @@ export const BlockNode = memo(function BlockNode({
                     id={name}
                     isConnectable={!data.readonly}
                     style={{
-                        top: data.component
-                            ? 60 + i * 28
-                            : `${((i + 1) / (p.outputs.length + 1)) * 100}%`,
+                        top: namedPorts
+                            ? 60 + i * 24
+                            : data.component
+                              ? 60 + i * 28
+                              : `${((i + 1) / (p.outputs.length + 1)) * 100}%`,
                     }}
                     title={`${data.label}.${name} · 输出`}
                     aria-label={`${data.label} 输出 ${name}`}

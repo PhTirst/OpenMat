@@ -1,3 +1,4 @@
+import { parseEventPlan, type EventPlan } from "./hybrid";
 import { parseSamplingPlan, type SamplingPlan } from "./sampling";
 import type {
     SlxImport,
@@ -7,8 +8,9 @@ import type {
 } from "./client";
 
 export interface SlxAsset {
-    profile?: "control-v1" | "multirate-v1";
+    profile?: "control-v1" | "multirate-v1" | "hybrid-v1";
     sampling?: SamplingPlan;
+    eventPlan?: EventPlan;
     name: string;
     package: string;
     parameters: string;
@@ -89,7 +91,8 @@ export function validateSlxAsset(raw: unknown): SlxAsset {
     if (
         asset.profile !== undefined &&
         asset.profile !== "control-v1" &&
-        asset.profile !== "multirate-v1"
+        asset.profile !== "multirate-v1" &&
+        asset.profile !== "hybrid-v1"
     )
         throw new Error("不支持的 SLX 导入配置。");
     const packageText = string(asset.package, 2796204);
@@ -183,7 +186,13 @@ export function validateSlxAsset(raw: unknown): SlxAsset {
     return {
         ...(asset.profile === undefined
             ? {}
-            : { profile: asset.profile as "control-v1" | "multirate-v1" }),
+            : {
+                  profile: asset.profile as
+                      "control-v1" | "multirate-v1" | "hybrid-v1",
+              }),
+        ...(asset.eventPlan == null
+            ? {}
+            : { eventPlan: parseEventPlan(asset.eventPlan) }),
         ...(asset.sampling == null
             ? {}
             : { sampling: parseSamplingPlan(asset.sampling) }),

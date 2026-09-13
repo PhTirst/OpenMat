@@ -25,6 +25,7 @@ export function SamplingInspector({
     const definition = componentFor(model, block);
     const fixed =
         block.kind.type === "integrator" ||
+        (block.kind.type === "resetIntegrator" && !block.kind.discrete) ||
         block.kind.type === "scope" ||
         (definition &&
             (definition.continuousStates > 0 ||

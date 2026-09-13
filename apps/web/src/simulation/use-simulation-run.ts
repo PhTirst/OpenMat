@@ -1,3 +1,4 @@
+import { parseEventPlan, type EventPlan } from "./hybrid";
 import { parseSamplingPlan, type SamplingPlan } from "./sampling";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -38,6 +39,7 @@ export function useSimulationRun(url: string | undefined) {
     const [checkedSampling, setCheckedSampling] = useState<{
         source: string;
         plan: SamplingPlan;
+        eventPlan?: EventPlan;
     } | null>(null);
     const [info, setInfo] = useState<RunInfo | null>(null);
     const [diagnostics, setDiagnostics] = useState<SimulationDiagnostic[]>([]);
@@ -97,7 +99,8 @@ export function useSimulationRun(url: string | undefined) {
         const connection = new SimulationClient(url);
         client.current = connection;
         let sequence = 0,
-            values = 0;
+            values = 0,
+            eventRecords = 0;
         const offStatus = connection.onStatus((online, reason) => {
             if (!online) {
                 setConnected(false);
@@ -123,6 +126,7 @@ export function useSimulationRun(url: string | undefined) {
             if (lastRunId !== run.runId) {
                 sequence = 0;
                 values = 0;
+                eventRecords = 0;
                 lastRunId = run.runId;
             }
             if (event.sequence <= sequence) return;
@@ -139,10 +143,12 @@ export function useSimulationRun(url: string | undefined) {
                         throw new Error("Invalid sample order or signal width");
                     last = frame.time;
                     values += frame.values.length;
+                    eventRecords += frame.events?.length ?? 0;
                 }
                 if (
                     frames.current.length + batch.length > 100000 ||
-                    values > 2000000
+                    values > 2000000 ||
+                    eventRecords > 100000
                 )
                     throw new Error("Result bounds exceeded");
                 frames.current.push(...batch);
@@ -227,6 +233,8 @@ export function useSimulationRun(url: string | undefined) {
                     connection.disconnect();
                     throw new Error("运行响应无效。");
                 }
+                if (result.eventPlan)
+                    result.eventPlan = parseEventPlan(result.eventPlan);
                 if (result.sampling)
                     result.sampling = parseSamplingPlan(result.sampling);
                 setCheckedSampling(null);
@@ -265,6 +273,13 @@ export function useSimulationRun(url: string | undefined) {
                     setCheckedSampling({
                         source: numericalSource(model, snapshot),
                         plan: parseSamplingPlan(result.plan.sampling),
+                        ...(result.plan.eventPlan
+                            ? {
+                                  eventPlan: parseEventPlan(
+                                      result.plan.eventPlan,
+                                  ),
+                              }
+                            : {}),
                     });
                 statusRef.current = "idle";
                 setStatus("idle");
